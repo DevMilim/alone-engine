@@ -8,12 +8,12 @@ use crate::{
 };
 
 pub struct EngineContext<'a> {
-    pub input: &'a InputState,
-    pub event_queue: &'a mut VecDeque<EngineCommands>,
-    pub events: &'a mut VecDeque<GlobalEvent>,
-    pub mailbox: &'a mut IndexMap<Id, Vec<Box<dyn Any>>>,
-    pub camera_pos: &'a mut Vector2,
-    pub resources: &'a mut Resources,
+    pub(crate) input: &'a InputState,
+    pub(crate) event_queue: &'a mut VecDeque<EngineCommands>,
+    pub(crate) events: &'a mut VecDeque<GlobalEvent>,
+    pub(crate) mailbox: &'a mut IndexMap<Id, Vec<Box<dyn Any>>>,
+    pub(crate) camera_pos: &'a mut Vector2,
+    pub(crate) resources: &'a mut Resources,
 }
 impl<'a> EngineContext<'a> {
     pub fn new(
