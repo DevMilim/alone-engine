@@ -24,13 +24,13 @@ impl InputState {
         self.mouse_position = Vector2::new(x, y);
     }
     pub fn is_action_pressed(&self, action: &str) -> bool {
-        if let Some(keys) = self.map.bindig.get(action) {
+        if let Some(keys) = self.map.bindings.get(action) {
             return keys.iter().any(|key| self.is_key_pressed(*key));
         }
         false
     }
     pub fn is_action_just_pressed(&self, action: &str) -> bool {
-        if let Some(keys) = self.map.bindig.get(action) {
+        if let Some(keys) = self.map.bindings.get(action) {
             return keys.iter().any(|key| self.is_key_just_pressed(*key));
         }
         false
@@ -57,7 +57,7 @@ impl InputState {
             self.key_pressed.remove(&key);
         }
     }
-    pub fn get_vetor(
+    pub fn get_vector(
         &self,
         action_up: &str,
         action_down: &str,
@@ -99,7 +99,7 @@ impl Default for InputState {
 }
 
 pub struct InputMap {
-    pub bindig: HashMap<String, Vec<KeyCode>>,
+    pub bindings: HashMap<String, Vec<KeyCode>>,
 }
 
 impl Default for InputMap {
@@ -111,10 +111,13 @@ impl Default for InputMap {
 impl InputMap {
     pub fn new() -> Self {
         Self {
-            bindig: HashMap::new(),
+            bindings: HashMap::new(),
         }
     }
     pub fn bind_action(&mut self, action: &str, key: KeyCode) {
-        self.bindig.entry(action.to_string()).or_default().push(key);
+        self.bindings
+            .entry(action.to_string())
+            .or_default()
+            .push(key);
     }
 }

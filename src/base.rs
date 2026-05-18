@@ -6,6 +6,7 @@ pub struct Base {
     pub transform: Transform2D,
     pub pending_removal: bool,
     pub top_level: bool,
+    is_started: bool,
     pub z_index: i32,
 }
 
@@ -17,6 +18,7 @@ impl Base {
             top_level: false,
             id: Id::new(),
             z_index: 0,
+            is_started: false,
         }
     }
     pub fn queue_free(&mut self) {
@@ -36,6 +38,13 @@ pub trait GameObjectBase {
     }
     fn scale(&self) -> Vector2 {
         self.base().transform.scale
+    }
+    fn is_started(&self) -> bool {
+        self.base().is_started
+    }
+
+    fn on_start(&mut self) {
+        self.base_mut().is_started = true
     }
 
     fn global_position(&self) -> Vector2 {

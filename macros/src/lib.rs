@@ -80,7 +80,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         });
         quote! {
-            if let ::milim_2d::GlobalEvent::Broadcast(any_event) = event{
+            if let ::alone_engine::GlobalEvent::Broadcast(any_event) = event{
                 #(#arms)*
             }
         }
@@ -100,7 +100,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         });
         quote! {
-            if let ::milim_2d::GlobalEvent::Targeted(id, any_event) = event{
+            if let ::alone_engine::GlobalEvent::Targeted(id, any_event) = event{
                 if &self.base().id == id{
                     #(#arms)*
                     return;
@@ -142,10 +142,12 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         } else if field.component {
             component_fields.push(ident.clone());
-            bounds.push(quote! {#ty: ::milim_2d::Component});
+            bounds.push(quote! {#ty: ::alone_engine::Component});
         } else if field.object {
             object_fields.push(ident.clone());
-            bounds.push(quote! {#ty: ::milim_2d::GameObject + ::milim_2d::GameObjectDispatch});
+            bounds.push(
+                quote! {#ty: ::alone_engine::GameObject + ::alone_engine::GameObjectDispatch},
+            );
         }
     }
     let apply_transform = quote! {
@@ -155,39 +157,40 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = receiver.generics.split_for_impl();
 
     let where_tokens = if let Some(wc) = where_clause {
-        quote! {#wc,  Self: ::milim_2d::GameObject, #(#bounds),*}
+        quote! {#wc,  Self: ::alone_engine::GameObject, #(#bounds),*}
     } else {
-        quote! {where  Self: ::milim_2d::GameObject, #(#bounds),*}
+        quote! {where  Self: ::alone_engine::GameObject, #(#bounds),*}
     };
     quote! {
-        impl #impl_generics ::milim_2d::GameObjectBase for #struct_name #ty_generics {
-            fn base(&self) -> &::milim_2d::Base {
+        impl #impl_generics ::alone_engine::GameObjectBase for #struct_name #ty_generics {
+            fn base(&self) -> &::alone_engine::Base {
                 &self.#base_field
             }
 
-            fn base_mut(&mut self) -> &mut ::milim_2d::Base {
+            fn base_mut(&mut self) -> &mut ::alone_engine::Base {
                 &mut self.#base_field
             }
         }
-        impl #impl_generics ::milim_2d::GameObjectDispatch for #struct_name #ty_generics #where_tokens {
+        impl #impl_generics ::alone_engine::GameObjectDispatch for #struct_name #ty_generics #where_tokens {
             fn is_pending_removal(&self) -> bool{
                 self.base().pending_removal
             }
-            fn dispatch_start(&mut self, ctx: &mut ::milim_2d::EngineContext, parent_base: &::milim_2d::Base) {
-                #apply_transform
-
+            fn dispatch_start(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base) {
+                if self.is_started(){
+                    return;
+                }
                 #(self.#component_fields.start(ctx, &mut self.#base_field);)*
 
                 self.start(ctx);
                 #( self.#object_fields.dispatch_start(ctx, &self.#base_field); )*
             }
-            fn dispatch_message(&mut self, ctx: &mut ::milim_2d::EngineContext){
+            fn dispatch_message(&mut self, ctx: &mut ::alone_engine::EngineContext){
                 if ctx.mailbox.is_empty(){
                     return;
                 }
                 if let Some(msgs) = ctx.mailbox.remove(&self.base().id){
                     for msg in msgs {
-                        if let Some(message) = msg.downcast_ref::<<Self as ::milim_2d::GameObject>::Message>(){
+                        if let Some(message) = msg.downcast_ref::<<Self as ::alone_engine::GameObject>::Message>(){
                             self.on_message(ctx, message)
                         } else{
                             println!("Tipo de evento incompativel recebido");
@@ -199,15 +202,19 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 }
                 #(self.#object_fields.dispatch_message(ctx);)*
             }
-            fn dispatch_event(&mut self, ctx: &mut ::milim_2d::EngineContext, event: &::milim_2d::GlobalEvent){
+            fn dispatch_event(&mut self, ctx: &mut ::alone_engine::EngineContext, event: &::alone_engine::GlobalEvent){
 
                 #subscribe_block
                 #connect_block
                 #(self.#component_fields.on_event(ctx, &mut self.#base_field, event);)*
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
-            fn dispatch_update(&mut self, ctx: &mut ::milim_2d::EngineContext, parent_base: &::milim_2d::Base, delta: f32) {
+            fn dispatch_update(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base, delta: f32) {
                 #apply_transform
+                if !self.is_started(){
+                    self.dispatch_start(ctx, parent_base);
+                    self.on_start();
+                }
                 #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
 
                 self.update(ctx, delta);
@@ -215,16 +222,24 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #( self.#object_fields.dispatch_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_late_update(&mut self, ctx: &mut ::milim_2d::EngineContext, parent_base: &::milim_2d::Base, delta: f32) {
+            fn dispatch_late_update(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base, delta: f32) {
                 #apply_transform
+                if !self.is_started(){
+                    self.dispatch_start(ctx, parent_base);
+                    self.on_start();
+                }
                 #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
 
                 self.late_update(ctx, delta);
 
                 #( self.#object_fields.dispatch_late_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_fixed_update(&mut self, ctx: &mut ::milim_2d::EngineContext, parent_base: &::milim_2d::Base, delta: f32) {
+            fn dispatch_fixed_update(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base, delta: f32) {
                 #apply_transform
+                if !self.is_started(){
+                    self.dispatch_start(ctx, parent_base);
+                    self.on_start();
+                }
 
                 #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*
 
@@ -233,13 +248,13 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #( self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_draw(&mut self, ctx: &mut ::milim_2d::EngineContext, parent_base: &::milim_2d::Base) {
+            fn dispatch_draw(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base) {
                 #apply_transform
                 #(self.#component_fields.draw(ctx, &self.#base_field);)*
 
                 #( self.#object_fields.dispatch_draw(ctx, &self.#base_field); )*
             }
-            fn dispatch_destroy(&mut self, ctx: &mut ::milim_2d::EngineContext) {
+            fn dispatch_destroy(&mut self, ctx: &mut ::alone_engine::EngineContext) {
                 #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 self.destroy(ctx);
                 #( self.#object_fields.dispatch_destroy(ctx); )*
@@ -280,8 +295,8 @@ pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
     let variants: Vec<_> = data.variants.into_iter().map(|v| v.ident).collect();
 
     quote! {
-        impl ::milim_2d::Scene for #name {
-            fn get_dispatch(&mut self) -> &mut impl ::milim_2d::GameObjectDispatch{
+        impl ::alone_engine::Scene for #name {
+            fn get_dispatch(&mut self) -> &mut impl ::alone_engine::GameObjectDispatch{
                 match self{
                     #(Self::#variants(inner) => inner)*
                 }

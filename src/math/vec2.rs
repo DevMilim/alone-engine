@@ -62,29 +62,22 @@ impl Vector2 {
             v * (max / len_sq.sqrt())
         }
     }
-    pub fn velocity(direction: Self, speed: f32) -> Vector2 {
-        if Vector2::is_zero(direction) {
-            Vector2::ZERO
-        } else {
-            direction.normalize() * speed
-        }
-    }
 
-    pub fn move_towards(pos: &mut Vector2, target: Vector2, speed: f32, delta: f32) {
-        let to_target = target - *pos;
+    pub fn move_towards(&mut self, target: Vector2, speed: f32, delta: f32) {
+        let to_target = target - *self;
         let dist_sq = to_target.length_sq();
 
         if dist_sq < EPS {
-            *pos = target;
+            *self = target;
             return;
         }
         let dist = dist_sq.sqrt();
         let max_step = speed * delta;
         if dist <= max_step {
-            *pos = target;
+            *self = target;
         } else {
             let dir = to_target / dist;
-            *pos += dir * max_step;
+            *self += dir * max_step;
         }
     }
     pub fn from_direction(direction: Self, speed: f32) -> Self {
@@ -142,12 +135,6 @@ impl AddAssign<Vector2> for Vector2 {
     fn add_assign(&mut self, rhs: Vector2) {
         self.x += rhs.x;
         self.y += rhs.y;
-    }
-}
-impl AddAssign<f32> for Vector2 {
-    fn add_assign(&mut self, rhs: f32) {
-        self.x += rhs;
-        self.y += rhs;
     }
 }
 impl SubAssign<Vector2> for Vector2 {
