@@ -1,0 +1,16 @@
+[package]
+name = "alone-engine"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = ["macros"]
+
+[dependencies]
+crossbeam-channel = "0.5.15"
+indexmap = "2.13.0"
+macros = { path = "macros", version = "0.1.0" }
+rodio = "0.22.1"
+uuid = { version = "1.21.0", features = ["v4", "v7"] }
+wgpu = "29.0.3"
+winit = "0.30.13"
