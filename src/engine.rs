@@ -10,8 +10,8 @@ use rodio::DeviceSinkBuilder;
 use winit::keyboard::KeyCode;
 
 use crate::{
-    Base, EngineContext, GameObjectDispatch, GlobalEvent, Id, InputState, Resources, Scene,
-    Transform2D, Vector2,
+    Base, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent, Id, InputState, Resources,
+    Scene, Transform2D, Vector2,
 };
 
 const FIXED_DT: f32 = 1.0 / 60.0;
@@ -30,11 +30,11 @@ pub struct Engine<S: Scene> {
     base: Base,
     is_running: bool,
     pub input: InputState,
-    event_queue: VecDeque<EngineCommands>,
+    pub event_queue: VecDeque<EngineCommands>,
     events: VecDeque<GlobalEvent>,
     mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
     camera_pos: Vector2,
-    resources: Resources,
+    pub resources: Resources,
     _sink_handle: rodio::MixerDeviceSink,
     _players: Mutex<HashMap<String, rodio::Player>>,
     last_instant: Instant,
@@ -46,7 +46,7 @@ impl<S: Scene> Engine<S> {
         let mut sink = DeviceSinkBuilder::open_default_sink().unwrap();
         sink.log_on_drop(false);
         Self {
-            resources: Resources {},
+            resources: Resources::new(),
             objects: vec![main_scene],
             base: Base::new(Transform2D::new(0.0, 0.0)),
             is_running: true,
@@ -61,7 +61,7 @@ impl<S: Scene> Engine<S> {
             accumulator: 0.0,
         }
     }
-    pub fn step(&mut self) -> bool {
+    pub fn update_step(&mut self) -> bool {
         self.input.clear_frame_data();
 
         self.process_commands();
@@ -78,13 +78,13 @@ impl<S: Scene> Engine<S> {
         self.update(delta_time);
 
         self.flush_messages_and_events();
-        self.draw();
         self.is_running
     }
     pub fn push(&mut self, scene: S) {
         self.objects.push(scene);
     }
     pub fn pop(&mut self) {
+        let mut binding = Vec::new();
         let mut ctx = EngineContext::new(
             &self.input,
             &mut self.event_queue,
@@ -92,12 +92,14 @@ impl<S: Scene> Engine<S> {
             &mut self.mailbox,
             &mut self.camera_pos,
             &mut self.resources,
+            &mut binding,
         );
         if let Some(mut scene) = self.objects.pop() {
             scene.get_dispatch().dispatch_destroy(&mut ctx);
         }
     }
     pub fn set_scene(&mut self, scene: S) {
+        let mut binding = Vec::new();
         let mut ctx = EngineContext::new(
             &self.input,
             &mut self.event_queue,
@@ -105,6 +107,7 @@ impl<S: Scene> Engine<S> {
             &mut self.mailbox,
             &mut self.camera_pos,
             &mut self.resources,
+            &mut binding,
         );
         while let Some(mut old_scene) = self.objects.pop() {
             old_scene.get_dispatch().dispatch_destroy(&mut ctx);
@@ -114,6 +117,7 @@ impl<S: Scene> Engine<S> {
     }
 
     pub fn update(&mut self, delta_time: f32) {
+        let mut binding = Vec::new();
         let mut ctx = EngineContext::new(
             &self.input,
             &mut self.event_queue,
@@ -121,6 +125,7 @@ impl<S: Scene> Engine<S> {
             &mut self.mailbox,
             &mut self.camera_pos,
             &mut self.resources,
+            &mut binding,
         );
         if let Some(obj) = self.objects.last_mut() {
             obj.get_dispatch()
@@ -139,7 +144,8 @@ impl<S: Scene> Engine<S> {
                 .dispatch_late_update(&mut ctx, &self.base, delta_time);
         }
     }
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self) -> Vec<DrawCommand> {
+        let mut render_queue = Vec::new();
         let mut ctx = EngineContext::new(
             &self.input,
             &mut self.event_queue,
@@ -147,14 +153,17 @@ impl<S: Scene> Engine<S> {
             &mut self.mailbox,
             &mut self.camera_pos,
             &mut self.resources,
+            &mut render_queue,
         );
         if let Some(obj) = self.objects.last_mut() {
             obj.get_dispatch().dispatch_draw(&mut ctx, &self.base);
         } else {
             self.quit();
         }
+        render_queue
     }
     pub fn flush_messages_and_events(&mut self) {
+        let mut binding = Vec::new();
         let mut ctx = EngineContext::new(
             &self.input,
             &mut self.event_queue,
@@ -162,6 +171,7 @@ impl<S: Scene> Engine<S> {
             &mut self.mailbox,
             &mut self.camera_pos,
             &mut self.resources,
+            &mut binding,
         );
         for _ in 0..10 {
             let mut something_processed = false;

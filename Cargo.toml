@@ -8,8 +8,10 @@ members = ["example", "macros"]
 
 [dependencies]
 crossbeam-channel = "0.5.15"
+image = "0.25.10"
 indexmap = "2.13.0"
 macros = { path = "macros", version = "0.1.0" }
+pollster = "0.4.0"
 rodio = "0.22.2"
 uuid = { version = "1.21.0", features = ["v4", "v7"] }
 wgpu = "29.0.3"

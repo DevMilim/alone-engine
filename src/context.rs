@@ -3,8 +3,8 @@ use std::{any::Any, collections::VecDeque};
 use indexmap::IndexMap;
 
 use crate::{
-    EngineCommands, GameObject, GameObjectDispatch, GlobalEvent, Id, InputState, Resources,
-    SpawnEvent, Vector2,
+    DrawCommand, EngineCommands, GameObject, GameObjectDispatch, GlobalEvent, Handler, Id,
+    ImageAsset, InputState, Resources, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
@@ -14,6 +14,7 @@ pub struct EngineContext<'a> {
     pub mailbox: &'a mut IndexMap<Id, Vec<Box<dyn Any>>>,
     pub camera_pos: &'a mut Vector2,
     pub resources: &'a mut Resources,
+    pub draw_queue: &'a mut Vec<DrawCommand>,
 }
 impl<'a> EngineContext<'a> {
     pub fn new(
@@ -23,6 +24,7 @@ impl<'a> EngineContext<'a> {
         mailbox: &'a mut IndexMap<Id, Vec<Box<dyn Any>>>,
         camera_pos: &'a mut Vector2,
         resources: &'a mut Resources,
+        draw_queue: &'a mut Vec<DrawCommand>,
     ) -> Self {
         Self {
             input,
@@ -31,6 +33,7 @@ impl<'a> EngineContext<'a> {
             mailbox,
             camera_pos,
             resources,
+            draw_queue,
         }
     }
 
@@ -52,6 +55,17 @@ impl<'a> EngineContext<'a> {
     }
     pub fn spawn<T: GameObject + GameObjectDispatch + 'static>(&mut self, obj: T) {
         self.emit(SpawnEvent::new(obj));
+    }
+    pub fn draw(&mut self, command: DrawCommand) {
+        self.draw_queue.push(command);
+    }
+    pub fn load_texture(&mut self, path: &str) -> Handler<ImageAsset> {
+        if let Some(id) = self.resources.textures.get_id(path) {
+            return Handler::new(id);
+        }
+
+        let texture_asset = ImageAsset::load_from_file(path);
+        self.resources.textures.insert(path, texture_asset)
     }
     pub fn quit(&mut self) {
         self.event_queue.push_back(EngineCommands::Quit);
