@@ -1,0 +1,14 @@
+[package]
+name = "engine_runtime"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine_assets = { version = "0.1.0", path = "../engine_assets" }
+engine_audio = { version = "0.1.0", path = "../engine_audio" }
+engine_core = { version = "0.1.0", path = "../engine_core" }
+engine_event = { version = "0.1.0", path = "../engine_event" }
+engine_input = { version = "0.1.0", path = "../engine_input" }
+engine_math = { version = "0.1.0", path = "../engine_math" }
+engine_render = { version = "0.1.0", path = "../engine_render" }
+indexmap = "2.13.0"

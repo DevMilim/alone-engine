@@ -1,0 +1,11 @@
+[package]
+name = "engine_render"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wgpu = "29.0.3"
+winit = "0.30.13"
+pollster = "0.4.0"
+engine_core = { version = "0.1.0", path = "../engine_core" }
+engine_assets = { version = "0.1.0", path = "../engine_assets" }

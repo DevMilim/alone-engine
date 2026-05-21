@@ -1,28 +1,11 @@
-mod aplication;
-mod audio;
-mod base;
-mod colision;
-mod components;
-mod context;
-mod core;
-mod engine;
-mod event;
-mod input;
-mod math;
-mod render;
-mod resource;
-mod scene;
-
-pub use aplication::*;
-pub use base::*;
-pub use colision::*;
-pub use context::*;
-pub use core::*;
-pub use engine::*;
-pub use event::*;
-pub use input::*;
-pub use macros::*;
-pub use math::*;
-pub use render::*;
-pub use resource::*;
-pub use scene::*;
+pub mod prelude {
+    pub use engine_assets::*;
+    pub use engine_audio::*;
+    pub use engine_core::*;
+    pub use engine_event::*;
+    pub use engine_input::*;
+    pub use engine_macros::*;
+    pub use engine_math::*;
+    pub use engine_render::*;
+    pub use engine_runtime::*;
+}

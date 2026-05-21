@@ -4,15 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace]
-members = ["example", "macros"]
+resolver = "3"
+members = ["crates/*", "example"]
 
 [dependencies]
-crossbeam-channel = "0.5.15"
-image = "0.25.10"
-indexmap = "2.13.0"
-macros = { path = "macros", version = "0.1.0" }
-pollster = "0.4.0"
-rodio = "0.22.2"
-uuid = { version = "1.21.0", features = ["v4", "v7"] }
-wgpu = "29.0.3"
-winit = "0.30.13"
+engine_assets = { version = "0.1.0", path = "crates/engine_assets" }
+engine_audio = { version = "0.1.0", path = "crates/engine_audio" }
+engine_core = { version = "0.1.0", path = "crates/engine_core" }
+engine_event = { version = "0.1.0", path = "crates/engine_event" }
+engine_input = { version = "0.1.0", path = "crates/engine_input" }
+engine_macros = { version = "0.1.0", path = "crates/engine_macros" }
+engine_math = { version = "0.1.0", path = "crates/engine_math" }
+engine_render = { version = "0.1.0", path = "crates/engine_render" }
+engine_runtime = { version = "0.1.0", path = "crates/engine_runtime" }
