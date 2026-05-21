@@ -8,12 +8,12 @@ resolver = "3"
 members = ["crates/*", "example"]
 
 [dependencies]
-engine_assets = { version = "0.1.0", path = "crates/engine_assets" }
-engine_audio = { version = "0.1.0", path = "crates/engine_audio" }
-engine_core = { version = "0.1.0", path = "crates/engine_core" }
-engine_event = { version = "0.1.0", path = "crates/engine_event" }
-engine_input = { version = "0.1.0", path = "crates/engine_input" }
-engine_macros = { version = "0.1.0", path = "crates/engine_macros" }
-engine_math = { version = "0.1.0", path = "crates/engine_math" }
-engine_render = { version = "0.1.0", path = "crates/engine_render" }
-engine_runtime = { version = "0.1.0", path = "crates/engine_runtime" }
+assets = { version = "0.1.0", path = "crates/assets" }
+audio = { version = "0.1.0", path = "crates/audio" }
+core = { version = "0.1.0", path = "crates/core" }
+event = { version = "0.1.0", path = "crates/event" }
+input = { version = "0.1.0", path = "crates/input" }
+macros = { version = "0.1.0", path = "crates/macros" }
+math = { version = "0.1.0", path = "crates/math" }
+render = { version = "0.1.0", path = "crates/render" }
+runtime = { version = "0.1.0", path = "crates/runtime" }

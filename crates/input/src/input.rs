@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use engine_core::Vector2;
+use core::Vector2;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum KeyCode {}

@@ -1,6 +1,6 @@
-use std::{collections::HashMap, marker::PhantomData, path::Path};
+use std::{collections::HashMap, path::Path};
 
-use engine_core::Handler;
+use core::Handler;
 
 pub struct AssetCache<T> {
     assets: HashMap<usize, T>,

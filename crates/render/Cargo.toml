@@ -1,0 +1,11 @@
+[package]
+name = "render"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wgpu = "29.0.3"
+winit = "0.30.13"
+pollster = "0.4.0"
+core = { version = "0.1.0", path = "../core" }
+assets = { version = "0.1.0", path = "../assets" }

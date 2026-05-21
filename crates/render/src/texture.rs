@@ -1,4 +1,4 @@
-use engine_assets::ImageAsset;
+use assets::ImageAsset;
 use wgpu::{BindGroup, Sampler, TexelCopyBufferLayout, TexelCopyTextureInfoBase, TextureView};
 
 #[derive(Debug, Clone, PartialEq)]

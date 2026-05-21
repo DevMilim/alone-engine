@@ -1,11 +1,11 @@
 use std::{any::Any, collections::VecDeque};
 
-use engine_assets::{ImageAsset, Resources};
-use engine_core::{EngineApi, GameObject, GameObjectDispatch, GlobalEvent, Handler, Id, Vector2};
-use engine_event::SpawnEvent;
-use engine_input::InputState;
-use engine_render::DrawCommand;
+use assets::{ImageAsset, Resources};
+use core::{EngineApi, GameObject, GameObjectDispatch, GlobalEvent, Handler, Id, Vector2};
+use event::SpawnEvent;
 use indexmap::IndexMap;
+use input::InputState;
+use render::DrawCommand;
 
 use crate::engine::EngineCommands;
 

@@ -1,0 +1,14 @@
+[package]
+name = "runtime"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+assets = { version = "0.1.0", path = "../assets" }
+audio = { version = "0.1.0", path = "../audio" }
+core = { version = "0.1.0", path = "../core" }
+event = { version = "0.1.0", path = "../event" }
+input = { version = "0.1.0", path = "../input" }
+math = { version = "0.1.0", path = "../math" }
+render = { version = "0.1.0", path = "../render" }
+indexmap = "2.13.0"

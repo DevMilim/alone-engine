@@ -1,6 +1,5 @@
-use engine_assets::ImageAsset;
-use engine_core::{Handler, Vector2};
-use wgpu::{BindGroup, Sampler, TextureView};
+use assets::ImageAsset;
+use core::{Handler, Vector2};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {

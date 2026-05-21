@@ -1,6 +1,6 @@
 use std::{any::Any, cell::RefCell};
 
-use engine_core::{GameObject, GameObjectDispatch, Id};
+use core::{GameObject, GameObjectDispatch, Id};
 
 pub struct SpawnEvent<T> {
     payload: RefCell<Option<T>>,
