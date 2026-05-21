@@ -1,12 +1,12 @@
-use std::{any::Any, cell::RefCell};
+use std::cell::RefCell;
 
-use core::{GameObject, GameObjectDispatch, Id};
+use core::GameObject;
 
 pub struct SpawnEvent<T> {
     payload: RefCell<Option<T>>,
 }
 
-impl<T: GameObject + GameObjectDispatch> SpawnEvent<T> {
+impl<T: GameObject + GameObject> SpawnEvent<T> {
     pub fn new(obj: T) -> Self {
         Self {
             payload: RefCell::new(Some(obj)),

@@ -9,3 +9,4 @@ winit = "0.30.13"
 pollster = "0.4.0"
 core = { version = "0.1.0", path = "../core" }
 assets = { version = "0.1.0", path = "../assets" }
+bytemuck = "1.25.0"

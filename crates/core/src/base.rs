@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::{Id, Transform2D, Vector2};
 
 #[derive(Clone)]
@@ -23,6 +25,12 @@ impl Base {
     }
     pub fn queue_free(&mut self) {
         self.pending_removal = true;
+    }
+}
+
+impl Default for Base {
+    fn default() -> Self {
+        Base::new(Transform2D::EMPTY)
     }
 }
 

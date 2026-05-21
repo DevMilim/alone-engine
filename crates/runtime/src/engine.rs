@@ -1,12 +1,12 @@
 use std::{any::Any, collections::VecDeque, time::Instant};
 
 use assets::Resources;
-use core::{Base, GameObjectDispatch, GlobalEvent, Id, Transform2D, Vector2};
+use core::{Base, GlobalEvent, Id, Transform2D, Vector2};
 use indexmap::IndexMap;
 use input::{InputState, KeyCode};
 use render::DrawCommand;
 
-use crate::{context::EngineContext, scene::Scene};
+use crate::{GameObjectDispatch, context::EngineContext, scene::Scene};
 
 const FIXED_DT: f32 = 1.0 / 60.0;
 const MAX_ACCUM: f32 = 0.5;

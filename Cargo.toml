@@ -14,6 +14,5 @@ core = { version = "0.1.0", path = "crates/core" }
 event = { version = "0.1.0", path = "crates/event" }
 input = { version = "0.1.0", path = "crates/input" }
 macros = { version = "0.1.0", path = "crates/macros" }
-math = { version = "0.1.0", path = "crates/math" }
 render = { version = "0.1.0", path = "crates/render" }
 runtime = { version = "0.1.0", path = "crates/runtime" }
