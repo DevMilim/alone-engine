@@ -1,7 +1,7 @@
 use std::{any::Any, collections::VecDeque};
 
 use engine_assets::{ImageAsset, Resources};
-use engine_core::{GameObject, GameObjectDispatch, GlobalEvent, Handler, Id, Vector2};
+use engine_core::{EngineApi, GameObject, GameObjectDispatch, GlobalEvent, Handler, Id, Vector2};
 use engine_event::SpawnEvent;
 use engine_input::InputState;
 use engine_render::DrawCommand;
@@ -18,6 +18,7 @@ pub struct EngineContext<'a> {
     pub resources: &'a mut Resources,
     pub draw_queue: &'a mut Vec<DrawCommand>,
 }
+impl<'a> EngineApi for EngineContext<'a> {}
 impl<'a> EngineContext<'a> {
     pub fn new(
         input: &'a InputState,

@@ -1,7 +1,7 @@
 use std::{any::Any, collections::VecDeque, time::Instant};
 
 use engine_assets::Resources;
-use engine_core::{Base, GlobalEvent, Id, Transform2D, Vector2};
+use engine_core::{Base, GameObjectDispatch, GlobalEvent, Id, Transform2D, Vector2};
 use engine_input::{InputState, KeyCode};
 use engine_render::DrawCommand;
 use indexmap::IndexMap;
