@@ -1,42 +1,34 @@
 use std::sync::Arc;
 
+use pixels::{Pixels, SurfaceTexture};
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
+const WIDTH: u32 = 320;
+const HEIGHT: u32 = 240;
+const BOX_SIZE: i16 = 64;
 
-use crate::State;
-
-struct App {
-    state: Option<State>,
+struct World {
+    box_x: i16,
+    box_y: i16,
+    velocity_x: i16,
+    velocity_y: i16,
+}
+struct App<'a> {
+    state: Option<Pixels<'a>>,
 }
 
-impl App {
+impl<'a> App<'a> {
     pub fn new() -> Self {
         Self { state: None }
     }
 }
 
-impl ApplicationHandler for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        // Create window object
-        let window = Arc::new(
-            event_loop
-                .create_window(Window::default_attributes())
-                .unwrap(),
-        );
-
-        let state = pollster::block_on(State::new(
-            event_loop.owned_display_handle(),
-            window.clone(),
-        ));
-
-        self.state = Some(state);
-
-        window.request_redraw();
-    }
+impl<'a> ApplicationHandler for App<'a> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {}
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let state = self.state.as_mut().unwrap();
@@ -44,6 +36,7 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
+
             WindowEvent::KeyboardInput { event, .. } => {
                 /*
                 if let PhysicalKey::Code(keycode) = event.physical_key {
@@ -69,22 +62,64 @@ impl ApplicationHandler for App {
                     ));
                      */
             }
-            WindowEvent::RedrawRequested => {
-                state.render();
-                // Emits a new redraw requested event.
-                state.get_window().request_redraw();
-            }
+            WindowEvent::RedrawRequested => {}
             WindowEvent::Resized(size) => {
                 // Reconfigures the size of the surface. We do not re-render
                 // here as this event is always followed up by redraw request.
-                state.resize(size);
             }
             _ => (),
         }
     }
 }
 
-pub fn run() {
+impl World {
+    /// Create a new `World` instance that can draw a moving box.
+    fn new() -> Self {
+        Self {
+            box_x: 24,
+            box_y: 16,
+            velocity_x: 1,
+            velocity_y: 1,
+        }
+    }
+
+    /// Update the `World` internal state; bounce the box around the screen.
+    fn update(&mut self) {
+        if self.box_x <= 0 || self.box_x + BOX_SIZE > WIDTH as i16 {
+            self.velocity_x *= -1;
+        }
+        if self.box_y <= 0 || self.box_y + BOX_SIZE > HEIGHT as i16 {
+            self.velocity_y *= -1;
+        }
+
+        self.box_x += self.velocity_x;
+        self.box_y += self.velocity_y;
+    }
+
+    /// Draw the `World` state to the frame buffer.
+    ///
+    /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
+    fn draw(&self, frame: &mut [u8]) {
+        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            let x = (i % WIDTH as usize) as i16;
+            let y = (i / WIDTH as usize) as i16;
+
+            let inside_the_box = x >= self.box_x
+                && x < self.box_x + BOX_SIZE
+                && y >= self.box_y
+                && y < self.box_y + BOX_SIZE;
+
+            let rgba = if inside_the_box {
+                [0x5e, 0x48, 0xe8, 0xff]
+            } else {
+                [0x48, 0xb2, 0xe8, 0xff]
+            };
+
+            pixel.copy_from_slice(&rgba);
+        }
+    }
+}
+pub fn run_render() {
     let event_loop = EventLoop::new().unwrap();
 
     event_loop.set_control_flow(ControlFlow::Poll);

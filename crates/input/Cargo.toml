@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 core = { version = "0.1.0", path = "../core" }
+winit = "0.30.13"
