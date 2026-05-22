@@ -3,6 +3,7 @@ use std::sync::Arc;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     application::ApplicationHandler,
+    dpi::LogicalSize,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
@@ -19,16 +20,39 @@ struct World {
 }
 struct App<'a> {
     state: Option<Pixels<'a>>,
+    window: Option<Arc<Window>>,
+    word: World,
 }
 
 impl<'a> App<'a> {
     pub fn new() -> Self {
-        Self { state: None }
+        Self {
+            state: None,
+            window: None,
+            word: World::new(),
+        }
     }
 }
 
 impl<'a> ApplicationHandler for App<'a> {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {}
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let attrs = Window::default_attributes()
+            .with_title("winit + pixels")
+            .with_inner_size(LogicalSize::new(800.0, 600.0));
+
+        let window = Arc::new(event_loop.create_window(attrs).unwrap());
+
+        let pixels = {
+            let window_size = window.inner_size();
+            let surface_texture =
+                SurfaceTexture::new(window_size.width, window_size.height, window.clone());
+            Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
+        };
+
+        self.state = Some(pixels);
+        window.request_redraw();
+        self.window = Some(window);
+    }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let state = self.state.as_mut().unwrap();
@@ -62,7 +86,14 @@ impl<'a> ApplicationHandler for App<'a> {
                     ));
                      */
             }
-            WindowEvent::RedrawRequested => {}
+            WindowEvent::RedrawRequested => {
+                self.word.update();
+
+                self.word.draw(state.frame_mut());
+
+                let _ = self.state.as_mut().unwrap().render();
+                self.window.as_mut().unwrap().request_redraw();
+            }
             WindowEvent::Resized(size) => {
                 // Reconfigures the size of the surface. We do not re-render
                 // here as this event is always followed up by redraw request.
