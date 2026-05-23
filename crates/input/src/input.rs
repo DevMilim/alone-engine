@@ -2,8 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use core::Vector2;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum KeyCode {}
+use winit::keyboard::KeyCode;
 
 pub struct InputState {
     key_pressed: HashSet<KeyCode>,

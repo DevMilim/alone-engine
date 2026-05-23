@@ -2,7 +2,7 @@ use std::{any::Any, sync::LazyLock};
 
 use uuid::Uuid;
 
-use crate::{Base, EngineApi, GameObjectBase, Transform2D};
+use crate::{Base, EngineApi, GameObjectBase, RenderApi, Transform2D};
 
 pub enum GlobalEvent {
     Broadcast(Box<dyn Any>),
@@ -41,7 +41,7 @@ pub trait GameObject: GameObjectBase {
     /// Metodo com execução fixa a 60 fps
     fn fixed_update(&mut self, _ctx: &mut impl EngineApi, _delta: f32) {}
     /// Metodo recomendado para utilizar para desenho quando não quiser utilizar componentes de desenho
-    fn draw(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
+    fn draw(&mut self, _renderer: &mut impl RenderApi) {}
     /// Metodo chamado quando um GameObject executa o metodo self.queue_free() usado para desalocação de recursos ou configuração ao ser removido da cena
     fn destroy(&mut self, _ctx: &mut impl EngineApi) {}
 }
@@ -52,7 +52,7 @@ pub trait Component {
     fn late_update(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _delta: f32) {}
     fn on_event(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _event: &GlobalEvent) {}
     fn fixed_update(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _delta: f32) {}
-    fn draw(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
+    fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &Base) {}
     fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
 }
 

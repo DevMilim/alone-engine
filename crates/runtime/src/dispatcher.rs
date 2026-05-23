@@ -1,4 +1,4 @@
-use core::{Base, EngineApi, GameObject, GlobalEvent};
+use core::{Base, EngineApi, GameObject, GlobalEvent, RenderApi};
 
 pub trait GameObjectDispatch {
     fn is_pending_removal(&self) -> bool {
@@ -10,7 +10,7 @@ pub trait GameObjectDispatch {
     fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent);
     fn dispatch_message(&mut self, ctx: &mut impl EngineApi);
-    fn dispatch_draw(&mut self, ctx: &mut impl EngineApi, base: &Base);
+    fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base);
     fn dispatch_destroy(&mut self, ctx: &mut impl EngineApi);
 }
 
@@ -59,7 +59,7 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Vec<T> {
         });
     }
 
-    fn dispatch_draw(&mut self, ctx: &mut impl EngineApi, base: &Base) {
+    fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base) {
         for obj in self.iter_mut() {
             obj.dispatch_draw(ctx, base);
         }
@@ -131,13 +131,9 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
         }
     }
 
-    fn dispatch_draw(&mut self, ctx: &mut impl EngineApi, base: &Base) {
+    fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base) {
         if let Some(obj) = self.as_mut() {
             obj.dispatch_draw(ctx, base);
-            if obj.is_pending_removal() {
-                obj.dispatch_destroy(ctx);
-                *self = None;
-            }
         }
     }
 

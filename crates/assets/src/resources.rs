@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use core::Handler;
+use image::imageops::FilterType;
 
 pub struct AssetCache<T> {
     assets: HashMap<usize, T>,
@@ -16,23 +16,23 @@ impl<T> AssetCache<T> {
             next_id: 0,
         }
     }
-    fn current_id(&mut self) -> Handler<T> {
+    fn current_id(&mut self) -> usize {
         self.next_id += 1;
-        Handler::new(self.next_id)
+        self.next_id
     }
     pub fn get_id(&self, path: &str) -> Option<usize> {
         self.path_map.get(path).copied()
     }
-    pub fn get(&self, id: Handler<T>) -> Option<&T> {
-        self.assets.get(&id.id)
+    pub fn get(&self, id: usize) -> Option<&T> {
+        self.assets.get(&id)
     }
-    pub fn get_mut(&mut self, id: Handler<T>) -> Option<&mut T> {
-        self.assets.get_mut(&id.id)
+    pub fn get_mut(&mut self, id: usize) -> Option<&mut T> {
+        self.assets.get_mut(&id)
     }
-    pub fn insert(&mut self, path: &str, asset: T) -> Handler<T> {
+    pub fn insert(&mut self, path: &str, asset: T) -> usize {
         let id = self.current_id();
-        self.assets.insert(id.id, asset);
-        self.path_map.insert(path.to_string(), id.id);
+        self.assets.insert(id, asset);
+        self.path_map.insert(path.to_string(), id);
         id
     }
     pub fn clear(&mut self) {
@@ -73,6 +73,19 @@ impl ImageAsset {
     pub fn load_from_file(path: &str) -> Self {
         let img = image::open(Path::new(path)).expect("Falha ao carregar textura");
         let rgba = img.to_rgba8();
+
+        let dimensions = rgba.dimensions();
+
+        Self {
+            width: dimensions.0,
+            height: dimensions.1,
+            pixels: rgba.to_vec(),
+        }
+    }
+    pub fn load_from_file_and_resize(path: &str, width: u32, height: u32) -> Self {
+        let img = image::open(Path::new(path)).expect("Falha ao carregar textura");
+        let resize = img.resize(width, height, FilterType::CatmullRom);
+        let rgba = resize.to_rgba8();
 
         let dimensions = rgba.dimensions();
 

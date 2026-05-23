@@ -1,16 +1,35 @@
-use crate::{GameObject, Id};
+use std::any::Any;
 
-pub trait EngineApi: InputApi + AssetApi + EventApi + RenderApi + AudioApi {
+use indexmap::IndexMap;
+use math::Vector2;
+use winit::keyboard::KeyCode;
+
+use crate::{DrawCommand, GameObject, Id, TextureHandler};
+
+pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi {
     fn quit(&mut self);
+    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
 }
-pub trait InputApi {}
+pub trait InputApi {
+    fn is_key_pressed(&self, key: KeyCode) -> bool;
+    fn is_key_just_pressed(&self, key: KeyCode) -> bool;
+    fn mouse_position(&self) -> Vector2;
+    fn is_action_pressed(&self, action: &str) -> bool;
+    fn is_action_just_pressed(&self, action: &str) -> bool;
+}
 
-pub trait AssetApi {}
+pub trait AssetApi {
+    fn load_texture(&mut self, path: &str) -> TextureHandler;
+    fn load_texture_and_resize(&mut self, path: &str, width: u32, height: u32) -> TextureHandler;
+}
 pub trait EventApi {
     fn send<T: 'static>(&mut self, id: Id, message: T);
     fn emit<T: 'static>(&mut self, event: T);
     fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
     fn spawn<T: GameObject + 'static>(&mut self, obj: T);
+    fn mail_box_is_empty(&self) -> bool;
 }
-pub trait RenderApi {}
+pub trait RenderApi {
+    fn draw(&mut self, command: DrawCommand);
+}
 pub trait AudioApi {}

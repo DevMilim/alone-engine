@@ -1,26 +1,11 @@
-use std::marker::PhantomData;
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Handler<T> {
-    pub id: usize,
-    _phantom: PhantomData<T>,
-}
-
-impl<T> Handler<T> {
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct TextureHandler(usize);
+impl TextureHandler {
     pub fn new(id: usize) -> Self {
-        Self {
-            id,
-            _phantom: PhantomData,
-        }
+        Self(id)
     }
-}
 
-impl<T> Copy for Handler<T> {}
-impl<T> Clone for Handler<T> {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id.clone(),
-            _phantom: self._phantom.clone(),
-        }
+    pub fn id(self) -> usize {
+        self.0
     }
 }

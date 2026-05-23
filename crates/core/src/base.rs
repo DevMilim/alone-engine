@@ -9,7 +9,7 @@ pub struct Base {
     pub pending_removal: bool,
     pub top_level: bool,
     is_started: bool,
-    pub z_index: i32,
+    pub z_index: usize,
 }
 
 impl Base {
@@ -88,10 +88,10 @@ pub trait GameObjectBase {
     fn queue_free(&mut self) {
         self.base_mut().pending_removal = true;
     }
-    fn z_index(&self) -> i32 {
+    fn z_index(&self) -> usize {
         self.base().z_index
     }
-    fn set_z_index(&mut self, z_index: i32) {
+    fn set_z_index(&mut self, z_index: usize) {
         self.base_mut().z_index = z_index;
     }
 }

@@ -175,7 +175,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             fn is_pending_removal(&self) -> bool{
                 self.base().pending_removal
             }
-            fn dispatch_start(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base) {
+            fn dispatch_start(&mut self, ctx: &mut impl ::alone_engine::EngineApi, parent_base: &::alone_engine::Base) {
                 if self.is_started(){
                     return;
                 }
@@ -184,32 +184,37 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 self.start(ctx);
                 #( self.#object_fields.dispatch_start(ctx, &self.#base_field); )*
             }
-            fn dispatch_message(&mut self, ctx: &mut ::alone_engine::EngineContext){
-                if ctx.mailbox.is_empty(){
-                    return;
+            fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::EngineApi){
+                {
+                    if ctx.mail_box_is_empty(){
+                        return;
+                    }
                 }
-                if let Some(msgs) = ctx.mailbox.remove(&self.base().id){
-                    for msg in msgs {
-                        if let Some(message) = msg.downcast_ref::<<Self as ::alone_engine::GameObject>::Message>(){
-                            self.on_message(ctx, message)
-                        } else{
-                            println!("Tipo de evento incompativel recebido");
+                {
+                    let mailbox = ctx.mailbox();
+                    if let Some(msgs) = mailbox.remove(&self.base().id){
+                        for msg in msgs {
+                            if let Some(message) = msg.downcast_ref::<<Self as ::alone_engine::GameObject>::Message>(){
+                                self.on_message(ctx, message)
+                            } else{
+                                println!("Tipo de evento incompativel recebido");
+                            }
                         }
                     }
                 }
-                if ctx.mailbox.is_empty(){
+                if ctx.mail_box_is_empty(){
                     return;
                 }
                 #(self.#object_fields.dispatch_message(ctx);)*
             }
-            fn dispatch_event(&mut self, ctx: &mut ::alone_engine::EngineContext, event: &::alone_engine::GlobalEvent){
+            fn dispatch_event(&mut self, ctx: &mut impl ::alone_engine::EngineApi, event: &::alone_engine::GlobalEvent){
 
                 #subscribe_block
                 #connect_block
                 #(self.#component_fields.on_event(ctx, &mut self.#base_field, event);)*
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
-            fn dispatch_update(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base, delta: f32) {
+            fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::EngineApi, parent_base: &::alone_engine::Base, delta: f32) {
                 #apply_transform
                 if !self.is_started(){
                     self.dispatch_start(ctx, parent_base);
@@ -222,7 +227,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #( self.#object_fields.dispatch_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_late_update(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base, delta: f32) {
+            fn dispatch_late_update(&mut self, ctx: &mut impl ::alone_engine::EngineApi, parent_base: &::alone_engine::Base, delta: f32) {
                 #apply_transform
                 if !self.is_started(){
                     self.dispatch_start(ctx, parent_base);
@@ -234,7 +239,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #( self.#object_fields.dispatch_late_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_fixed_update(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base, delta: f32) {
+            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::alone_engine::EngineApi, parent_base: &::alone_engine::Base, delta: f32) {
                 #apply_transform
                 if !self.is_started(){
                     self.dispatch_start(ctx, parent_base);
@@ -248,13 +253,15 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #( self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_draw(&mut self, ctx: &mut ::alone_engine::EngineContext, parent_base: &::alone_engine::Base) {
+            fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::RenderApi, parent_base: &::alone_engine::Base) {
                 #apply_transform
-                #(self.#component_fields.draw(ctx, &self.#base_field);)*
+                #(self.#component_fields.draw(renderer, &self.#base_field);)*
 
+                self.draw(renderer);
                 #( self.#object_fields.dispatch_draw(ctx, &self.#base_field); )*
+
             }
-            fn dispatch_destroy(&mut self, ctx: &mut ::alone_engine::EngineContext) {
+            fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::EngineApi) {
                 #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 self.destroy(ctx);
                 #( self.#object_fields.dispatch_destroy(ctx); )*
