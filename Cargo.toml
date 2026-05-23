@@ -5,14 +5,12 @@ edition = "2024"
 
 [workspace]
 resolver = "3"
-members = ["crates/*", "example"]
+members = ["macros", "example"]
 
 [dependencies]
-assets = { version = "0.1.0", path = "crates/assets" }
-audio = { version = "0.1.0", path = "crates/audio" }
-core = { version = "0.1.0", path = "crates/core" }
-event = { version = "0.1.0", path = "crates/event" }
-input = { version = "0.1.0", path = "crates/input" }
-macros = { version = "0.1.0", path = "crates/macros" }
-render = { version = "0.1.0", path = "crates/render" }
-runtime = { version = "0.1.0", path = "crates/runtime" }
+image = "0.25.10"
+indexmap = "2.14.0"
+macros = { version = "0.1.0", path = "macros" }
+pixels = "0.17.1"
+uuid = { version = "1.23.1", features = ["v7"] }
+winit = "0.30.13"

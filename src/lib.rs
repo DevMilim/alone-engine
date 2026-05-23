@@ -1,18 +1,20 @@
+mod assets;
+mod audio;
+mod collision;
+mod core;
+mod event;
+mod input;
+mod math;
+mod render;
+mod runtime;
+
 pub use assets::*;
 pub use audio::*;
+pub use collision::*;
 pub use core::*;
 pub use event::*;
 pub use input::*;
 pub use macros::*;
+pub use math::*;
 pub use render::*;
 pub use runtime::*;
-pub mod prelude {
-    pub use assets::*;
-    pub use audio::*;
-    pub use core::*;
-    pub use event::*;
-    pub use input::*;
-    pub use macros::*;
-    pub use render::*;
-    pub use runtime::*;
-}

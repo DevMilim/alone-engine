@@ -1,31 +1,33 @@
-use alone_engine::prelude::*;
+use alone_engine::*;
 
 #[derive(GameObject)]
 pub struct Player {
     #[game(base)]
     base: Base,
     position: Vector2,
-    texture: Option<TextureHandler>,
+    texture: Option<Handler<ImageAsset>>,
 }
 
 impl GameObject for Player {
     type Message = ();
     fn start(&mut self, _ctx: &mut impl EngineApi) {
-        let texture = _ctx.load_texture("./assets/player.png");
+        let texture = _ctx.load_texture("./assets/triangle.png");
         self.texture = Some(texture);
         println!("Start")
     }
     fn draw(&mut self, render: &mut impl RenderApi) {
         if let Some(texture) = self.texture {
-            render.draw(DrawCommand {
-                cmd_type: DrawCommandType::Sprite,
-                material: DrawData {
-                    pos: self.position.clone(),
-                    image: texture,
-                    ..Default::default()
+            render.draw(
+                self.z_index(),
+                DrawCommand {
+                    cmd_type: DrawCommandType::Sprite,
+                    material: DrawData {
+                        rect: Rect::new(self.position.x, self.position.y, 0, 0),
+                        image: texture,
+                        ..Default::default()
+                    },
                 },
-                z_index: self.z_index(),
-            });
+            );
         }
     }
     fn fixed_update(&mut self, _ctx: &mut impl EngineApi, _delta: f32) {
@@ -48,6 +50,5 @@ fn main() {
     };
 
     let main_scene = GameScenes::MainScene(player);
-    let engine = Engine::new(main_scene);
-    engine.run();
+    run_application(main_scene);
 }
