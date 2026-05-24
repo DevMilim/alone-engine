@@ -14,11 +14,11 @@ pub struct Player {
 impl GameObject for Player {
     type Message = ();
     fn start(&mut self, _ctx: &mut impl EngineApi) {
-        let texture = _ctx.load_texture("./assets/triangle.png");
+        let texture = _ctx.load_texture("./assets/player.png");
         self.texture = Some(texture);
         println!("Start")
     }
-    fn draw(&mut self, render: &mut impl RenderApi) {
+    fn draw(&mut self, render: &mut impl RenderApi, blending: f32) {
         if let Some(texture) = self.texture {
             render.draw(
                 self.z_index(),
@@ -68,7 +68,7 @@ fn main() {
             active: true,
             lerp_speed: 10.0,
             deadzone: Vector2::new(50.0, 50.0),
-            half: Vector2::new(64.0, 64.0),
+            half: Vector2::new(32.0, 32.0),
             ..Default::default()
         },
     };

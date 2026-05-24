@@ -262,12 +262,15 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
 
                 self.last_frame = Instant::now();
                 state.frame_mut().fill(255);
-                self.runtime.update_step();
+                let (is_running, blending) = self.runtime.update_step();
 
-                self.runtime.render(&mut self.queue);
+                self.runtime.render(&mut self.queue, blending);
                 self.render();
 
                 let _ = self.state.as_mut().unwrap().render();
+                if !is_running {
+                    event_loop.exit();
+                }
                 self.window.as_mut().unwrap().request_redraw();
             }
             WindowEvent::Resized(size) => {

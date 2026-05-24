@@ -71,4 +71,5 @@ impl Component for Camera2D {
 
         self.position = *cam;
     }
+    fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &crate::Base, _blending: f32) {}
 }

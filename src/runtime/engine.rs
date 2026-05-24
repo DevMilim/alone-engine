@@ -52,9 +52,10 @@ impl<S: Scene> Engine<S> {
         }
     }
 
-    pub fn render(&mut self, renderer: &mut impl RenderApi) {
+    pub fn render(&mut self, renderer: &mut impl RenderApi, blending: f32) {
         if let Some(obj) = self.objects.last_mut() {
-            obj.get_dispatch().dispatch_draw(renderer, &self.base);
+            obj.get_dispatch()
+                .dispatch_draw(renderer, &self.base, blending);
         } else {
             self.quit();
         }
@@ -64,7 +65,7 @@ impl<S: Scene> Engine<S> {
         self.resources.textures.get(handler)
     }
 
-    pub fn update_step(&mut self) -> bool {
+    pub fn update_step(&mut self) -> (bool, f32) {
         self.input.clear_frame_data();
 
         let now = Instant::now();
@@ -76,11 +77,11 @@ impl<S: Scene> Engine<S> {
         }
 
         self.accumulator += delta_time;
-        self.update(delta_time);
+        let blending = self.update(delta_time);
 
         self.flush_messages_and_events();
 
-        self.is_running
+        (self.is_running, blending)
     }
     pub fn push(&mut self, scene: S) {
         self.objects.push(scene);
@@ -182,7 +183,7 @@ impl<S: Scene> Engine<S> {
         }
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, delta_time: f32) -> f32 {
         let mut ctx = EngineContext::new(
             &self.input,
             &mut self.event_queue,
@@ -208,6 +209,7 @@ impl<S: Scene> Engine<S> {
             obj.get_dispatch()
                 .dispatch_late_update(&mut ctx, &self.base, delta_time);
         }
+        self.accumulator / FIXED_DT
     }
     pub fn flush_messages_and_events(&mut self) {
         let mut ctx = EngineContext::new(

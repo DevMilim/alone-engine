@@ -253,12 +253,12 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #( self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta); )*
             }
-            fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::RenderApi, parent_base: &::alone_engine::Base) {
+            fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::RenderApi, parent_base: &::alone_engine::Base, blending: f32) {
                 #apply_transform
-                #(self.#component_fields.draw(renderer, &self.#base_field);)*
+                #(self.#component_fields.draw(renderer, &self.#base_field, blending);)*
 
-                self.draw(renderer);
-                #( self.#object_fields.dispatch_draw(ctx, &self.#base_field); )*
+                self.draw(renderer, blending);
+                #( self.#object_fields.dispatch_draw(ctx, &self.#base_field, blending); )*
 
             }
             fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::EngineApi) {
