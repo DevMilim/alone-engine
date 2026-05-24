@@ -20,7 +20,7 @@ pub struct Engine<S: Scene> {
     pub event_queue: VecDeque<RenderCommands>,
     events: VecDeque<GlobalEvent>,
     mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
-    camera_pos: Vector2,
+    pub camera_pos: Vector2,
     pub resources: Resources,
     last_instant: Instant,
     accumulator: f32,

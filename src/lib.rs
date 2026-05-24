@@ -1,6 +1,7 @@
 mod assets;
 mod audio;
 mod collision;
+mod components;
 mod core;
 mod event;
 mod input;
@@ -11,6 +12,7 @@ mod runtime;
 pub use assets::*;
 pub use audio::*;
 pub use collision::*;
+pub use components::*;
 pub use core::*;
 pub use event::*;
 pub use input::*;

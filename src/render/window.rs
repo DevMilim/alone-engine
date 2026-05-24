@@ -1,6 +1,5 @@
 use std::{
     sync::Arc,
-    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -10,13 +9,15 @@ use winit::{
     dpi::LogicalSize,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    keyboard::{KeyCode, PhysicalKey},
-    window::{Fullscreen, Window, WindowId},
+    keyboard::PhysicalKey,
+    window::{Window, WindowId},
 };
 
-use crate::{Color, DrawCommand, DrawCommandType, Engine, RenderApi, RenderCommands, Scene};
-const WIDTH: u32 = 620;
-const HEIGHT: u32 = 480;
+use crate::{
+    Color, DrawCommand, DrawCommandType, DrawData, Engine, Rect, RenderApi, RenderCommands, Scene,
+};
+pub const LOGICAL_WIDTH: u32 = 620;
+pub const LOGICAL_HEIGHT: u32 = 480;
 
 pub struct RenderQueue {
     queue: [Vec<DrawCommand>; 6],
@@ -43,6 +44,17 @@ impl RenderApi for RenderQueue {
     fn draw(&mut self, z_index: u8, command: DrawCommand) {
         self.queue[z_index as usize].push(command);
     }
+
+    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8) {
+        self.queue[z_index as usize].push(DrawCommand {
+            cmd_type: DrawCommandType::Rect,
+            material: DrawData {
+                color,
+                rect,
+                ..Default::default()
+            },
+        });
+    }
 }
 
 struct Render<'a, S: Scene> {
@@ -52,7 +64,6 @@ struct Render<'a, S: Scene> {
     runtime: Engine<S>,
     window_size: (u32, u32),
     last_frame: Instant,
-    fps: f64,
 
     frame_count: u32,
     fps_timer: Instant,
@@ -65,9 +76,8 @@ impl<'a, S: Scene> Render<'a, S> {
             window: None,
             queue: RenderQueue::new(),
             runtime: Engine::new(main_scene),
-            window_size: (WIDTH, HEIGHT),
+            window_size: (LOGICAL_WIDTH, LOGICAL_HEIGHT),
             last_frame: Instant::now(),
-            fps: 60.0,
             frame_count: 0,
             fps_timer: Instant::now(),
         }
@@ -78,6 +88,13 @@ impl<'a, S: Scene> Render<'a, S> {
 
         let frame_width = self.window_size.0 as usize;
         let frame_height = self.window_size.1 as usize;
+
+        let cam_x = self.runtime.camera_pos.x.round();
+        let cam_y = self.runtime.camera_pos.y.round();
+
+        let frame_pixels: &mut [[u8; 4]] = unsafe {
+            std::slice::from_raw_parts_mut(frame.as_mut_ptr() as *mut [u8; 4], frame.len() / 4)
+        };
 
         for layer in self.queue.queue.iter() {
             let mut last_texture_id = None;
@@ -92,39 +109,71 @@ impl<'a, S: Scene> Render<'a, S> {
                         }
                         if let Some(texture) = current_texture {
                             let tex_width = texture.width as usize;
-
+                            let tex_height = texture.height as usize;
                             let position = &cmd.material.rect;
-                            for y in 0..texture.height as usize {
-                                let dst_y = position.y as isize + y as isize;
-                                if dst_y < 0 || dst_y >= frame_height as isize {
-                                    continue;
-                                }
-                                for x in 0..tex_width {
-                                    let dst_x = position.x as isize + x as isize;
-                                    if dst_x >= frame_width as isize
-                                        || dst_y >= frame_height as isize
-                                    {
+
+                            let start_x = (position.x - cam_x).round() as isize;
+                            let start_y = (position.y - cam_y).round() as isize;
+
+                            let screen_min_x = start_x.max(0) as usize;
+                            let screen_min_y = start_y.max(0) as usize;
+
+                            let screen_max_x = (start_x + tex_width as isize)
+                                .min(frame_width as isize)
+                                .max(0) as usize;
+                            let screen_max_y = (start_y + tex_height as isize)
+                                .min(frame_height as isize)
+                                .max(0) as usize;
+
+                            if screen_min_x >= screen_max_x || screen_min_y >= screen_max_y {
+                                continue;
+                            }
+
+                            let tex_pixels: &[[u8; 4]] = unsafe {
+                                std::slice::from_raw_parts(
+                                    texture.pixels.as_ptr() as *const [u8; 4],
+                                    texture.pixels.len() / 4,
+                                )
+                            };
+
+                            for dst_y in screen_min_y..screen_max_y {
+                                let tex_y = (dst_y as isize - start_y) as usize;
+
+                                let dst_row_start = dst_y * frame_width;
+                                let tex_row_start = tex_y * tex_width;
+
+                                for dst_x in screen_min_x..screen_max_x {
+                                    let tex_x = (dst_x as isize - start_x) as usize;
+
+                                    let src_px = tex_pixels[tex_row_start + tex_x];
+
+                                    let sa = src_px[3];
+
+                                    if sa == 0 {
                                         continue;
                                     }
-                                    let src = (y * tex_width + x) * 4;
+                                    let dst_idx = dst_row_start + dst_x;
+                                    if sa == 255 {
+                                        frame_pixels[dst_idx] = src_px;
+                                    } else {
+                                        let dst_px = frame_pixels[dst_idx];
+                                        let inv = 255u32 - sa as u32;
 
-                                    let alpha = texture.pixels[src + 3];
-                                    if alpha == 0 {
-                                        continue;
+                                        let sr = src_px[0] as u32;
+                                        let sg = src_px[1] as u32;
+                                        let sb = src_px[2] as u32;
+
+                                        let dr = dst_px[0] as u32;
+                                        let dg = dst_px[1] as u32;
+                                        let db = dst_px[2] as u32;
+
+                                        frame_pixels[dst_idx] = [
+                                            (((sr * sa as u32 + dr * inv + 128) * 257) >> 16) as u8,
+                                            (((sg * sa as u32 + dg * inv + 128) * 257) >> 16) as u8,
+                                            (((sb * sa as u32 + db * inv + 128) * 257) >> 16) as u8,
+                                            255,
+                                        ]
                                     }
-                                    let dst = (dst_y as usize * frame_width + dst_x as usize) * 4;
-
-                                    let mut frame_pixel_buffer = [0u8; 4];
-                                    frame_pixel_buffer.copy_from_slice(&frame[dst..dst + 4]);
-
-                                    let mut texture_pixel_buffer = [0u8; 4];
-                                    texture_pixel_buffer
-                                        .copy_from_slice(&texture.pixels[src..src + 4]);
-
-                                    let blended =
-                                        Color::blend(&frame_pixel_buffer, &texture_pixel_buffer);
-
-                                    frame[dst..dst + 4].copy_from_slice(&blended);
                                 }
                             }
                         }
@@ -133,19 +182,22 @@ impl<'a, S: Scene> Render<'a, S> {
                         let rect = &cmd.material.rect;
                         let color_bytes = cmd.material.color.bytes();
 
-                        let start_x = (rect.x as i32).max(0).min(frame_width as i32) as usize;
-                        let start_y = (rect.y as i32).max(0).min(frame_height as i32) as usize;
-                        let end_x = ((rect.x + rect.width as f32) as i32)
+                        let screen_x = rect.x - cam_x;
+                        let screen_y = rect.y - cam_y;
+
+                        let start_x = (screen_x as i32).max(0).min(frame_width as i32) as usize;
+                        let start_y = (screen_y as i32).max(0).min(frame_height as i32) as usize;
+                        let end_x = ((screen_x + rect.width as f32) as i32)
                             .max(0)
                             .min(frame_width as i32) as usize;
-                        let end_y = ((rect.y + rect.height as f32) as i32)
+                        let end_y = ((screen_y + rect.height as f32) as i32)
                             .max(0)
                             .min(frame_height as i32) as usize;
                         for y in start_y..end_y {
-                            for x in start_x..end_x {
-                                let dst = (y * frame_width + x) * 4;
-                                frame[dst..dst + 4].copy_from_slice(&color_bytes);
-                            }
+                            let row_start = y * frame_width + start_x;
+                            let row_end = y * frame_width + end_x;
+
+                            frame_pixels[row_start..row_end].fill(color_bytes);
                         }
                     }
                 }
@@ -159,7 +211,7 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attrs = Window::default_attributes()
             .with_title("winit + pixels")
-            .with_inner_size(LogicalSize::new(800.0, 600.0));
+            .with_inner_size(LogicalSize::new(LOGICAL_WIDTH, LOGICAL_HEIGHT));
 
         let window = Arc::new(event_loop.create_window(attrs).unwrap());
 
@@ -167,7 +219,7 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
             let window_size = window.inner_size();
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, window.clone());
-            Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
+            Pixels::new(LOGICAL_WIDTH, LOGICAL_HEIGHT, surface_texture).unwrap()
         };
 
         pixels.set_scaling_mode(pixels::ScalingMode::Fill);
@@ -188,16 +240,6 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
                 if let PhysicalKey::Code(keycode) = event.physical_key {
                     if event.state.is_pressed() {
                         self.runtime.events(RenderCommands::KeyDown(keycode));
-                        if keycode == KeyCode::KeyF {
-                            let window = self.window.as_mut().unwrap();
-                            if window.fullscreen().is_some() {
-                                window.set_fullscreen(None);
-                                println!("Modo Janela ativado");
-                            } else {
-                                window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-                                println!("Fullscreen ativado");
-                            }
-                        }
                     } else {
                         self.runtime.events(RenderCommands::KeyUp(keycode));
                     }
@@ -210,13 +252,6 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
                 ));
             }
             WindowEvent::RedrawRequested => {
-                let target_ft = Duration::from_secs_f64(1.0 / self.fps);
-                let elapsed = self.last_frame.elapsed();
-
-                if elapsed < target_ft {
-                    sleep(target_ft - elapsed);
-                }
-
                 self.frame_count += 1;
 
                 if self.fps_timer.elapsed() >= Duration::from_secs(1) {
@@ -243,8 +278,8 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
                     let win_h = size.height as f32;
                     let ar_window = win_w / win_h;
 
-                    let base_w = WIDTH as f32;
-                    let base_h = HEIGHT as f32;
+                    let base_w = LOGICAL_WIDTH as f32;
+                    let base_h = LOGICAL_HEIGHT as f32;
 
                     let ar_base = base_w / base_h;
 

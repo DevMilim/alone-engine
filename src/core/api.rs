@@ -3,11 +3,15 @@ use std::any::Any;
 use indexmap::IndexMap;
 use winit::keyboard::KeyCode;
 
-use crate::{ColliderData, ColliderKey, DrawCommand, GameObject, Handler, Id, ImageAsset, Vector2};
+use crate::{
+    ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id, ImageAsset, Rect,
+    Vector2,
+};
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
     fn quit(&mut self);
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
+    fn camera_mut(&mut self) -> &mut Vector2;
 }
 pub trait InputApi {
     fn is_key_pressed(&self, key: KeyCode) -> bool;
@@ -47,5 +51,6 @@ pub trait CollisionApi {
 
 pub trait RenderApi {
     fn draw(&mut self, z_index: u8, command: DrawCommand);
+    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8);
 }
 pub trait AudioApi {}

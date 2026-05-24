@@ -1,7 +1,7 @@
-use core::{Base, Component, EngineApi, RenderApi};
-
-use collision::{AABB, ColliderData, ColliderKey};
-use math::{Color, Vector2};
+use crate::{
+    AABB, Base, ColliderData, ColliderKey, Color, Component, DrawCommand, DrawCommandType,
+    DrawData, EngineApi, Rect, RenderApi, Vector2,
+};
 
 pub struct BoxCollider {
     pub key: u32,
@@ -47,7 +47,13 @@ impl Component for BoxCollider {
             is_sensor: self.is_sensor,
         };
 
-        ctx.update_collider((self.key, base.id), data);
+        ctx.update_collider(
+            ColliderKey {
+                key: self.key,
+                id: base.id,
+            },
+            data,
+        );
     }
     fn draw(&mut self, ctx: &mut impl RenderApi, base: &Base) {
         if self.debug {
@@ -60,9 +66,22 @@ impl Component for BoxCollider {
                 base.transform.global_position.x + self.offset_x,
                 base.transform.global_position.y + self.offset_y,
             );
+            ctx.draw_rect(
+                Rect::new(
+                    draw_pos.x,
+                    draw_pos.y,
+                    self.height as u32,
+                    self.height as u32,
+                ),
+                color,
+                1,
+            );
         }
     }
     fn destroy(&mut self, ctx: &mut impl EngineApi, base: &Base) {
-        ctx.remove_collider((self.key, base.id));
+        ctx.remove_collider(ColliderKey {
+            key: self.key,
+            id: base.id,
+        });
     }
 }

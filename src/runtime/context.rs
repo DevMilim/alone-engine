@@ -26,6 +26,10 @@ impl<'a> EngineApi for EngineContext<'a> {
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
         self.mailbox
     }
+
+    fn camera_mut(&mut self) -> &mut Vector2 {
+        &mut self.camera_pos
+    }
 }
 impl<'a> EngineContext<'a> {
     pub fn new(
