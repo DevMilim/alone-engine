@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use crate::{GameObject, Id};
+use crate::{ColliderKey, GameObject, Id};
 
 #[derive(Debug, Clone)]
 pub enum TriggerKind {
@@ -10,7 +10,7 @@ pub enum TriggerKind {
 #[derive(Debug, Clone)]
 pub struct TriggerEvent {
     pub owner: Id,
-    pub sensor: (u32, Id),
+    pub sensor: ColliderKey,
     pub kind: TriggerKind,
 }
 pub struct SpawnEvent<T> {

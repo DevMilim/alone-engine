@@ -2,6 +2,7 @@ use crate::{Component, EngineApi, LOGICAL_HEIGHT, LOGICAL_WIDTH, RenderApi, Vect
 
 pub struct Camera2D {
     pub position: Vector2,
+    pub last_position: Vector2,
     pub active: bool,
     pub lerp_speed: f32,
     pub deadzone: Vector2,
@@ -15,6 +16,7 @@ impl Camera2D {
             lerp_speed: 10.0,
             deadzone,
             position: Vector2::ZERO,
+            last_position: Vector2::ZERO,
             half: Vector2::ZERO,
         }
     }
@@ -27,12 +29,17 @@ impl Default for Camera2D {
 }
 
 impl Component for Camera2D {
+    fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut crate::Base) {
+        self.last_position = self.position;
+    }
     fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut crate::Base, delta: f32) {
         if !self.active {
             return;
         }
-        let mut target_pos = *ctx.camera_mut();
-        let cam = ctx.camera_mut();
+
+        self.last_position = self.position;
+
+        let mut target_pos = self.position;
 
         let center_x = base.transform.position.x + self.half.x;
         let center_y = base.transform.position.y + self.half.y;
@@ -59,17 +66,25 @@ impl Component for Camera2D {
         }
         let t = 1.0 - (-self.lerp_speed * delta).exp();
 
-        cam.x += (target_pos.x - cam.x) * t;
-        cam.y += (target_pos.y - cam.y) * t;
+        self.position.x += (target_pos.x - self.position.x) * t;
+        self.position.y += (target_pos.y - self.position.y) * t;
 
-        if (target_pos.x - cam.x).abs() < 0.5 {
-            cam.x = target_pos.x;
+        if (target_pos.x - self.position.x).abs() < 0.5 {
+            self.position.x = target_pos.x;
         }
-        if (target_pos.y - cam.y).abs() < 0.5 {
-            cam.y = target_pos.y;
+        if (target_pos.y - self.position.y).abs() < 0.5 {
+            self.position.y = target_pos.y;
         }
-
-        self.position = *cam;
     }
-    fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &crate::Base, _blending: f32) {}
+    fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &crate::Base, blending: f32) {
+        if !self.active {
+            return;
+        }
+
+        let pos = self.last_position.lerp(self.position, blending);
+
+        let cam = _renderer.camera_mut();
+        cam.x = pos.x;
+        cam.y = pos.y;
+    }
 }

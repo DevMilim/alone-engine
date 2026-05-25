@@ -3,9 +3,9 @@ use std::{any::Any, collections::VecDeque, time::Instant};
 use indexmap::IndexMap;
 
 use crate::{
-    Base, CollisionWorld, EngineContext, GameObjectDispatch, GlobalEvent, Handler, Id, ImageAsset,
-    InputState, RenderApi, RenderCommands, Resources, Scene, Transform2D, TriggerEvent,
-    TriggerKind, Vector2,
+    Base, CollisionWorld, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent, Handler, Id,
+    ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene, Transform2D,
+    TriggerEvent, TriggerKind, Vector2,
 };
 
 const FIXED_DT: f32 = 1.0 / 60.0;
@@ -52,10 +52,14 @@ impl<S: Scene> Engine<S> {
         }
     }
 
-    pub fn render(&mut self, renderer: &mut impl RenderApi, blending: f32) {
+    pub fn render(&mut self, renderer: &mut [Vec<DrawCommand>; 6], blending: f32) {
+        let mut render_ctx = RenderQueue {
+            queue: renderer,
+            camera: &mut self.camera_pos,
+        };
         if let Some(obj) = self.objects.last_mut() {
             obj.get_dispatch()
-                .dispatch_draw(renderer, &self.base, blending);
+                .dispatch_draw(&mut render_ctx, &self.base, blending);
         } else {
             self.quit();
         }
@@ -79,8 +83,11 @@ impl<S: Scene> Engine<S> {
         self.accumulator += delta_time;
         let blending = self.update(delta_time);
 
-        self.flush_messages_and_events();
+        self.collision.step();
+        self.collision_step();
 
+        self.flush_messages_and_events();
+        self.collision.commit();
         (self.is_running, blending)
     }
     pub fn push(&mut self, scene: S) {
@@ -134,7 +141,7 @@ impl<S: Scene> Engine<S> {
             if da.is_sensor {
                 let ev = TriggerEvent {
                     owner: b.id,
-                    sensor: (a.key, a.id),
+                    sensor: a.clone(),
                     kind: TriggerKind::Enter,
                 };
                 ctx.events
@@ -145,7 +152,7 @@ impl<S: Scene> Engine<S> {
             if db.is_sensor {
                 let ev = TriggerEvent {
                     owner: a.id,
-                    sensor: (b.key, b.id),
+                    sensor: b.clone(),
                     kind: TriggerKind::Enter,
                 };
                 ctx.events
@@ -161,7 +168,7 @@ impl<S: Scene> Engine<S> {
             if da.is_sensor {
                 let ev = TriggerEvent {
                     owner: b.id,
-                    sensor: (a.key, a.id),
+                    sensor: a.clone(),
                     kind: TriggerKind::Exit,
                 };
                 ctx.events
@@ -172,7 +179,7 @@ impl<S: Scene> Engine<S> {
             if db.is_sensor {
                 let ev = TriggerEvent {
                     owner: a.id,
-                    sensor: (b.key, b.id),
+                    sensor: b.clone(),
                     kind: TriggerKind::Exit,
                 };
                 ctx.events

@@ -11,6 +11,9 @@ pub struct Base {
 }
 
 impl Base {
+    pub fn empty() -> Self {
+        Self::new(Transform2D::EMPTY)
+    }
     pub fn new(transform: Transform2D) -> Self {
         Self {
             transform,
@@ -84,6 +87,10 @@ pub trait GameObjectBase {
     }
     fn set_global_scale(&mut self, scale: Vector2) {
         self.base_mut().transform.global_scale = scale;
+    }
+
+    fn top_level(&mut self) {
+        self.base_mut().top_level = true
     }
 
     fn queue_free(&mut self) {

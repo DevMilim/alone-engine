@@ -86,7 +86,7 @@ impl ImageAsset {
     }
     pub fn load_from_file_and_resize(path: &str, width: u32, height: u32) -> Self {
         let img = image::open(Path::new(path)).expect("Falha ao carregar textura");
-        let resize = img.resize(width, height, FilterType::CatmullRom);
+        let resize = img.resize(width, height, FilterType::Nearest);
         let rgba = resize.to_rgba8();
 
         let dimensions = rgba.dimensions();

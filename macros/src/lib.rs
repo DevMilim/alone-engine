@@ -258,7 +258,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#component_fields.draw(renderer, &self.#base_field, blending);)*
 
                 self.draw(renderer, blending);
-                #( self.#object_fields.dispatch_draw(ctx, &self.#base_field, blending); )*
+                #( self.#object_fields.dispatch_draw(renderer, &self.#base_field, blending); )*
 
             }
             fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::EngineApi) {

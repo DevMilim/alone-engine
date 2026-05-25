@@ -71,12 +71,13 @@ impl<'a> AssetApi for EngineContext<'a> {
         width: u32,
         height: u32,
     ) -> Handler<ImageAsset> {
-        if let Some(id) = self.resources.textures.get_id(path) {
+        let path_key = path.to_string() + format!("#{width}x{height}").as_str();
+        if let Some(id) = self.resources.textures.get_id(&path_key) {
             return Handler::new(id);
         }
 
         let texture_asset = ImageAsset::load_from_file_and_resize(path, width, height);
-        let id = self.resources.textures.insert(path, texture_asset);
+        let id = self.resources.textures.insert(&path_key, texture_asset);
         id
     }
 }

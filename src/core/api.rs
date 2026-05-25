@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 use winit::keyboard::KeyCode;
 
 use crate::{
-    ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id, ImageAsset, Rect,
-    Vector2,
+    Anchor, ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id, ImageAsset,
+    Rect, Vector2,
 };
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
@@ -52,5 +52,13 @@ pub trait CollisionApi {
 pub trait RenderApi {
     fn draw(&mut self, z_index: u8, command: DrawCommand);
     fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8);
+    fn draw_sprite(
+        &mut self,
+        position: Vector2,
+        texture: Handler<ImageAsset>,
+        anchor: Anchor,
+        z_index: u8,
+    );
+    fn camera_mut(&mut self) -> &mut Vector2;
 }
 pub trait AudioApi {}

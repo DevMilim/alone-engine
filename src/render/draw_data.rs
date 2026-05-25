@@ -1,15 +1,22 @@
 use crate::{Color, Handler, ImageAsset, Rect, Vector2};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DrawCommandType {
-    Sprite,
-    Rect,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Anchor {
+    Center,
+    TopLeft,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct DrawCommand {
-    pub cmd_type: DrawCommandType,
-    pub material: DrawData,
+pub enum DrawCommand {
+    Sprite {
+        position: Vector2,
+        image: Handler<ImageAsset>,
+        anchor: Anchor,
+    },
+    Rect {
+        color: Color,
+        rect: Rect,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

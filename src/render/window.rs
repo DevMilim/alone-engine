@@ -13,58 +13,17 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::{
-    Color, DrawCommand, DrawCommandType, DrawData, Engine, Rect, RenderApi, RenderCommands, Scene,
-};
-pub const LOGICAL_WIDTH: u32 = 620;
+use crate::{Anchor, DrawCommand, Engine, Rect, RenderApi, RenderCommands, Scene};
+pub const LOGICAL_WIDTH: u32 = 854;
 pub const LOGICAL_HEIGHT: u32 = 480;
-
-pub struct RenderQueue {
-    queue: [Vec<DrawCommand>; 6],
-}
-impl RenderQueue {
-    pub fn new() -> Self {
-        Self {
-            queue: [const { Vec::new() }; 6],
-        }
-    }
-    pub fn sort(&mut self) {
-        for queue in &mut self.queue {
-            queue.sort_unstable_by_key(|cmd| (cmd.cmd_type, cmd.material.image.id));
-        }
-    }
-    pub fn clear(&mut self) {
-        for queue in &mut self.queue {
-            queue.clear();
-        }
-    }
-}
-
-impl RenderApi for RenderQueue {
-    fn draw(&mut self, z_index: u8, command: DrawCommand) {
-        self.queue[z_index as usize].push(command);
-    }
-
-    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8) {
-        self.queue[z_index as usize].push(DrawCommand {
-            cmd_type: DrawCommandType::Rect,
-            material: DrawData {
-                color,
-                rect,
-                ..Default::default()
-            },
-        });
-    }
-}
 
 struct Render<'a, S: Scene> {
     state: Option<Pixels<'a>>,
     window: Option<Arc<Window>>,
-    queue: RenderQueue,
+    queue: [Vec<DrawCommand>; 6],
     runtime: Engine<S>,
     window_size: (u32, u32),
     last_frame: Instant,
-
     frame_count: u32,
     fps_timer: Instant,
 }
@@ -74,7 +33,7 @@ impl<'a, S: Scene> Render<'a, S> {
         Self {
             state: None,
             window: None,
-            queue: RenderQueue::new(),
+            queue: [const { Vec::new() }; 6],
             runtime: Engine::new(main_scene),
             window_size: (LOGICAL_WIDTH, LOGICAL_HEIGHT),
             last_frame: Instant::now(),
@@ -82,9 +41,22 @@ impl<'a, S: Scene> Render<'a, S> {
             fps_timer: Instant::now(),
         }
     }
+    pub fn sort(&mut self) {
+        for queue in &mut self.queue {
+            queue.sort_unstable_by_key(|cmd| match cmd {
+                DrawCommand::Sprite { image, .. } => (1, image.id),
+                DrawCommand::Rect { .. } => (0, 0),
+            });
+        }
+    }
+    pub fn clear(&mut self) {
+        for queue in &mut self.queue {
+            queue.clear();
+        }
+    }
     pub fn render(&mut self) {
+        self.sort();
         let frame = self.state.as_mut().unwrap().frame_mut();
-        self.queue.sort();
 
         let frame_width = self.window_size.0 as usize;
         let frame_height = self.window_size.1 as usize;
@@ -96,25 +68,39 @@ impl<'a, S: Scene> Render<'a, S> {
             std::slice::from_raw_parts_mut(frame.as_mut_ptr() as *mut [u8; 4], frame.len() / 4)
         };
 
-        for layer in self.queue.queue.iter() {
+        for layer in self.queue.iter() {
             let mut last_texture_id = None;
             let mut current_texture = None;
             for cmd in layer {
-                match cmd.cmd_type {
-                    DrawCommandType::Sprite => {
-                        let texture_id = cmd.material.image.id;
+                match cmd {
+                    DrawCommand::Sprite {
+                        position,
+                        image,
+                        anchor,
+                    } => {
+                        let texture_id = image.id;
                         if Some(texture_id) != last_texture_id {
                             last_texture_id = Some(texture_id);
-                            current_texture = self.runtime.get_texture(cmd.material.image);
+                            current_texture = self.runtime.get_texture(*image);
                         }
                         if let Some(texture) = current_texture {
                             let tex_width = texture.width as usize;
                             let tex_height = texture.height as usize;
-                            let position = &cmd.material.rect;
 
-                            let start_x = (position.x - cam_x).round() as isize;
-                            let start_y = (position.y - cam_y).round() as isize;
-
+                            let (start_x, start_y) = match anchor {
+                                Anchor::Center => {
+                                    let center_x = position.x - (tex_width as f32 / 2.0);
+                                    let center_y = position.y - (tex_height as f32 / 2.0);
+                                    (
+                                        (center_x - cam_x).round() as isize,
+                                        (center_y - cam_y).round() as isize,
+                                    )
+                                }
+                                Anchor::TopLeft => (
+                                    (position.x - cam_x).round() as isize,
+                                    (position.y - cam_y).round() as isize,
+                                ),
+                            };
                             let screen_min_x = start_x.max(0) as usize;
                             let screen_min_y = start_y.max(0) as usize;
 
@@ -178,9 +164,8 @@ impl<'a, S: Scene> Render<'a, S> {
                             }
                         }
                     }
-                    DrawCommandType::Rect => {
-                        let rect = &cmd.material.rect;
-                        let color_bytes = cmd.material.color.bytes();
+                    DrawCommand::Rect { color, rect } => {
+                        let color_bytes = color.bytes();
 
                         let screen_x = rect.x - cam_x;
                         let screen_y = rect.y - cam_y;
@@ -203,7 +188,7 @@ impl<'a, S: Scene> Render<'a, S> {
                 }
             }
         }
-        self.queue.clear();
+        self.clear();
     }
 }
 
@@ -246,10 +231,13 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.runtime.events(RenderCommands::MousePosition(
-                    position.x as f32,
-                    position.y as f32,
-                ));
+                if let Ok(mouse) = state.window_pos_to_pixel((position.x as f32, position.y as f32))
+                {
+                    self.runtime.events(RenderCommands::MousePosition(
+                        mouse.0 as f32,
+                        mouse.1 as f32,
+                    ));
+                }
             }
             WindowEvent::RedrawRequested => {
                 self.frame_count += 1;
@@ -277,24 +265,6 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
                 if size.width > 0 && size.height > 0 {
                     let _ = state.resize_surface(size.width, size.height);
 
-                    let win_w = size.width as f32;
-                    let win_h = size.height as f32;
-                    let ar_window = win_w / win_h;
-
-                    let base_w = LOGICAL_WIDTH as f32;
-                    let base_h = LOGICAL_HEIGHT as f32;
-
-                    let ar_base = base_w / base_h;
-
-                    let (target_w, target_h) = if ar_window < ar_base {
-                        let calc_w = (base_h * ar_window).round() as u32;
-                        (calc_w as u32, base_h as u32)
-                    } else {
-                        let calc_h = (base_w / ar_window).round() as u32;
-                        (base_w as u32, calc_h.max(1))
-                    };
-                    self.window_size = (target_w, target_h);
-                    let _ = state.resize_buffer(target_w, target_h);
                     if let Some(window) = &self.window {
                         window.request_redraw();
                     }
