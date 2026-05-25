@@ -26,6 +26,13 @@ pub trait InputApi {
         action_left: &str,
         action_right: &str,
     ) -> Vector2;
+    fn get_key_vector(
+        &self,
+        key_up: KeyCode,
+        key_down: KeyCode,
+        key_left: KeyCode,
+        key_right: KeyCode,
+    ) -> Vector2;
 }
 
 pub trait AssetApi {
@@ -47,6 +54,7 @@ pub trait EventApi {
 pub trait CollisionApi {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);
     fn remove_collider(&mut self, key: ColliderKey);
+    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2);
 }
 
 pub trait RenderApi {

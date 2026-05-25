@@ -62,14 +62,14 @@ impl Component for BoxCollider {
                 Color::rgb(255, 0, 0)
             };
             let draw_pos = Vector2::new(
-                base.transform.global_position.x + self.offset_x,
-                base.transform.global_position.y + self.offset_y,
+                base.transform.global_position.x - (self.width / 2.0) + self.offset_x,
+                base.transform.global_position.y - (self.height / 2.0) + self.offset_y,
             );
             ctx.draw_rect(
                 Rect::new(
                     draw_pos.x,
                     draw_pos.y,
-                    self.height as u32,
+                    self.width as u32,
                     self.height as u32,
                 ),
                 color,

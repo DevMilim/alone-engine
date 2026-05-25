@@ -25,6 +25,8 @@ pub struct Player {
     #[game(component)]
     camera: Camera2D,
     #[game(component)]
+    body: Body2D,
+    #[game(component)]
     colision: BoxCollider,
     texture: Option<Handler<ImageAsset>>,
     last_position: Vector2,
@@ -63,21 +65,15 @@ impl GameObject for Player {
         println!("Message")
     }
 
-    fn update(&mut self, _ctx: &mut impl EngineApi, delta: f32) {
-        let velocity = 200.0 * delta;
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
+        let velocity = 200.0;
         self.last_position = self.position();
-        if _ctx.is_key_pressed(KeyCode::KeyW) {
-            self.position_mut().y -= velocity
-        }
-        if _ctx.is_key_pressed(KeyCode::KeyS) {
-            self.position_mut().y += velocity
-        }
-        if _ctx.is_key_pressed(KeyCode::KeyA) {
-            self.position_mut().x -= velocity
-        }
-        if _ctx.is_key_pressed(KeyCode::KeyD) {
-            self.position_mut().x += velocity
-        }
+        let direction =
+            ctx.get_key_vector(KeyCode::KeyW, KeyCode::KeyS, KeyCode::KeyA, KeyCode::KeyD);
+
+        self.body.velocity = direction * velocity;
+
+        self.body.move_and_slide(ctx, &mut self.base);
     }
 }
 
@@ -92,7 +88,6 @@ fn main() {
     let player = Player {
         base: player_base,
         colision: BoxCollider {
-            is_sensor: true,
             debug: true,
             width: 30.0,
             height: 30.0,
@@ -108,7 +103,7 @@ fn main() {
         },
         last_position: Vector2::new(0.0, 0.0),
         wall: Wall {
-            base: Base::empty(),
+            base: Base::new(Transform2D::new(100.0, 100.0)),
             colision: BoxCollider {
                 debug: true,
                 width: 100.0,
@@ -116,6 +111,9 @@ fn main() {
                 ..Default::default()
             },
             id,
+        },
+        body: Body2D {
+            velocity: Vector2::ZERO,
         },
     };
 

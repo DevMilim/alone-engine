@@ -112,6 +112,17 @@ impl<'a> InputApi for EngineContext<'a> {
         self.input
             .get_vector(action_up, action_down, action_left, action_right)
     }
+
+    fn get_key_vector(
+        &self,
+        key_up: KeyCode,
+        key_down: KeyCode,
+        key_left: KeyCode,
+        key_right: KeyCode,
+    ) -> Vector2 {
+        self.input
+            .get_key_vector(key_up, key_down, key_left, key_right)
+    }
 }
 
 impl<'a> EventApi for EngineContext<'a> {
@@ -146,5 +157,9 @@ impl<'a> CollisionApi for EngineContext<'a> {
 
     fn remove_collider(&mut self, key: ColliderKey) {
         self.collision.remove_collider(key);
+    }
+
+    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
+        self.collision.move_and_slide(my_id, position, velocity);
     }
 }

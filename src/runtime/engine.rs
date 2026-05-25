@@ -8,7 +8,7 @@ use crate::{
     TriggerEvent, TriggerKind, Vector2,
 };
 
-const FIXED_DT: f32 = 1.0 / 60.0;
+pub const FIXED_DT: f32 = 1.0 / 60.0;
 const MAX_ACCUM: f32 = 0.5;
 
 pub struct Engine<S: Scene> {

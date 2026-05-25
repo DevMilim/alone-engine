@@ -1,6 +1,6 @@
 mod aabb;
 
-use crate::{Id, Vector2};
+use crate::{FIXED_DT, Id, Vector2};
 use std::{
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
@@ -204,6 +204,54 @@ impl CollisionWorld {
             Some(total_correction)
         } else {
             None
+        }
+    }
+    pub fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
+        let delta = FIXED_DT;
+        let movement = *velocity * delta;
+
+        position.x += movement.x;
+        self.translate_my_colliders(my_id, Vector2::new(movement.x, 0.0));
+        self.resolve_axis(my_id, position, velocity, true);
+
+        position.y += movement.y;
+        self.translate_my_colliders(my_id, Vector2::new(0.0, movement.y));
+        self.resolve_axis(my_id, position, velocity, false);
+    }
+    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
+        for (key, data) in &mut self.colliders {
+            if key.id == my_id {
+                data.aabb.x += offset.x;
+                data.aabb.y += offset.y;
+            }
+        }
+    }
+    pub fn resolve_axis(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+        is_x_axis: bool,
+    ) {
+        let my_colliders: Vec<ColliderData> = self
+            .colliders
+            .iter()
+            .filter(|(key, _)| key.id == my_id)
+            .map(|(_, data)| *data)
+            .collect();
+
+        for my_data in my_colliders {
+            if let Some(corrections) = self.get_currection(my_id, &my_data) {
+                if is_x_axis {
+                    position.x += corrections.x;
+                    velocity.x = 0.0;
+                    self.translate_my_colliders(my_id, Vector2::new(corrections.x, 0.0));
+                } else {
+                    position.y += corrections.y;
+                    velocity.y = 0.0;
+                    self.translate_my_colliders(my_id, Vector2::new(0.0, corrections.y));
+                }
+            }
         }
     }
 }

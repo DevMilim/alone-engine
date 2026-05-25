@@ -90,6 +90,39 @@ impl InputState {
             vec.normalize()
         }
     }
+    pub fn get_key_vector(
+        &self,
+        key_up: KeyCode,
+        key_down: KeyCode,
+        key_left: KeyCode,
+        key_right: KeyCode,
+    ) -> Vector2 {
+        let x = (if self.is_key_pressed(key_right) {
+            1.0
+        } else {
+            0.0
+        }) - (if self.is_key_pressed(key_left) {
+            1.0
+        } else {
+            0.0
+        });
+        let y = (if self.is_key_pressed(key_down) {
+            1.0
+        } else {
+            0.0
+        }) - (if self.is_key_pressed(key_up) {
+            1.0
+        } else {
+            0.0
+        });
+
+        let vec = Vector2::new(x, y);
+        if vec.is_zero() {
+            Vector2::ZERO
+        } else {
+            vec.normalize()
+        }
+    }
 }
 
 impl Default for InputState {
