@@ -179,9 +179,8 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 if self.is_started(){
                     return;
                 }
-                #(self.#component_fields.start(ctx, &mut self.#base_field);)*
-
                 self.start(ctx);
+                #(self.#component_fields.start(ctx, &mut self.#base_field);)*
                 #( self.#object_fields.dispatch_start(ctx, &self.#base_field); )*
             }
             fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::EngineApi){
@@ -220,10 +219,9 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                     self.dispatch_start(ctx, parent_base);
                     self.on_start();
                 }
-                #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
-
                 self.update(ctx, delta);
 
+                #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
 
                 #( self.#object_fields.dispatch_update(ctx, &self.#base_field, delta); )*
             }
@@ -233,9 +231,9 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                     self.dispatch_start(ctx, parent_base);
                     self.on_start();
                 }
-                #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
-
                 self.late_update(ctx, delta);
+
+                #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
 
                 #( self.#object_fields.dispatch_late_update(ctx, &self.#base_field, delta); )*
             }
@@ -245,25 +243,23 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                     self.dispatch_start(ctx, parent_base);
                     self.on_start();
                 }
-
-                #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*
-
                 self.fixed_update(ctx, delta);
 
+                #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*
 
                 #( self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta); )*
             }
             fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::RenderApi, parent_base: &::alone_engine::Base, blending: f32) {
                 #apply_transform
-                #(self.#component_fields.draw(renderer, &self.#base_field, blending);)*
-
                 self.draw(renderer, blending);
+                
+                #(self.#component_fields.draw(renderer, &self.#base_field, blending);)*
                 #( self.#object_fields.dispatch_draw(renderer, &self.#base_field, blending); )*
 
             }
             fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::EngineApi) {
-                #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 self.destroy(ctx);
+                #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 #( self.#object_fields.dispatch_destroy(ctx); )*
             }
         }

@@ -206,7 +206,13 @@ impl CollisionWorld {
             None
         }
     }
-    pub fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
+    pub fn move_and_slide(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+        delta: f32,
+    ) {
         let delta = FIXED_DT;
         let movement = *velocity * delta;
 

@@ -54,7 +54,13 @@ pub trait EventApi {
 pub trait CollisionApi {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);
     fn remove_collider(&mut self, key: ColliderKey);
-    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2);
+    fn move_and_slide(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+        delta: f32,
+    );
 }
 
 pub trait RenderApi {

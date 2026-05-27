@@ -73,7 +73,7 @@ impl GameObject for Player {
 
         self.body.velocity = direction * velocity;
 
-        self.body.move_and_slide(ctx, &mut self.base);
+        self.body.move_and_slide(ctx, &mut self.base, delta);
     }
 }
 

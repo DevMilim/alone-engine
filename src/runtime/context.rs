@@ -159,7 +159,14 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.collision.remove_collider(key);
     }
 
-    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
-        self.collision.move_and_slide(my_id, position, velocity);
+    fn move_and_slide(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+        delta: f32,
+    ) {
+        self.collision
+            .move_and_slide(my_id, position, velocity, delta);
     }
 }
