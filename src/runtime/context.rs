@@ -149,6 +149,10 @@ impl<'a> EventApi for EngineContext<'a> {
     fn mail_box_is_empty(&self) -> bool {
         self.mailbox.is_empty()
     }
+
+    fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
+        self.mailbox.entry(id).or_default().push(message);
+    }
 }
 impl<'a> CollisionApi for EngineContext<'a> {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {

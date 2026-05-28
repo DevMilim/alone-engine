@@ -50,7 +50,6 @@ pub trait Component {
     fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base) {}
     fn update(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _delta: f32) {}
     fn late_update(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _delta: f32) {}
-    fn on_event(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _event: &GlobalEvent) {}
     fn fixed_update(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base, _delta: f32) {}
     fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &Base, _blending: f32) {}
     fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
@@ -86,4 +85,37 @@ impl<T: GameObjectBase> GameObjectBase for Option<T> {
 }
 impl<T: GameObject> GameObject for Option<T> {
     type Message = ();
+}
+
+impl<T: Component> Component for Option<T> {
+    fn start(&mut self, ctx: &mut impl EngineApi, base: &mut Base) {
+        if let Some(component) = self {
+            component.start(ctx, base);
+        }
+    }
+    fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
+        if let Some(component) = self {
+            component.update(ctx, base, delta);
+        }
+    }
+    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
+        if let Some(component) = self {
+            component.late_update(ctx, base, delta);
+        }
+    }
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
+        if let Some(component) = self {
+            component.fixed_update(ctx, base, delta);
+        }
+    }
+    fn draw(&mut self, renderer: &mut impl RenderApi, base: &Base, blending: f32) {
+        if let Some(component) = self {
+            component.draw(renderer, base, blending);
+        }
+    }
+    fn destroy(&mut self, ctx: &mut impl EngineApi, base: &Base) {
+        if let Some(component) = self {
+            component.destroy(ctx, base);
+        }
+    }
 }

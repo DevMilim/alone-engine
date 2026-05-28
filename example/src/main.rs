@@ -15,7 +15,7 @@ impl GameObject for Wall {
     type Message = ();
     fn start(&mut self, _ctx: &mut impl EngineApi) {
         self.top_level();
-        _ctx.send(self.id, ());
+        _ctx.send(self.id, 0i32);
     }
 }
 
@@ -31,8 +31,9 @@ pub struct Player {
     #[game(component)]
     timer: Timer,
     #[game(component)]
+    animation: SpriteAnimation,
+    #[game(component)]
     colision: BoxCollider,
-    texture: Option<Handler<ImageAsset>>,
     #[game(object)]
     wall: Wall,
 }
@@ -43,17 +44,23 @@ impl Player {
     }
     fn timer(&mut self, ctx: &mut impl EngineApi, event: &TimerEvent) {
         println!("Connect event");
-        self.timer.set_event(0);
+        self.timer.set_event(0i32);
     }
 }
 
 impl GameObject for Player {
     type Message = i32;
-    fn start(&mut self, _ctx: &mut impl EngineApi) {
-        let texture = _ctx.load_texture("./assets/player.png");
-        _ctx.load_texture_and_resize("./assets/player.png", 64, 64);
-        self.texture = Some(texture);
+    fn start(&mut self, ctx: &mut impl EngineApi) {
+        let animation_data = AnimationData::new(
+            vec![
+                ctx.load_texture("./assets/player.png"),
+                ctx.load_texture("./assets/triangle.png"),
+            ],
+            2.0,
+        );
+        self.animation.new_animation(animation_data, "idle");
         self.timer.start_timer(Duration::from_secs(1), true);
+        self.animation.play("idle");
         println!("Start")
     }
     fn draw(&mut self, render: &mut impl RenderApi, blending: f32) {
@@ -95,7 +102,6 @@ fn main() {
             height: 30.0,
             ..Default::default()
         },
-        texture: None,
         camera: Camera2D {
             active: true,
             lerp_speed: 10.0,
@@ -117,6 +123,7 @@ fn main() {
             velocity: Vector2::ZERO,
         },
         timer: Timer::new(),
+        animation: SpriteAnimation::new(),
     };
 
     let main_scene = GameScenes::MainScene(player);

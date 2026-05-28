@@ -46,6 +46,7 @@ pub trait AssetApi {
 }
 pub trait EventApi {
     fn send<T: 'static>(&mut self, id: Id, message: T);
+    fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>);
     fn emit<T: 'static>(&mut self, event: T);
     fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
     fn spawn<T: GameObject + 'static>(&mut self, obj: T);

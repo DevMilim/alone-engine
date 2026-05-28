@@ -210,7 +210,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
                 #subscribe_block
                 #connect_block
-                #(self.#component_fields.on_event(ctx, &mut self.#base_field, event);)*
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
             fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::EngineApi, parent_base: &::alone_engine::Base, delta: f32) {

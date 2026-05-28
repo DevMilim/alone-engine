@@ -35,6 +35,15 @@ impl Default for Base {
     }
 }
 
+impl GameObjectBase for Base {
+    fn base(&self) -> &Base {
+        self
+    }
+    fn base_mut(&mut self) -> &mut Base {
+        self
+    }
+}
+
 pub trait GameObjectBase {
     fn base(&self) -> &Base;
     fn base_mut(&mut self) -> &mut Base;

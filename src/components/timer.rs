@@ -51,7 +51,7 @@ impl Component for Timer {
                     self.stop();
                 }
                 if let Some(event) = &self.event {
-                    ctx.send(base.id, event());
+                    ctx.send_boxed_any(base.id, event());
                 } else {
                     ctx.emit_targeted(base.id, TimerEvent::Timeout);
                 }
