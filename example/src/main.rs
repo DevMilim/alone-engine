@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use alone_engine::*;
 
 #[derive(GameObject)]
@@ -18,7 +20,7 @@ impl GameObject for Wall {
 }
 
 #[derive(GameObject)]
-#[game(connect(on_collide: TriggerEvent))]
+#[game(connect(on_collide: TriggerEvent, timer: TimerEvent))]
 pub struct Player {
     #[game(base)]
     base: Base,
@@ -27,9 +29,10 @@ pub struct Player {
     #[game(component)]
     body: Body2D,
     #[game(component)]
+    timer: Timer,
+    #[game(component)]
     colision: BoxCollider,
     texture: Option<Handler<ImageAsset>>,
-    last_position: Vector2,
     #[game(object)]
     wall: Wall,
 }
@@ -38,15 +41,19 @@ impl Player {
     pub fn on_collide(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
         println!("Colidiu");
     }
+    fn timer(&mut self, ctx: &mut impl EngineApi, event: &TimerEvent) {
+        println!("Connect event");
+        self.timer.set_event(0);
+    }
 }
 
 impl GameObject for Player {
-    type Message = ();
+    type Message = i32;
     fn start(&mut self, _ctx: &mut impl EngineApi) {
         let texture = _ctx.load_texture("./assets/player.png");
         _ctx.load_texture_and_resize("./assets/player.png", 64, 64);
         self.texture = Some(texture);
-        self.last_position = self.position();
+        self.timer.start_timer(Duration::from_secs(1), true);
         println!("Start")
     }
     fn draw(&mut self, render: &mut impl RenderApi, blending: f32) {
@@ -55,10 +62,6 @@ impl GameObject for Player {
         render.draw_rect(Rect::new(100.0, 100.0, 10, 40), Color::BLACK, 0);
         render.draw_rect(Rect::new(300.0, 450.0, 20, 40), Color::BLACK, 0);
         render.draw_sprite(Vector2::new(0.0, 44.0), Handler::new(2), Anchor::Center, 0);
-        if let Some(texture) = self.texture {
-            let current_position = self.last_position.lerp(self.position(), blending);
-            render.draw_sprite(current_position, texture, Anchor::Center, self.z_index());
-        }
     }
 
     fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
@@ -67,7 +70,6 @@ impl GameObject for Player {
 
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         let velocity = 200.0;
-        self.last_position = self.position();
         let direction =
             ctx.get_key_vector(KeyCode::KeyW, KeyCode::KeyS, KeyCode::KeyA, KeyCode::KeyD);
 
@@ -101,7 +103,6 @@ fn main() {
             half: Vector2::new(32.0, 32.0),
             ..Default::default()
         },
-        last_position: Vector2::new(0.0, 0.0),
         wall: Wall {
             base: Base::new(Transform2D::new(100.0, 100.0)),
             colision: BoxCollider {
@@ -115,6 +116,7 @@ fn main() {
         body: Body2D {
             velocity: Vector2::ZERO,
         },
+        timer: Timer::new(),
     };
 
     let main_scene = GameScenes::MainScene(player);

@@ -4,6 +4,7 @@ mod body;
 mod camera;
 mod collision;
 mod rigid_body;
+mod sprite;
 mod tilemap;
 mod timer;
 
@@ -13,5 +14,6 @@ pub use body::*;
 pub use camera::*;
 pub use collision::*;
 pub use rigid_body::*;
+pub use sprite::*;
 pub use tilemap::*;
 pub use timer::*;

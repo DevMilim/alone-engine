@@ -25,13 +25,13 @@ impl Timer {
             repeat: true,
         }
     }
-    fn now(&mut self) {
+    pub fn now(&mut self) {
         self.instant = Some(Instant::now());
     }
     pub fn set_event<T: Clone + 'static>(&mut self, event: T) {
         self.event = Some(Box::new(move || Box::new(event.clone())));
     }
-    pub fn start(&mut self, duration: Duration, repeat: bool) {
+    pub fn start_timer(&mut self, duration: Duration, repeat: bool) {
         self.duration = duration;
         self.repeat = repeat;
         self.instant = Some(Instant::now())
