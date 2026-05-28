@@ -13,9 +13,10 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::{Anchor, DrawCommand, Engine, Rect, RenderApi, RenderCommands, Scene};
-pub const LOGICAL_WIDTH: u32 = 854;
-pub const LOGICAL_HEIGHT: u32 = 480;
+use crate::{Anchor, DrawCommand, Engine, RenderCommands, Scene};
+
+pub const LOGICAL_WIDTH: u32 = 512;
+pub const LOGICAL_HEIGHT: u32 = 288;
 
 struct Render<'a, S: Scene> {
     state: Option<Pixels<'a>>,
@@ -128,21 +129,24 @@ impl<'a, S: Scene> Render<'a, S> {
                                 let dst_row_start = dst_y * frame_width;
                                 let tex_row_start = tex_y * tex_width;
 
-                                for dst_x in screen_min_x..screen_max_x {
-                                    let tex_x = (dst_x as isize - start_x) as usize;
+                                let tex_min_x = (screen_min_x as isize - start_x) as usize;
+                                let tex_max_x = tex_min_x + (screen_max_x - screen_min_x);
 
-                                    let src_px = tex_pixels[tex_row_start + tex_x];
+                                let dst_row = &mut frame_pixels
+                                    [dst_row_start + screen_min_x..dst_row_start + screen_max_x];
 
+                                let tex_row = &tex_pixels
+                                    [tex_row_start + tex_min_x..tex_row_start + tex_max_x];
+
+                                for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
                                     let sa = src_px[3];
 
                                     if sa == 0 {
                                         continue;
                                     }
-                                    let dst_idx = dst_row_start + dst_x;
                                     if sa == 255 {
-                                        frame_pixels[dst_idx] = src_px;
+                                        *dst_px = *src_px;
                                     } else {
-                                        let dst_px = frame_pixels[dst_idx];
                                         let inv = 255u32 - sa as u32;
 
                                         let sr = src_px[0] as u32;
@@ -153,7 +157,7 @@ impl<'a, S: Scene> Render<'a, S> {
                                         let dg = dst_px[1] as u32;
                                         let db = dst_px[2] as u32;
 
-                                        frame_pixels[dst_idx] = [
+                                        *dst_px = [
                                             (((sr * sa as u32 + dr * inv + 128) * 257) >> 16) as u8,
                                             (((sg * sa as u32 + dg * inv + 128) * 257) >> 16) as u8,
                                             (((sb * sa as u32 + db * inv + 128) * 257) >> 16) as u8,
