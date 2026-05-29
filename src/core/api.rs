@@ -1,11 +1,12 @@
 use std::any::Any;
 
 use indexmap::IndexMap;
+use rodio::Player;
 use winit::keyboard::KeyCode;
 
 use crate::{
-    Anchor, ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id, ImageAsset,
-    Rect, Vector2,
+    Anchor, AudioAsset, ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id,
+    ImageAsset, Rect, Vector2,
 };
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
@@ -76,4 +77,7 @@ pub trait RenderApi {
     );
     fn camera_mut(&mut self) -> &mut Vector2;
 }
-pub trait AudioApi {}
+pub trait AudioApi {
+    fn play(&mut self, sound: Handler<AudioAsset>) -> Player;
+    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset>;
+}

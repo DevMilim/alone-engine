@@ -33,6 +33,8 @@ pub struct Player {
     #[game(component)]
     animation: SpriteAnimation,
     #[game(component)]
+    error_sound: Option<Sound>,
+    #[game(component)]
     colision: BoxCollider,
     #[game(object)]
     wall: Wall,
@@ -58,6 +60,7 @@ impl GameObject for Player {
             ],
             2.0,
         );
+        self.error_sound = Some(Sound::new(ctx.load_audio("./assets/error_006.ogg")));
         self.animation.new_animation(animation_data, "idle");
         self.timer.start_timer(Duration::from_secs(1), true);
         self.animation.play("idle");
@@ -73,6 +76,14 @@ impl GameObject for Player {
 
     fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
         println!("Message")
+    }
+    fn update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
+        if ctx.is_key_pressed(KeyCode::Space) {
+            let Some(sound) = &mut self.error_sound else {
+                return;
+            };
+            sound.play(ctx)
+        }
     }
 
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
@@ -124,6 +135,7 @@ fn main() {
         },
         timer: Timer::new(),
         animation: SpriteAnimation::new(),
+        error_sound: None,
     };
 
     let main_scene = GameScenes::MainScene(player);

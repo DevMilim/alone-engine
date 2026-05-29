@@ -1,12 +1,13 @@
 use std::{any::Any, collections::VecDeque};
 
 use indexmap::IndexMap;
+use rodio::Player;
 use winit::keyboard::KeyCode;
 
 use crate::{
-    AssetApi, AudioApi, ColliderData, ColliderKey, CollisionApi, CollisionWorld, EngineApi,
-    EventApi, GameObject, GlobalEvent, Handler, Id, ImageAsset, InputApi, InputState,
-    RenderCommands, Resources, SpawnEvent, Vector2,
+    AssetApi, AudioApi, AudioAsset, AudioSys, ColliderData, ColliderKey, CollisionApi,
+    CollisionWorld, EngineApi, EventApi, GameObject, GlobalEvent, Handler, Id, ImageAsset,
+    InputApi, InputState, RenderCommands, Resources, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
@@ -17,6 +18,7 @@ pub struct EngineContext<'a> {
     pub camera_pos: &'a mut Vector2,
     pub resources: &'a mut Resources,
     pub collision: &'a mut CollisionWorld,
+    audio_sys: &'a AudioSys,
 }
 impl<'a> EngineApi for EngineContext<'a> {
     fn quit(&mut self) {
@@ -40,6 +42,7 @@ impl<'a> EngineContext<'a> {
         camera_pos: &'a mut Vector2,
         resources: &'a mut Resources,
         collision: &'a mut CollisionWorld,
+        audio_sys: &'a AudioSys,
     ) -> Self {
         Self {
             input,
@@ -49,11 +52,21 @@ impl<'a> EngineContext<'a> {
             camera_pos,
             resources,
             collision,
+            audio_sys,
         }
     }
 }
 
-impl<'a> AudioApi for EngineContext<'a> {}
+impl<'a> AudioApi for EngineContext<'a> {
+    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
+        let sound_asset = AudioAsset::load_audio(path);
+        self.resources.sounds.insert(path, sound_asset)
+    }
+
+    fn play(&mut self, sound: Handler<AudioAsset>) -> Player {
+        self.audio_sys.play_controled(self.resources, sound)
+    }
+}
 impl<'a> AssetApi for EngineContext<'a> {
     fn load_texture(&mut self, path: &str) -> Handler<ImageAsset> {
         if let Some(id) = self.resources.textures.get_id(path) {

@@ -1,8 +1,6 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
-use image::imageops::FilterType;
-
-use crate::Handler;
+use crate::{AudioAsset, Handler, ImageAsset};
 
 pub struct AssetCache<T> {
     assets: HashMap<usize, T>,
@@ -52,49 +50,17 @@ impl<T> Default for AssetCache<T> {
 
 pub struct Resources {
     pub textures: AssetCache<ImageAsset>,
+    pub sounds: AssetCache<AudioAsset>,
 }
 
 impl Resources {
     pub fn new() -> Self {
         Self {
             textures: AssetCache::new(),
+            sounds: AssetCache::new(),
         }
     }
     pub fn clear(&mut self) {
         self.textures.clear();
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImageAsset {
-    pub width: u32,
-    pub height: u32,
-    pub pixels: Vec<u8>,
-}
-impl ImageAsset {
-    pub fn load_from_file(path: &str) -> Self {
-        let img = image::open(Path::new(path)).expect("Falha ao carregar textura");
-        let rgba = img.to_rgba8();
-
-        let dimensions = rgba.dimensions();
-
-        Self {
-            width: dimensions.0,
-            height: dimensions.1,
-            pixels: rgba.to_vec(),
-        }
-    }
-    pub fn load_from_file_and_resize(path: &str, width: u32, height: u32) -> Self {
-        let img = image::open(Path::new(path)).expect("Falha ao carregar textura");
-        let resize = img.resize(width, height, FilterType::Nearest);
-        let rgba = resize.to_rgba8();
-
-        let dimensions = rgba.dimensions();
-
-        Self {
-            width: dimensions.0,
-            height: dimensions.1,
-            pixels: rgba.to_vec(),
-        }
     }
 }

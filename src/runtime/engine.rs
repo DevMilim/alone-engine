@@ -3,9 +3,9 @@ use std::{any::Any, collections::VecDeque, time::Instant};
 use indexmap::IndexMap;
 
 use crate::{
-    Base, CollisionWorld, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent, Handler, Id,
-    ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene, Transform2D,
-    TriggerEvent, TriggerKind, Vector2,
+    AudioSys, Base, CollisionWorld, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent,
+    Handler, Id, ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene,
+    Transform2D, TriggerEvent, TriggerKind, Vector2,
 };
 
 pub const FIXED_DT: f32 = 1.0 / 60.0;
@@ -24,6 +24,7 @@ pub struct Engine<S: Scene> {
     pub resources: Resources,
     last_instant: Instant,
     accumulator: f32,
+    audio_sys: AudioSys,
 }
 
 impl<S: Scene> Engine<S> {
@@ -41,6 +42,7 @@ impl<S: Scene> Engine<S> {
             last_instant: Instant::now(),
             accumulator: 0.0,
             collision: CollisionWorld::new(),
+            audio_sys: AudioSys::new(),
         }
     }
     pub fn events(&mut self, cmd: RenderCommands) {
@@ -102,6 +104,7 @@ impl<S: Scene> Engine<S> {
             &mut self.camera_pos,
             &mut self.resources,
             &mut self.collision,
+            &self.audio_sys,
         );
         if let Some(mut scene) = self.objects.pop() {
             scene.get_dispatch().dispatch_destroy(&mut ctx);
@@ -116,6 +119,7 @@ impl<S: Scene> Engine<S> {
             &mut self.camera_pos,
             &mut self.resources,
             &mut self.collision,
+            &self.audio_sys,
         );
         while let Some(mut old_scene) = self.objects.pop() {
             old_scene.get_dispatch().dispatch_destroy(&mut ctx);
@@ -133,6 +137,7 @@ impl<S: Scene> Engine<S> {
             &mut self.camera_pos,
             &mut self.resources,
             &mut self.collision,
+            &self.audio_sys,
         );
         for (a, b) in ctx.collision.get_entered_pairs() {
             let da = ctx.collision.colliders.get(&a).unwrap();
@@ -199,6 +204,7 @@ impl<S: Scene> Engine<S> {
             &mut self.camera_pos,
             &mut self.resources,
             &mut self.collision,
+            &self.audio_sys,
         );
         if let Some(obj) = self.objects.last_mut() {
             obj.get_dispatch()
@@ -227,6 +233,7 @@ impl<S: Scene> Engine<S> {
             &mut self.camera_pos,
             &mut self.resources,
             &mut self.collision,
+            &self.audio_sys,
         );
         for _ in 0..10 {
             let mut something_processed = false;
