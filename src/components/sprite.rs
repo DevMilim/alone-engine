@@ -25,6 +25,7 @@ impl Component for Sprite {
             current_position + self.offset,
             self.texture,
             self.anchor,
+            None,
             base.z_index,
         );
     }

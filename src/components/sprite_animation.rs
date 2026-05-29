@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Anchor, Component, GameObjectBase, Handler, ImageAsset, Vector2};
+use crate::{Anchor, Component, GameObjectBase, Handler, ImageAsset, Rect, Vector2};
 
 pub struct AnimationData {
     sprites: Vec<Handler<ImageAsset>>,
@@ -137,6 +137,7 @@ impl Component for SpriteAnimation {
             current_position + self.offset,
             texture,
             self.anchor,
+            None,
             base.z_index,
         );
     }

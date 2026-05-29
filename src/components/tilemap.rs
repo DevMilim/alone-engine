@@ -1,7 +1,9 @@
 use std::{collections::HashMap, path::Path};
 
+use rustc_hash::FxHashMap;
+
 use crate::{
-    Anchor, AssetApi, Base, Component, GameObject, Handler, ImageAsset, LdtkError, LdtkProject,
+    Anchor, AssetApi, Base, Component, GameObjectBase, Handler, ImageAsset, LdtkError, LdtkProject,
     LdtkTile, Rect, TilesetDef, Vector2,
 };
 
@@ -10,8 +12,8 @@ pub struct Tile {
     pub texture: Handler<ImageAsset>,
     pub source: Rect,
     pub position: Vector2,
-    pub flip_x: bool,
-    pub flip_y: bool,
+    pub flip_h: bool,
+    pub flip_v: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +27,23 @@ pub struct Tilemap {
     pub previous_position: Vector2,
     pub position: Vector2,
     pub z_index: u8,
+}
+
+impl Component for Tilemap {
+    fn draw(&mut self, renderer: &mut impl crate::RenderApi, base: &Base, _blending: f32) {
+        if !self.visible {
+            return;
+        }
+        for tile in &self.tiles {
+            renderer.draw_sprite(
+                base.position() + self.position + tile.position,
+                tile.texture,
+                Anchor::TopLeft,
+                Some(tile.source),
+                self.z_index,
+            );
+        }
+    }
 }
 
 impl Tilemap {
@@ -56,14 +75,14 @@ impl Tilemap {
             .find(|level| level.iid == level_key || level.identifier == level_key)
             .ok_or_else(|| LdtkError::LevelNotFound(level_key.to_string()))?;
 
-        let tileset_map: HashMap<i64, &TilesetDef> = project
+        let tileset_map: FxHashMap<i64, &TilesetDef> = project
             .defs
             .tilesets
             .iter()
             .map(|ts| (ts.uid, ts))
             .collect();
 
-        let mut tileset_cache: HashMap<i64, Handler<ImageAsset>> = HashMap::new();
+        let mut tileset_cache: FxHashMap<i64, Handler<ImageAsset>> = FxHashMap::default();
 
         let mut map = Tilemap::empty(Vector2 { x: 16.0, y: 16.0 });
 
@@ -109,16 +128,16 @@ impl Tilemap {
                 };
 
                 let position = Vector2 {
-                    x: level.world_x as f32 + layer.px_offset_x as f32 + tile.px[0] as f32,
-                    y: level.world_y as f32 + layer.px_offset_y as f32 + tile.px[1] as f32,
+                    x: layer.px_offset_x as f32 + tile.px[0] as f32,
+                    y: layer.px_offset_y as f32 + tile.px[1] as f32,
                 };
 
                 map.tiles.push(Tile {
                     texture: texture.clone(),
                     source,
                     position,
-                    flip_x: tile.f & 1 != 0,
-                    flip_y: tile.f & 2 != 0,
+                    flip_h: tile.f & 1 != 0,
+                    flip_v: tile.f & 2 != 0,
                 });
             }
         }

@@ -67,7 +67,7 @@ impl<S: Scene> Engine<S> {
         }
     }
 
-    pub fn get_texture(&self, handler: Handler<ImageAsset>) -> Option<&ImageAsset> {
+    pub fn get_texture(&mut self, handler: Handler<ImageAsset>) -> Option<&ImageAsset> {
         self.resources.textures.get(handler)
     }
 

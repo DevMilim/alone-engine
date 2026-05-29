@@ -1,18 +1,18 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::{AudioAsset, Handler, ImageAsset};
 
 pub struct AssetCache<T> {
-    assets: HashMap<usize, T>,
-    path_map: HashMap<String, usize>,
+    assets: FxHashMap<usize, T>,
+    path_map: FxHashMap<String, usize>,
     next_id: usize,
 }
 
 impl<T> AssetCache<T> {
     pub fn new() -> Self {
         Self {
-            assets: HashMap::new(),
-            path_map: HashMap::new(),
+            assets: FxHashMap::default(),
+            path_map: FxHashMap::default(),
             next_id: 0,
         }
     }
@@ -30,6 +30,9 @@ impl<T> AssetCache<T> {
         self.assets.get_mut(&id.id)
     }
     pub fn insert(&mut self, path: &str, asset: T) -> Handler<T> {
+        if let Some(id) = self.path_map.get(path).copied() {
+            return Handler::new(id);
+        }
         let id = self.current_id();
         self.assets.insert(id, asset);
         self.path_map.insert(path.to_string(), id);

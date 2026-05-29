@@ -73,6 +73,7 @@ pub trait RenderApi {
         position: Vector2,
         texture: Handler<ImageAsset>,
         anchor: Anchor,
+        source: Option<Rect>,
         z_index: u8,
     );
     fn camera_mut(&mut self) -> &mut Vector2;

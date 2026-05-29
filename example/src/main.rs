@@ -74,7 +74,13 @@ impl GameObject for Player {
         render.draw_rect(Rect::new(90.0, 400.0, 20, 70), Color::BLACK, 0);
         render.draw_rect(Rect::new(100.0, 100.0, 10, 40), Color::BLACK, 0);
         render.draw_rect(Rect::new(300.0, 450.0, 20, 40), Color::BLACK, 0);
-        render.draw_sprite(Vector2::new(0.0, 44.0), Handler::new(2), Anchor::Center, 0);
+        render.draw_sprite(
+            Vector2::new(0.0, 44.0),
+            Handler::new(2),
+            Anchor::Center,
+            None,
+            0,
+        );
     }
 
     fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {

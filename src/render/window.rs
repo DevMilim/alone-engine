@@ -68,7 +68,6 @@ impl<'a, S: Scene> Render<'a, S> {
         let frame_pixels: &mut [[u8; 4]] = unsafe {
             std::slice::from_raw_parts_mut(frame.as_mut_ptr() as *mut [u8; 4], frame.len() / 4)
         };
-
         for layer in self.queue.iter() {
             let mut last_texture_id = None;
             let mut current_texture = None;
@@ -78,6 +77,7 @@ impl<'a, S: Scene> Render<'a, S> {
                         position,
                         image,
                         anchor,
+                        source,
                     } => {
                         let texture_id = image.id;
                         if Some(texture_id) != last_texture_id {
@@ -88,10 +88,24 @@ impl<'a, S: Scene> Render<'a, S> {
                             let tex_width = texture.width as usize;
                             let tex_height = texture.height as usize;
 
+                            let (src_x, src_y, sprite_w, sprite_h) = match source {
+                                Some(rect) => (
+                                    rect.x as usize,
+                                    rect.y as usize,
+                                    rect.width as usize,
+                                    rect.height as usize,
+                                ),
+                                None => (0, 0, tex_width, tex_height),
+                            };
+
+                            if src_x + sprite_w > tex_width || src_y + sprite_h > tex_height {
+                                continue;
+                            }
+
                             let (start_x, start_y) = match anchor {
                                 Anchor::Center => {
-                                    let center_x = position.x - (tex_width as f32 / 2.0);
-                                    let center_y = position.y - (tex_height as f32 / 2.0);
+                                    let center_x = position.x - (sprite_w as f32 / 2.0);
+                                    let center_y = position.y - (sprite_h as f32 / 2.0);
                                     (
                                         (center_x - cam_x).round() as isize,
                                         (center_y - cam_y).round() as isize,
@@ -105,10 +119,10 @@ impl<'a, S: Scene> Render<'a, S> {
                             let screen_min_x = start_x.max(0) as usize;
                             let screen_min_y = start_y.max(0) as usize;
 
-                            let screen_max_x = (start_x + tex_width as isize)
+                            let screen_max_x = (start_x + sprite_w as isize)
                                 .min(frame_width as isize)
                                 .max(0) as usize;
-                            let screen_max_y = (start_y + tex_height as isize)
+                            let screen_max_y = (start_y + sprite_h as isize)
                                 .min(frame_height as isize)
                                 .max(0) as usize;
 
@@ -127,19 +141,22 @@ impl<'a, S: Scene> Render<'a, S> {
                                 let tex_y = (dst_y as isize - start_y) as usize;
 
                                 let dst_row_start = dst_y * frame_width;
-                                let tex_row_start = tex_y * tex_width;
+                                let tex_row_start = (src_y + tex_y) * tex_width;
 
                                 let tex_min_x = (screen_min_x as isize - start_x) as usize;
-                                let tex_max_x = tex_min_x + (screen_max_x - screen_min_x);
+
+                                let actual_tex_x_start = src_x + tex_min_x;
+                                let actual_tex_x_end =
+                                    actual_tex_x_start + (screen_max_x - screen_min_x);
 
                                 let dst_row = &mut frame_pixels
                                     [dst_row_start + screen_min_x..dst_row_start + screen_max_x];
 
-                                let tex_row = &tex_pixels
-                                    [tex_row_start + tex_min_x..tex_row_start + tex_max_x];
+                                let tex_row = &tex_pixels[tex_row_start + actual_tex_x_start
+                                    ..tex_row_start + actual_tex_x_end];
 
                                 for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
-                                    let sa = src_px[3];
+                                    let sa = src_px[3] as u32;
 
                                     if sa == 0 {
                                         continue;
@@ -147,7 +164,7 @@ impl<'a, S: Scene> Render<'a, S> {
                                     if sa == 255 {
                                         *dst_px = *src_px;
                                     } else {
-                                        let inv = 255u32 - sa as u32;
+                                        let inv = 255u32 - sa;
 
                                         let sr = src_px[0] as u32;
                                         let sg = src_px[1] as u32;
@@ -158,9 +175,9 @@ impl<'a, S: Scene> Render<'a, S> {
                                         let db = dst_px[2] as u32;
 
                                         *dst_px = [
-                                            (((sr * sa as u32 + dr * inv + 128) * 257) >> 16) as u8,
-                                            (((sg * sa as u32 + dg * inv + 128) * 257) >> 16) as u8,
-                                            (((sb * sa as u32 + db * inv + 128) * 257) >> 16) as u8,
+                                            (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
+                                            (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
+                                            (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
                                             255,
                                         ]
                                     }
@@ -171,8 +188,8 @@ impl<'a, S: Scene> Render<'a, S> {
                     DrawCommand::Rect { color, rect } => {
                         let color_bytes = color.bytes();
 
-                        let screen_x = rect.x - cam_x;
-                        let screen_y = rect.y - cam_y;
+                        let screen_x = (rect.x - cam_x).round();
+                        let screen_y = (rect.y - cam_y).round();
 
                         let start_x = (screen_x as i32).max(0).min(frame_width as i32) as usize;
                         let start_y = (screen_y as i32).max(0).min(frame_height as i32) as usize;
@@ -182,6 +199,9 @@ impl<'a, S: Scene> Render<'a, S> {
                         let end_y = ((screen_y + rect.height as f32) as i32)
                             .max(0)
                             .min(frame_height as i32) as usize;
+                        if start_x >= end_x || start_y >= end_y {
+                            continue;
+                        }
                         for y in start_y..end_y {
                             let row_start = y * frame_width + start_x;
                             let row_end = y * frame_width + end_x;

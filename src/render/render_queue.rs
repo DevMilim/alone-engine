@@ -19,12 +19,14 @@ impl<'a> RenderApi for RenderQueue<'a> {
         position: crate::Vector2,
         texture: crate::Handler<crate::ImageAsset>,
         anchor: Anchor,
+        source: Option<Rect>,
         z_index: u8,
     ) {
         self.queue[z_index as usize].push(DrawCommand::Sprite {
             position,
             image: texture,
             anchor,
+            source,
         })
     }
 
