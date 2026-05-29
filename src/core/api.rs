@@ -77,7 +77,8 @@ pub trait RenderApi {
     );
     fn camera_mut(&mut self) -> &mut Vector2;
 }
+
 pub trait AudioApi {
-    fn play(&mut self, sound: Handler<AudioAsset>) -> Player;
+    fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player;
     fn load_audio(&mut self, path: &str) -> Handler<AudioAsset>;
 }

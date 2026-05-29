@@ -41,7 +41,7 @@ pub trait GameObject: GameObjectBase {
     /// Metodo com execução fixa a 60 fps
     fn fixed_update(&mut self, _ctx: &mut impl EngineApi, _delta: f32) {}
     /// Metodo recomendado para utilizar para desenho quando não quiser utilizar componentes de desenho
-    fn draw(&mut self, _renderer: &mut impl RenderApi, blending: f32) {}
+    fn draw(&mut self, _renderer: &mut impl RenderApi, _blending: f32) {}
     /// Metodo chamado quando um GameObject executa o metodo self.queue_free() usado para desalocação de recursos ou configuração ao ser removido da cena
     fn destroy(&mut self, _ctx: &mut impl EngineApi) {}
 }

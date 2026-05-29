@@ -63,8 +63,8 @@ impl<'a> AudioApi for EngineContext<'a> {
         self.resources.sounds.insert(path, sound_asset)
     }
 
-    fn play(&mut self, sound: Handler<AudioAsset>) -> Player {
-        self.audio_sys.play_controled(self.resources, sound)
+    fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player {
+        self.audio_sys.play_controled(self.resources, sound, looped)
     }
 }
 impl<'a> AssetApi for EngineContext<'a> {

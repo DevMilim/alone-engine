@@ -2,36 +2,74 @@ use rodio::Player;
 
 use crate::{AudioAsset, Component, EngineApi, Handler};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaybackMode {
+    Normal,
+    Loop,
+    OneShot,
+}
+
 pub struct Sound {
     sound: Handler<AudioAsset>,
     pub auto_play: bool,
-    pub looped: bool,
     pub volume: f32,
     playing: Option<Player>,
-    pub one_shot: bool,
+    pub mode: PlaybackMode,
 }
 
 impl Sound {
-    pub fn new(sound: Handler<AudioAsset>) -> Self {
+    pub fn new(sound: Handler<AudioAsset>, mode: PlaybackMode) -> Self {
         Self {
             sound,
             auto_play: false,
-            looped: false,
             volume: 1.0,
             playing: None,
-            one_shot: false,
+            mode,
         }
     }
     pub fn play(&mut self, ctx: &mut impl EngineApi) {
-        let handle = ctx.play(self.sound);
-        handle.set_volume(self.volume);
-        self.playing = Some(handle);
+        match self.mode {
+            PlaybackMode::OneShot => {
+                let handle = ctx.play(self.sound, false);
+                handle.set_volume(self.volume);
+                handle.detach();
+                self.playing = None;
+            }
+            PlaybackMode::Normal => {
+                self.stop();
+                let handle = ctx.play(self.sound, false);
+                handle.set_volume(self.volume);
+                self.playing = Some(handle);
+            }
+            PlaybackMode::Loop => {
+                self.stop();
+                let handle = ctx.play(self.sound, true);
+                handle.set_volume(self.volume);
+                self.playing = Some(handle);
+            }
+        }
+        return;
     }
     pub fn stop(&mut self) {
         if let Some(handle) = &self.playing {
             handle.stop();
         }
         self.playing = None
+    }
+    pub fn pause(&mut self) {
+        if let Some(handle) = &self.playing {
+            handle.pause();
+        }
+    }
+    pub fn resume(&mut self) {
+        if let Some(handle) = &self.playing {
+            handle.play();
+        }
+    }
+    pub fn set_volume(&mut self, volume: f32) {
+        if let Some(handle) = &self.playing {
+            handle.set_volume(volume);
+        }
     }
 }
 

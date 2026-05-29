@@ -1,7 +1,7 @@
 use std::{fs, io::Cursor, num::NonZero, sync::Mutex};
 
 use rodio::{
-    Decoder, DeviceSinkBuilder, MixerDeviceSink, Player,
+    Decoder, DeviceSinkBuilder, MixerDeviceSink, Player, Source,
     mixer::{self, Mixer},
 };
 
@@ -43,14 +43,23 @@ impl AudioSys {
             _mixer: controller,
         }
     }
-    pub fn play_controled(&self, resources: &Resources, sound: Handler<AudioAsset>) -> Player {
+    pub fn play_controled(
+        &self,
+        resources: &Resources,
+        sound: Handler<AudioAsset>,
+        looped: bool,
+    ) -> Player {
         let sound_bytes = &resources.sounds.get(sound).unwrap().bytes;
         let source = Decoder::try_from(Cursor::new(sound_bytes.to_vec())).unwrap();
 
         let mixer = self.sink.mixer();
 
         let player = Player::connect_new(mixer);
-        player.append(source);
+        if looped {
+            player.append(source.repeat_infinite());
+        } else {
+            player.append(source);
+        }
         player
     }
 

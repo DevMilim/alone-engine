@@ -60,7 +60,10 @@ impl GameObject for Player {
             ],
             2.0,
         );
-        self.error_sound = Some(Sound::new(ctx.load_audio("./assets/error_006.ogg")));
+        self.error_sound = Some(Sound::new(
+            ctx.load_audio("./assets/error_006.ogg"),
+            PlaybackMode::OneShot,
+        ));
         self.animation.new_animation(animation_data, "idle");
         self.timer.start_timer(Duration::from_secs(1), true);
         self.animation.play("idle");
