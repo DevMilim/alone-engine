@@ -20,3 +20,25 @@ pub use macros::*;
 pub use math::*;
 pub use render::*;
 pub use runtime::*;
+use std::time::Instant;
+
+pub struct TimeDebug {
+    instant: Instant,
+}
+
+impl TimeDebug {
+    pub fn start() -> Self {
+        Self {
+            instant: Instant::now(),
+        }
+    }
+    pub fn larp(&mut self, message: &str) {
+        let time = self.instant.elapsed();
+        println!("Debug: {} time: {}", message, time.as_nanos());
+        self.instant = Instant::now();
+    }
+    pub fn end(&self, message: &str) {
+        let time = self.instant.elapsed();
+        println!("Debug: {} time: {}", message, time.as_nanos());
+    }
+}

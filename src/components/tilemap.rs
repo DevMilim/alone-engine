@@ -1,6 +1,4 @@
-use std::{collections::HashMap, path::Path};
-
-use rustc_hash::FxHashMap;
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use crate::{
     Anchor, AssetApi, Base, Component, GameObjectBase, Handler, ImageAsset, LdtkError, LdtkProject,
@@ -59,15 +57,19 @@ impl Tilemap {
             z_index: 0,
         }
     }
-
-    pub fn from_ldtk_json_str<A: AssetApi>(
+    /// Carrega um arquivo do ltdk e gera o tilemap
+    /// api recebe o ctx para acessar a engine
+    /// json_path e onde o json exportado pelo ltdk esta
+    /// level_key e o nome do level escolhido no ltdk
+    pub fn from_ldtk_file<A: AssetApi, P: AsRef<Path>>(
         api: &mut A,
-        json: &str,
+        json_path: P,
         level_key: &str,
-        base_dir: impl AsRef<Path>,
     ) -> Result<Self, LdtkError> {
-        let project: LdtkProject = serde_json::from_str(json)?;
-        let base_dir = base_dir.as_ref();
+        let json_path = json_path.as_ref();
+        let json = File::open(json_path)?;
+        let reader = BufReader::new(json);
+        let project: LdtkProject = serde_json::from_reader(reader)?;
 
         let level = project
             .levels
@@ -75,14 +77,16 @@ impl Tilemap {
             .find(|level| level.iid == level_key || level.identifier == level_key)
             .ok_or_else(|| LdtkError::LevelNotFound(level_key.to_string()))?;
 
-        let tileset_map: FxHashMap<i64, &TilesetDef> = project
+        let base_dir = json_path.parent().unwrap_or(Path::new("."));
+
+        let tileset_map: HashMap<i64, &TilesetDef> = project
             .defs
             .tilesets
             .iter()
             .map(|ts| (ts.uid, ts))
             .collect();
 
-        let mut tileset_cache: FxHashMap<i64, Handler<ImageAsset>> = FxHashMap::default();
+        let mut tileset_cache: HashMap<i64, Handler<ImageAsset>> = HashMap::new();
 
         let mut map = Tilemap::empty(Vector2 { x: 16.0, y: 16.0 });
 
@@ -128,8 +132,8 @@ impl Tilemap {
                 };
 
                 let position = Vector2 {
-                    x: layer.px_offset_x as f32 + tile.px[0] as f32,
-                    y: layer.px_offset_y as f32 + tile.px[1] as f32,
+                    x: level.world_x as f32 + layer.px_offset_x as f32 + tile.px[0] as f32,
+                    y: level.world_y as f32 + layer.px_offset_y as f32 + tile.px[1] as f32,
                 };
 
                 map.tiles.push(Tile {

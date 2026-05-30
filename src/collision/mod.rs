@@ -1,6 +1,6 @@
 mod aabb;
 
-use crate::{FIXED_DT, Id, Vector2};
+use crate::{Id, Vector2};
 use std::{
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
@@ -25,11 +25,11 @@ pub struct ColliderKey {
 
 type Cell = (i32, i32);
 pub fn cell_of(aabb: &AABB, cell_size: f32) -> Vec<Cell> {
-    let min_x = (aabb.x / cell_size).floor() as i32;
-    let min_y = (aabb.y / cell_size).floor() as i32;
+    let min_x = (aabb.x as f32 / cell_size).floor() as i32;
+    let min_y = (aabb.y as f32 / cell_size).floor() as i32;
 
-    let max_x = ((aabb.x + aabb.width) / cell_size).floor() as i32;
-    let max_y = ((aabb.y + aabb.height) / cell_size).floor() as i32;
+    let max_x = ((aabb.x + aabb.width) as f32 / cell_size).floor() as i32;
+    let max_y = ((aabb.y + aabb.height) as f32 / cell_size).floor() as i32;
 
     let mut cells = Vec::new();
 
@@ -69,8 +69,6 @@ impl CollisionWorld {
                 self.grid.entry(cell).or_default().push(key.clone());
             }
         }
-
-        let _keys: Vec<_> = self.colliders.keys().cloned().collect();
 
         let mut tested = HashSet::new();
 
@@ -176,8 +174,7 @@ impl CollisionWorld {
         self.colliders.swap_remove(&key);
     }
     pub fn get_currection(&self, my_id: Id, my_data: &ColliderData) -> Option<Vector2> {
-        let mut total_correction = Vector2::ZERO;
-        let mut collided = false;
+        let mut correction = Vector2::ZERO;
 
         for (key, other) in &self.colliders {
             if key.id == my_id {
@@ -195,13 +192,20 @@ impl CollisionWorld {
             }
 
             if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
-                total_correction.x += overlap.x;
-                total_correction.y += overlap.y;
-                collided = true;
+                const MARGIN: f32 = 0.001;
+
+                if overlap.x.abs() > correction.x.abs() {
+                    let sign = if overlap.x > 0.0 { 1.0 } else { -1.0 };
+                    correction.x = overlap.x + (MARGIN * sign);
+                }
+                if overlap.y.abs() > correction.y.abs() {
+                    let sign = if overlap.y > 0.0 { 1.0 } else { -1.0 };
+                    correction.y = overlap.y + (MARGIN * sign);
+                }
             }
         }
-        if collided {
-            Some(total_correction)
+        if correction != Vector2::ZERO {
+            Some(correction)
         } else {
             None
         }
@@ -213,7 +217,6 @@ impl CollisionWorld {
         velocity: &mut Vector2,
         delta: f32,
     ) {
-        let delta = FIXED_DT;
         let movement = *velocity * delta;
 
         position.x += movement.x;
@@ -245,18 +248,32 @@ impl CollisionWorld {
             .filter(|(key, _)| key.id == my_id)
             .map(|(_, data)| *data)
             .collect();
+        let mut final_correction = Vector2::ZERO;
 
-        for my_data in my_colliders {
-            if let Some(corrections) = self.get_currection(my_id, &my_data) {
+        for data in my_colliders {
+            if let Some(c) = self.get_currection(my_id, &data) {
                 if is_x_axis {
-                    position.x += corrections.x;
-                    velocity.x = 0.0;
-                    self.translate_my_colliders(my_id, Vector2::new(corrections.x, 0.0));
+                    if c.x.abs() > final_correction.x.abs() {
+                        final_correction.x = c.x;
+                    }
                 } else {
-                    position.y += corrections.y;
-                    velocity.y = 0.0;
-                    self.translate_my_colliders(my_id, Vector2::new(0.0, corrections.y));
+                    if c.y.abs() > final_correction.y.abs() {
+                        final_correction.y = c.y;
+                    }
                 }
+            }
+        }
+        if is_x_axis {
+            position.x += final_correction.x;
+            if final_correction.x != 0.0 {
+                velocity.x = 0.0;
+                self.translate_my_colliders(my_id, Vector2::new(final_correction.x, 0.0));
+            }
+        } else {
+            position.y += final_correction.y;
+            if final_correction.y != 0.0 {
+                velocity.y = 0.0;
+                self.translate_my_colliders(my_id, Vector2::new(0.0, final_correction.y));
             }
         }
     }

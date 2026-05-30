@@ -16,36 +16,32 @@ impl AABB {
             && self.y + self.height > other.y
     }
     pub fn get_overlap(&self, other: &AABB) -> Option<Vector2> {
-        let center_a_x = self.x + self.width / 2.0;
-        let center_a_y = self.y + self.height / 2.0;
-        let center_b_x = other.x + other.width / 2.0;
-        let center_b_y = other.y + other.height / 2.0;
+        let left = other.x - (self.x + self.width);
 
-        let distance_x = center_a_x - center_b_x;
-        let distance_y = center_a_y - center_b_y;
+        let right = (other.x + other.width) - self.x;
 
-        let min_distance_x = f32::midpoint(self.width, other.width);
-        let min_distance_y = f32::midpoint(self.height, other.height);
+        let top = other.y - (self.y + self.height);
+        let bottom = (other.y + other.height) - self.y;
 
-        if distance_x.abs() < min_distance_x && distance_y.abs() < min_distance_y {
-            let overlap_x = min_distance_x - distance_x.abs();
-            let overlap_y = min_distance_y - distance_y.abs();
-
-            if overlap_x < overlap_y {
-                let sx = if distance_x > 0.0 { 1.0 } else { -1.0 };
-                Some(Vector2 {
-                    x: overlap_x * sx,
-                    y: 0.0,
-                })
-            } else {
-                let sy = if distance_y > 0.0 { 1.0 } else { -1.0 };
-                Some(Vector2 {
-                    x: 0.0,
-                    y: overlap_y * sy,
-                })
-            }
+        if left >= 0.0 || right <= 0.0 || top >= 0.0 || bottom <= 0.0 {
+            return None;
+        }
+        let overlap_x = if left.abs() < right.abs() {
+            left
         } else {
-            None
+            right
+        };
+
+        let overlap_y = if top.abs() < bottom.abs() {
+            top
+        } else {
+            bottom
+        };
+
+        if overlap_x.abs() < overlap_y.abs() {
+            Some(Vector2::new(overlap_x, 0.0))
+        } else {
+            Some(Vector2::new(0.0, overlap_y))
         }
     }
 }

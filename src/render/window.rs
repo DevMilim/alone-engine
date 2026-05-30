@@ -15,8 +15,8 @@ use winit::{
 
 use crate::{Anchor, DrawCommand, Engine, RenderCommands, Scene};
 
-pub const LOGICAL_WIDTH: u32 = 512;
-pub const LOGICAL_HEIGHT: u32 = 288;
+pub const LOGICAL_WIDTH: u32 = 340;
+pub const LOGICAL_HEIGHT: u32 = 180;
 
 struct Render<'a, S: Scene> {
     state: Option<Pixels<'a>>,
@@ -220,7 +220,7 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attrs = Window::default_attributes()
             .with_title("winit + pixels")
-            .with_inner_size(LogicalSize::new(LOGICAL_WIDTH, LOGICAL_HEIGHT));
+            .with_inner_size(LogicalSize::new(800, 600));
 
         let window = Arc::new(event_loop.create_window(attrs).unwrap());
 
@@ -263,28 +263,7 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
                     ));
                 }
             }
-            WindowEvent::RedrawRequested => {
-                self.frame_count += 1;
-
-                if self.fps_timer.elapsed() >= Duration::from_secs(1) {
-                    println!("> FPS: {}", self.frame_count);
-                    self.frame_count = 0;
-                    self.fps_timer = Instant::now();
-                }
-
-                self.last_frame = Instant::now();
-                state.frame_mut().fill(255);
-                let (is_running, blending) = self.runtime.update_step();
-
-                self.runtime.render(&mut self.queue, blending);
-                self.render();
-
-                let _ = self.state.as_mut().unwrap().render();
-                if !is_running {
-                    event_loop.exit();
-                }
-                self.window.as_mut().unwrap().request_redraw();
-            }
+            WindowEvent::RedrawRequested => {}
             WindowEvent::Resized(size) => {
                 if size.width > 0 && size.height > 0 {
                     let _ = state.resize_surface(size.width, size.height);
@@ -296,6 +275,29 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
             }
             _ => (),
         }
+    }
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let state = self.state.as_mut().unwrap();
+        self.frame_count += 1;
+
+        if self.fps_timer.elapsed() >= Duration::from_secs(1) {
+            println!("> FPS: {}", self.frame_count);
+            self.frame_count = 0;
+            self.fps_timer = Instant::now();
+        }
+
+        self.last_frame = Instant::now();
+        state.frame_mut().fill(255);
+        let (is_running, blending) = self.runtime.update_step();
+
+        self.runtime.render(&mut self.queue, blending);
+        self.render();
+
+        let _ = self.state.as_mut().unwrap().render();
+        if !is_running {
+            event_loop.exit();
+        }
+        self.window.as_mut().unwrap().request_redraw();
     }
 }
 

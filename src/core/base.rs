@@ -12,11 +12,11 @@ pub struct Base {
 
 impl Base {
     pub fn empty() -> Self {
-        Self::new(Transform2D::EMPTY)
+        Self::new(Vector2::ZERO)
     }
-    pub fn new(transform: Transform2D) -> Self {
+    pub fn new(position: Vector2) -> Self {
         Self {
-            transform,
+            transform: Transform2D::new(position.x, position.y),
             pending_removal: false,
             top_level: false,
             id: Id::new(),
@@ -31,7 +31,7 @@ impl Base {
 
 impl Default for Base {
     fn default() -> Self {
-        Base::new(Transform2D::EMPTY)
+        Base::new(Vector2::ZERO)
     }
 }
 

@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 pub struct LdtkProject {
@@ -84,7 +85,7 @@ pub struct LayerInstance {
     #[serde(rename = "pxOffsetY", default)]
     pub px_offset_y: i32,
 
-    #[serde(rename = "tilesetDefUid", default)]
+    #[serde(rename = "__tilesetDefUid", default)]
     pub tileset_def_uid: Option<i64>,
 
     #[serde(rename = "overrideTilesetUid", default)]
@@ -106,32 +107,19 @@ pub struct LdtkTile {
     pub f: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LdtkError {
+    #[error("Erro de IO {0}")]
     Io(std::io::Error),
+    #[error("Erro ao parsear LDtk JSON {0}")]
     Json(serde_json::Error),
+    #[error("level não encontrado {0}")]
     LevelNotFound(String),
+    #[error("tileset def não encontrado para uid {0}")]
     TilesetDefNotFound(i64),
+    #[error("layer sem tileset associado {0}")]
     MissingTilesetForLayer(String),
 }
-
-impl std::fmt::Display for LdtkError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LdtkError::Io(err) => write!(f, "erro de IO: {err}"),
-            LdtkError::Json(err) => write!(f, "erro ao parsear LDtk JSON: {err}"),
-            LdtkError::LevelNotFound(level) => write!(f, "level não encontrado: {level}"),
-            LdtkError::TilesetDefNotFound(uid) => {
-                write!(f, "tileset def não encontrado para uid {uid}")
-            }
-            LdtkError::MissingTilesetForLayer(layer) => {
-                write!(f, "layer sem tileset associado: {layer}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for LdtkError {}
 
 impl From<std::io::Error> for LdtkError {
     fn from(value: std::io::Error) -> Self {

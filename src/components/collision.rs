@@ -54,7 +54,7 @@ impl Component for BoxCollider {
             data,
         );
     }
-    fn draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32) {
+    fn draw(&mut self, ctx: &mut impl RenderApi, base: &Base, _blending: f32) {
         if self.debug {
             let color = if self.is_sensor {
                 Color::rgb(0, 0, 255)

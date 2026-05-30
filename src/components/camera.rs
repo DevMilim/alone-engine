@@ -32,7 +32,7 @@ impl Component for Camera2D {
     fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut crate::Base) {
         self.last_position = self.position;
     }
-    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut crate::Base, delta: f32) {
+    fn late_update(&mut self, _ctx: &mut impl EngineApi, base: &mut crate::Base, delta: f32) {
         if !self.active {
             return;
         }

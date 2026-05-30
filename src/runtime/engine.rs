@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 
 use crate::{
     AudioSys, Base, CollisionWorld, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent,
-    Handler, Id, ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene,
+    Handler, Id, ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene, TimeDebug,
     Transform2D, TriggerEvent, TriggerKind, Vector2,
 };
 
@@ -32,7 +32,7 @@ impl<S: Scene> Engine<S> {
         Self {
             resources: Resources::new(),
             objects: vec![main_scene],
-            base: Base::new(Transform2D::new(0.0, 0.0)),
+            base: Base::default(),
             is_running: true,
             input: InputState::new(),
             event_queue: VecDeque::new(),
@@ -72,8 +72,6 @@ impl<S: Scene> Engine<S> {
     }
 
     pub fn update_step(&mut self) -> (bool, f32) {
-        self.input.clear_frame_data();
-
         let now = Instant::now();
         let mut delta_time = (now - self.last_instant).as_secs_f32();
         self.last_instant = now;
@@ -85,11 +83,12 @@ impl<S: Scene> Engine<S> {
         self.accumulator += delta_time;
         let blending = self.update(delta_time);
 
+        self.flush_messages_and_events();
         self.collision.step();
         self.collision_step();
 
-        self.flush_messages_and_events();
         self.collision.commit();
+        self.input.clear_frame_data();
         (self.is_running, blending)
     }
     pub fn push(&mut self, scene: S) {
@@ -210,7 +209,7 @@ impl<S: Scene> Engine<S> {
             obj.get_dispatch()
                 .dispatch_update(&mut ctx, &self.base, delta_time);
         }
-        while self.accumulator > FIXED_DT {
+        while self.accumulator >= FIXED_DT {
             if let Some(obj) = self.objects.last_mut() {
                 obj.get_dispatch()
                     .dispatch_fixed_update(&mut ctx, &self.base, FIXED_DT);

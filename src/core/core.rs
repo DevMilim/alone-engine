@@ -2,7 +2,7 @@ use std::{any::Any, sync::LazyLock};
 
 use uuid::Uuid;
 
-use crate::{Base, EngineApi, GameObjectBase, RenderApi, Transform2D};
+use crate::{Base, EngineApi, GameObjectBase, RenderApi};
 
 pub enum GlobalEvent {
     Broadcast(Box<dyn Any>),
@@ -55,7 +55,7 @@ pub trait Component {
     fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
 }
 
-static EMPTY_BASE: LazyLock<Base> = LazyLock::new(|| Base::new(Transform2D::EMPTY));
+static EMPTY_BASE: LazyLock<Base> = LazyLock::new(|| Base::default());
 impl<T: GameObject> GameObject for Vec<T> {
     type Message = ();
 }
