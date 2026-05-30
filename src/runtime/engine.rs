@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 
 use crate::{
     AudioSys, Base, CollisionWorld, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent,
-    Handler, Id, ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene, TimeDebug,
-    Transform2D, TriggerEvent, TriggerKind, Vector2,
+    Handler, Id, ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene,
+    TriggerEvent, TriggerKind, Vector2,
 };
 
 pub const FIXED_DT: f32 = 1.0 / 60.0;

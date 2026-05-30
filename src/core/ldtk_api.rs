@@ -90,7 +90,8 @@ pub struct LayerInstance {
 
     #[serde(rename = "overrideTilesetUid", default)]
     pub override_tileset_uid: Option<i64>,
-
+    #[serde(rename = "intGridCsv", default)]
+    pub int_grid_csv: Vec<i32>,
     #[serde(rename = "gridTiles", default)]
     pub grid_tiles: Vec<LdtkTile>,
 

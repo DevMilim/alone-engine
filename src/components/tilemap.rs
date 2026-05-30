@@ -1,9 +1,16 @@
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use crate::{
-    Anchor, AssetApi, Base, Component, GameObjectBase, Handler, ImageAsset, LdtkError, LdtkProject,
-    LdtkTile, Rect, TilesetDef, Vector2,
+    AABB, Anchor, AssetApi, Base, Component, GameObjectBase, Handler, ImageAsset, LdtkError,
+    LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
 };
+
+#[derive(Debug, Clone)]
+pub enum TileCollision {
+    Full,
+    Custom(AABB),
+    None,
+}
 
 #[derive(Debug, Clone)]
 pub struct Tile {
@@ -12,6 +19,7 @@ pub struct Tile {
     pub position: Vector2,
     pub flip_h: bool,
     pub flip_v: bool,
+    pub tile_collision: TileCollision,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +33,7 @@ pub struct Tilemap {
     pub previous_position: Vector2,
     pub position: Vector2,
     pub z_index: u8,
+    pub colliders: Vec<AABB>,
 }
 
 impl Component for Tilemap {
@@ -55,8 +64,10 @@ impl Tilemap {
             previous_position: Vector2 { x: 0.0, y: 0.0 },
             position: Vector2 { x: 0.0, y: 0.0 },
             z_index: 0,
+            colliders: Vec::new(),
         }
     }
+    pub fn import_int_grid(&mut self, _grid: &[(i32, TileCollision)]) {}
     /// Carrega um arquivo do ltdk e gera o tilemap
     /// api recebe o ctx para acessar a engine
     /// json_path e onde o json exportado pelo ltdk esta
@@ -142,6 +153,7 @@ impl Tilemap {
                     position,
                     flip_h: tile.f & 1 != 0,
                     flip_v: tile.f & 2 != 0,
+                    tile_collision: TileCollision::None,
                 });
             }
         }
