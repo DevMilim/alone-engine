@@ -6,8 +6,8 @@ use winit::keyboard::KeyCode;
 
 use crate::{
     AssetApi, AudioApi, AudioAsset, AudioSys, ColliderData, ColliderKey, CollisionApi,
-    CollisionWorld, EngineApi, EventApi, GameObject, GlobalEvent, Handler, Id, ImageAsset,
-    InputApi, InputState, Resources, RuntimeCommands, SpawnEvent, Vector2,
+    CollisionFlag, CollisionWorld, EngineApi, EventApi, GameObject, GlobalEvent, Handler, Id,
+    ImageAsset, InputApi, InputState, Resources, RuntimeCommands, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
@@ -184,7 +184,12 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.collision.remove_collider(key);
     }
 
-    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
-        self.collision.move_and_slide(my_id, position, velocity);
+    fn move_and_slide(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+    ) -> CollisionFlag {
+        self.collision.move_and_slide(my_id, position, velocity)
     }
 }

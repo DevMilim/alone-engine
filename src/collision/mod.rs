@@ -9,6 +9,13 @@ use std::{
 pub use aabb::*;
 use indexmap::IndexMap;
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CollisionFlag {
+    pub on_floor: bool,
+    pub on_wall: bool,
+    pub on_ceiling: bool,
+}
+
 #[derive(Clone, Copy)]
 pub struct ColliderData {
     pub aabb: AABB,
@@ -210,16 +217,32 @@ impl CollisionWorld {
             None
         }
     }
-    pub fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
+    pub fn move_and_slide(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+    ) -> CollisionFlag {
+        let mut flags = CollisionFlag::default();
         let movement = *velocity;
 
         position.x += movement.x;
         self.translate_my_colliders(my_id, Vector2::new(movement.x, 0.0));
-        self.resolve_axis(my_id, position, velocity, true);
-
+        let corr_x = self.resolve_axis(my_id, position, velocity, true).x;
+        if corr_x != 0.0 {
+            flags.on_wall = true;
+        }
         position.y += movement.y;
         self.translate_my_colliders(my_id, Vector2::new(0.0, movement.y));
-        self.resolve_axis(my_id, position, velocity, false);
+        let corr_y = self.resolve_axis(my_id, position, velocity, false).y;
+
+        if corr_y < 0.0 {
+            flags.on_floor = true;
+        } else if corr_y > 0.0 {
+            flags.on_ceiling = true;
+        }
+
+        flags
     }
     fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
         for (key, data) in &mut self.colliders {
@@ -235,7 +258,7 @@ impl CollisionWorld {
         position: &mut Vector2,
         velocity: &mut Vector2,
         is_x_axis: bool,
-    ) {
+    ) -> Vector2 {
         let my_colliders: Vec<ColliderData> = self
             .colliders
             .iter()
@@ -270,6 +293,7 @@ impl CollisionWorld {
                 self.translate_my_colliders(my_id, Vector2::new(0.0, final_correction.y));
             }
         }
+        final_correction
     }
 }
 

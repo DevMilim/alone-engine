@@ -5,8 +5,8 @@ use rodio::Player;
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
-    Anchor, AudioAsset, ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id,
-    ImageAsset, Rect, Vector2,
+    Anchor, AudioAsset, ColliderData, ColliderKey, CollisionFlag, Color, DrawCommand, GameObject,
+    Handler, Id, ImageAsset, Rect, Vector2,
 };
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
@@ -58,7 +58,12 @@ pub trait EventApi {
 pub trait CollisionApi {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);
     fn remove_collider(&mut self, key: ColliderKey);
-    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2);
+    fn move_and_slide(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2,
+        velocity: &mut Vector2,
+    ) -> CollisionFlag;
 }
 
 pub trait RenderApi {

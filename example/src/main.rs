@@ -69,7 +69,7 @@ impl Player {
                 ..Default::default()
             },
             camera: Camera2D::new(Vector2::new(0.0, 0.0)),
-            body: Body2D::new(),
+            body: Body2D::default(),
             sprite: None,
         }
     }
@@ -129,15 +129,15 @@ impl MainScene {
 impl GameObject for MainScene {
     type Message = ();
     fn start(&mut self, ctx: &mut impl alone_engine::EngineApi) {
-        self.tilemap = Some(
-            Tilemap::from_ldtk_file(
-                ctx,
-                "assets/tilemap.ldtk",
-                "Level_0",
-                &vec![(1, TileCollision::Full)],
-            )
-            .unwrap(),
-        );
+        //self.tilemap = Some(
+        //    Tilemap::from_ldtk_file(
+        //        ctx,
+        //        "assets/tilemap.ldtk",
+        //        "Level_0",
+        //        &vec![(1, TileCollision::Full)],
+        //    )
+        //    .unwrap(),
+        //);
     }
     fn draw(&mut self, renderer: &mut impl alone_engine::RenderApi, _blending: f32) {
         renderer.draw_rect(Rect::new(10.0, 10.0, 30, 60), Color::BLACK, 0);
