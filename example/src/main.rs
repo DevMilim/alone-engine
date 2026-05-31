@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use alone_engine::{
     Base, Body2D, Camera2D, Collider, Color, Component, EngineApi, GameObject, GameObjectBase,
-    KeyCode, MouseButton, Rect, Scene, SpawnEvent, Sprite, TileCollision, Tilemap, Timer, Vector2,
-    run_application,
+    KeyCode, MouseButton, Rect, Scene, SpawnEvent, Tilemap, Timer, Vector2, run_application,
 };
+
 #[derive(GameObject)]
 struct Bullet {
     #[base]
@@ -57,8 +57,6 @@ pub struct Player {
     camera: Camera2D,
     #[component]
     body: Body2D,
-    #[component]
-    sprite: Option<Sprite>,
 }
 
 impl Player {
@@ -66,23 +64,18 @@ impl Player {
         Self {
             base: Base::new(position),
             collider: Collider {
+                debug: true,
                 ..Default::default()
             },
             camera: Camera2D::new(Vector2::new(0.0, 0.0)),
             body: Body2D::default(),
-            sprite: None,
         }
     }
 }
 
 impl GameObject for Player {
     type Message = ();
-    fn start(&mut self, ctx: &mut impl EngineApi) {
-        self.sprite = Some(Sprite {
-            texture: ctx.load_texture("assets/player.png"),
-            ..Default::default()
-        })
-    }
+    fn start(&mut self, ctx: &mut impl EngineApi) {}
     fn update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
         if ctx.is_mouse_just_pressed(MouseButton::Left) {
             self.set_position(ctx.mouse_position());
