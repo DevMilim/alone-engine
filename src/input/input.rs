@@ -1,12 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use winit::keyboard::KeyCode;
+use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::Vector2;
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub enum InputType {
+    Key(KeyCode),
+    Mouse(MouseButton),
+}
+
 pub struct InputState {
-    key_pressed: HashSet<KeyCode>,
-    key_just_pressed: HashSet<KeyCode>,
+    pressed_input: HashSet<InputType>,
+    just_pressed_input: HashSet<InputType>,
     mouse_position: Vector2,
     pub map: InputMap,
 }
@@ -14,8 +20,8 @@ pub struct InputState {
 impl InputState {
     pub fn new() -> Self {
         Self {
-            key_pressed: HashSet::new(),
-            key_just_pressed: HashSet::new(),
+            pressed_input: HashSet::new(),
+            just_pressed_input: HashSet::new(),
             mouse_position: Vector2::ZERO,
             map: InputMap::new(),
         }
@@ -24,14 +30,16 @@ impl InputState {
         self.mouse_position = Vector2::new(x, y);
     }
     pub fn is_action_pressed(&self, action: &str) -> bool {
-        if let Some(keys) = self.map.bindings.get(action) {
-            return keys.iter().any(|key| self.is_key_pressed(*key));
+        if let Some(input) = self.map.bindings.get(action) {
+            return input.iter().any(|input| self.pressed_input.contains(input));
         }
         false
     }
     pub fn is_action_just_pressed(&self, action: &str) -> bool {
-        if let Some(keys) = self.map.bindings.get(action) {
-            return keys.iter().any(|key| self.is_key_just_pressed(*key));
+        if let Some(input) = self.map.bindings.get(action) {
+            return input
+                .iter()
+                .any(|input| self.just_pressed_input.contains(input));
         }
         false
     }
@@ -39,22 +47,28 @@ impl InputState {
         self.mouse_position
     }
     pub fn is_key_pressed(&self, key: KeyCode) -> bool {
-        self.key_pressed.contains(&key)
+        self.pressed_input.contains(&InputType::Key(key))
     }
     pub fn is_key_just_pressed(&self, key: KeyCode) -> bool {
-        self.key_just_pressed.contains(&key)
+        self.just_pressed_input.contains(&InputType::Key(key))
+    }
+    pub fn is_mouse_pressed(&self, key: MouseButton) -> bool {
+        self.pressed_input.contains(&InputType::Mouse(key))
+    }
+    pub fn is_mouse_just_pressed(&self, key: MouseButton) -> bool {
+        self.just_pressed_input.contains(&InputType::Mouse(key))
     }
     pub fn clear_frame_data(&mut self) {
-        self.key_just_pressed.clear();
+        self.just_pressed_input.clear();
     }
-    pub fn update_key(&mut self, key: KeyCode, pressed: bool) {
+    pub fn update_input_state(&mut self, key: InputType, pressed: bool) {
         if pressed {
-            if !self.key_pressed.contains(&key) {
-                self.key_just_pressed.insert(key);
+            if !self.pressed_input.contains(&key) {
+                self.just_pressed_input.insert(key);
             }
-            self.key_pressed.insert(key);
+            self.pressed_input.insert(key);
         } else {
-            self.key_pressed.remove(&key);
+            self.pressed_input.remove(&key);
         }
     }
     pub fn get_vector(
@@ -132,7 +146,7 @@ impl Default for InputState {
 }
 
 pub struct InputMap {
-    pub bindings: HashMap<String, Vec<KeyCode>>,
+    pub bindings: HashMap<String, Vec<InputType>>,
 }
 
 impl Default for InputMap {
@@ -147,7 +161,7 @@ impl InputMap {
             bindings: HashMap::new(),
         }
     }
-    pub fn bind_action(&mut self, action: &str, key: KeyCode) {
+    pub fn bind_action(&mut self, action: &str, key: InputType) {
         self.bindings
             .entry(action.to_string())
             .or_default()

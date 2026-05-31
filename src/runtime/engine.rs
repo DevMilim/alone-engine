@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 
 use crate::{
     AudioSys, Base, CollisionWorld, DrawCommand, EngineContext, GameObjectDispatch, GlobalEvent,
-    Handler, Id, ImageAsset, InputState, RenderCommands, RenderQueue, Resources, Scene,
+    Handler, Id, ImageAsset, InputState, InputType, RenderQueue, Resources, RuntimeCommands, Scene,
     TriggerEvent, TriggerKind, Vector2,
 };
 
@@ -17,7 +17,7 @@ pub struct Engine<S: Scene> {
     base: Base,
     is_running: bool,
     pub input: InputState,
-    pub event_queue: VecDeque<RenderCommands>,
+    pub event_queue: VecDeque<RuntimeCommands>,
     events: VecDeque<GlobalEvent>,
     mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
     pub camera_pos: Vector2,
@@ -45,12 +45,19 @@ impl<S: Scene> Engine<S> {
             audio_sys: AudioSys::new(),
         }
     }
-    pub fn events(&mut self, cmd: RenderCommands) {
+    pub fn events(&mut self, cmd: RuntimeCommands) {
         match cmd {
-            RenderCommands::Quit => self.is_running = false,
-            RenderCommands::KeyDown(keycode) => self.input.update_key(keycode, true),
-            RenderCommands::KeyUp(keycode) => self.input.update_key(keycode, false),
-            RenderCommands::MousePosition(x, y) => self.input.set_mouse_position(x, y),
+            RuntimeCommands::Quit => self.is_running = false,
+            RuntimeCommands::KeyDown(keycode) => {
+                self.input.update_input_state(InputType::Key(keycode), true)
+            }
+            RuntimeCommands::KeyUp(keycode) => self
+                .input
+                .update_input_state(InputType::Key(keycode), false),
+            RuntimeCommands::MousePosition(x, y) => self.input.set_mouse_position(x, y),
+            RuntimeCommands::MouseInput(mouse_button, is_pressed) => self
+                .input
+                .update_input_state(InputType::Mouse(mouse_button), is_pressed),
         }
     }
 

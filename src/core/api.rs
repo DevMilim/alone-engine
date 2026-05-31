@@ -2,7 +2,7 @@ use std::any::Any;
 
 use indexmap::IndexMap;
 use rodio::Player;
-use winit::keyboard::KeyCode;
+use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
     Anchor, AudioAsset, ColliderData, ColliderKey, Color, DrawCommand, GameObject, Handler, Id,
@@ -18,6 +18,8 @@ pub trait InputApi {
     fn is_key_pressed(&self, key: KeyCode) -> bool;
     fn is_key_just_pressed(&self, key: KeyCode) -> bool;
     fn mouse_position(&self) -> Vector2;
+    fn is_mouse_pressed(&self, key: MouseButton) -> bool;
+    fn is_mouse_just_pressed(&self, key: MouseButton) -> bool;
     fn is_action_pressed(&self, action: &str) -> bool;
     fn is_action_just_pressed(&self, action: &str) -> bool;
     fn get_vector(
@@ -56,13 +58,7 @@ pub trait EventApi {
 pub trait CollisionApi {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);
     fn remove_collider(&mut self, key: ColliderKey);
-    fn move_and_slide(
-        &mut self,
-        my_id: Id,
-        position: &mut Vector2,
-        velocity: &mut Vector2,
-        delta: f32,
-    );
+    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2);
 }
 
 pub trait RenderApi {

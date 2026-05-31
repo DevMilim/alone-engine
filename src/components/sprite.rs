@@ -1,11 +1,11 @@
 use crate::{Anchor, Component, Handler, ImageAsset, Vector2};
 
 pub struct Sprite {
-    texture: Handler<ImageAsset>,
-    offset: Vector2,
-    anchor: Anchor,
-    visible: bool,
-    previous_position: Vector2,
+    pub texture: Handler<ImageAsset>,
+    pub offset: Vector2,
+    pub anchor: Anchor,
+    pub visible: bool,
+    pub previous_position: Vector2,
 }
 impl Component for Sprite {
     fn start(&mut self, _ctx: &mut impl crate::EngineApi, base: &mut crate::Base) {
@@ -28,5 +28,17 @@ impl Component for Sprite {
             None,
             base.z_index,
         );
+    }
+}
+
+impl Default for Sprite {
+    fn default() -> Self {
+        Self {
+            texture: Handler::new(0),
+            offset: Vector2::ZERO,
+            anchor: Anchor::Center,
+            visible: true,
+            previous_position: Vector2::ZERO,
+        }
     }
 }

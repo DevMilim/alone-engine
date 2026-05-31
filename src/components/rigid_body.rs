@@ -9,7 +9,6 @@ impl Component for RiggidBody2D {
             base.id,
             &mut base.transform.global_position,
             &mut self.velocity,
-            delta,
         );
     }
 }

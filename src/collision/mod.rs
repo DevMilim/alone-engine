@@ -210,14 +210,8 @@ impl CollisionWorld {
             None
         }
     }
-    pub fn move_and_slide(
-        &mut self,
-        my_id: Id,
-        position: &mut Vector2,
-        velocity: &mut Vector2,
-        delta: f32,
-    ) {
-        let movement = *velocity * delta;
+    pub fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
+        let movement = *velocity;
 
         position.x += movement.x;
         self.translate_my_colliders(my_id, Vector2::new(movement.x, 0.0));

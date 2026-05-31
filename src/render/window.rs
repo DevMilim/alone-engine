@@ -7,13 +7,13 @@ use pixels::{Pixels, SurfaceTexture};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::WindowEvent,
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::PhysicalKey,
     window::{Window, WindowId},
 };
 
-use crate::{Anchor, DrawCommand, Engine, RenderCommands, Scene};
+use crate::{Anchor, DrawCommand, Engine, RuntimeCommands, Scene};
 
 pub const LOGICAL_WIDTH: u32 = 340;
 pub const LOGICAL_HEIGHT: u32 = 180;
@@ -248,22 +248,28 @@ impl<'a, S: Scene> ApplicationHandler for Render<'a, S> {
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(keycode) = event.physical_key {
                     if event.state.is_pressed() {
-                        self.runtime.events(RenderCommands::KeyDown(keycode));
+                        self.runtime.events(RuntimeCommands::KeyDown(keycode));
                     } else {
-                        self.runtime.events(RenderCommands::KeyUp(keycode));
+                        self.runtime.events(RuntimeCommands::KeyUp(keycode));
                     }
                 }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.runtime.events(RuntimeCommands::MouseInput(
+                    button,
+                    state == ElementState::Pressed,
+                ));
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if let Ok(mouse) = state.window_pos_to_pixel((position.x as f32, position.y as f32))
                 {
-                    self.runtime.events(RenderCommands::MousePosition(
-                        mouse.0 as f32,
-                        mouse.1 as f32,
+                    let camera = self.runtime.camera_pos;
+                    self.runtime.events(RuntimeCommands::MousePosition(
+                        mouse.0 as f32 + camera.x,
+                        mouse.1 as f32 + camera.y,
                     ));
                 }
             }
-            WindowEvent::RedrawRequested => {}
             WindowEvent::Resized(size) => {
                 if size.width > 0 && size.height > 0 {
                     let _ = state.resize_surface(size.width, size.height);

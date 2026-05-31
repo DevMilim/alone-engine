@@ -2,7 +2,7 @@ use crate::{
     AABB, Base, ColliderData, ColliderKey, Color, Component, EngineApi, Rect, RenderApi, Vector2,
 };
 
-pub struct BoxCollider {
+pub struct Collider {
     pub key: u32,
     pub width: f32,
     pub height: f32,
@@ -14,7 +14,7 @@ pub struct BoxCollider {
     pub is_sensor: bool,
 }
 
-impl Default for BoxCollider {
+impl Default for Collider {
     fn default() -> Self {
         Self {
             key: 0,
@@ -30,7 +30,7 @@ impl Default for BoxCollider {
     }
 }
 
-impl Component for BoxCollider {
+impl Component for Collider {
     fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         let aabb = AABB {
             x: base.transform.global_position.x - (self.width / 2.0) + self.offset_x,

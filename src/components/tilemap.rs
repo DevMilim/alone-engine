@@ -1,8 +1,10 @@
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
+use rustc_hash::FxHashMap;
+
 use crate::{
-    AABB, Anchor, AssetApi, Base, Component, GameObjectBase, Handler, ImageAsset, LdtkError,
-    LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
+    AABB, Anchor, AssetApi, Base, ColliderData, ColliderKey, Component, EngineApi, GameObjectBase,
+    Handler, ImageAsset, LdtkError, LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
 };
 
 #[derive(Debug, Clone)]
@@ -33,7 +35,9 @@ pub struct Tilemap {
     pub previous_position: Vector2,
     pub position: Vector2,
     pub z_index: u8,
-    pub colliders: Vec<AABB>,
+    pub colliders: Vec<(u32, AABB)>,
+    pub collision_rules: FxHashMap<i32, TileCollision>,
+    pub collision_layer: u32,
 }
 
 impl Component for Tilemap {
@@ -51,6 +55,31 @@ impl Component for Tilemap {
             );
         }
     }
+    fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+        for (key, aabb) in &self.colliders {
+            let data = ColliderData {
+                aabb: *aabb,
+                layer: self.collision_layer,
+                mask: self.collision_layer,
+                is_sensor: false,
+            };
+            ctx.update_collider(
+                ColliderKey {
+                    key: *key,
+                    id: base.id,
+                },
+                data,
+            );
+        }
+    }
+    fn destroy(&mut self, ctx: &mut impl EngineApi, base: &Base) {
+        for (key, _) in &self.colliders {
+            ctx.remove_collider(ColliderKey {
+                key: *key,
+                id: base.id,
+            });
+        }
+    }
 }
 
 impl Tilemap {
@@ -65,9 +94,117 @@ impl Tilemap {
             position: Vector2 { x: 0.0, y: 0.0 },
             z_index: 0,
             colliders: Vec::new(),
+            collision_rules: FxHashMap::default(),
+            collision_layer: 1,
         }
     }
-    pub fn import_int_grid(&mut self, _grid: &[(i32, TileCollision)]) {}
+    pub fn set_int_grid_rules(&mut self, rules: &[(i32, TileCollision)]) {
+        for rule in rules {
+            self.collision_rules.insert(rule.0, rule.1.clone());
+        }
+    }
+
+    /// importa o IntGrid do LDtk e gera os colisores utilizando merge
+    fn create_colliders(
+        &mut self,
+        int_grid_csv: &[i32],
+        c_wid: u32,
+        grid_size: f32,
+        px_offset_x: f32,
+        px_offset_y: f32,
+        int_grid_rules: &[(i32, TileCollision)],
+    ) {
+        self.set_int_grid_rules(int_grid_rules);
+
+        let width = c_wid as usize;
+        let height = int_grid_csv.len() / width;
+
+        let mut visited = vec![false; int_grid_csv.len()];
+
+        let mut colliders = Vec::new();
+
+        for y in 0..height {
+            for x in 0..width {
+                let index = y * width + x;
+
+                if visited[index] {
+                    continue;
+                }
+
+                let value = int_grid_csv[index];
+
+                let collision = match self.collision_rules.get(&value) {
+                    Some(c) => c.clone(),
+                    None => continue,
+                };
+
+                // Se for None, apenas ignora
+                if matches!(collision, TileCollision::None) {
+                    continue;
+                }
+
+                // 1. Trata Colliders Customizados separadamente (SEM MERGE)
+                if let TileCollision::Custom(custom) = collision {
+                    visited[index] = true;
+                    let world_x = px_offset_x + (x as f32 * grid_size);
+                    let world_y = px_offset_y + (y as f32 * grid_size);
+
+                    colliders.push(AABB {
+                        x: world_x + custom.x,
+                        y: world_y + custom.y,
+                        width: custom.width,
+                        height: custom.height,
+                    });
+                    continue;
+                }
+
+                // 2. Se chegou aqui, é TileCollision::Full. Executamos o seu algoritmo de merge
+                let mut merge_w = 0;
+                while x + merge_w < width {
+                    let i = y * width + (x + merge_w);
+                    if visited[i] || int_grid_csv[i] != value {
+                        break;
+                    }
+                    merge_w += 1;
+                }
+
+                let mut merge_h = 1;
+                'outer: loop {
+                    if y + merge_h >= height {
+                        break;
+                    }
+                    for xx in 0..merge_w {
+                        let i = (y + merge_h) * width + (x + xx);
+                        if visited[i] || int_grid_csv[i] != value {
+                            break 'outer;
+                        }
+                    }
+                    merge_h += 1;
+                }
+
+                // Marca como visitados
+                for yy in 0..merge_h {
+                    for xx in 0..merge_w {
+                        visited[(y + yy) * width + (x + xx)] = true;
+                    }
+                }
+
+                let world_x = px_offset_x + (x as f32 * grid_size);
+                let world_y = px_offset_y + (y as f32 * grid_size);
+
+                colliders.push(AABB {
+                    x: world_x,
+                    y: world_y,
+                    width: merge_w as f32 * grid_size,
+                    height: merge_h as f32 * grid_size,
+                });
+            }
+        }
+        for (key, collider) in colliders.into_iter().enumerate() {
+            self.colliders.push((key.try_into().unwrap(), collider))
+        }
+    }
+
     /// Carrega um arquivo do ltdk e gera o tilemap
     /// api recebe o ctx para acessar a engine
     /// json_path e onde o json exportado pelo ltdk esta
@@ -76,6 +213,7 @@ impl Tilemap {
         api: &mut A,
         json_path: P,
         level_key: &str,
+        int_grid_rules: &[(i32, TileCollision)],
     ) -> Result<Self, LdtkError> {
         let json_path = json_path.as_ref();
         let json = File::open(json_path)?;
@@ -105,6 +243,17 @@ impl Tilemap {
             let layer_tiles: &[LdtkTile] = match layer.layer_type.as_str() {
                 "Tiles" => &layer.grid_tiles,
                 "AutoLayer" => &layer.auto_tiles,
+                "IntGrid" => {
+                    map.create_colliders(
+                        &layer.int_grid_csv,
+                        layer.c_wid,
+                        layer.grid_size as f32,
+                        layer.px_offset_x as f32,
+                        layer.px_offset_y as f32,
+                        int_grid_rules,
+                    );
+                    continue;
+                }
                 _ => continue,
             };
 

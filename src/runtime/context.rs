@@ -7,12 +7,12 @@ use winit::keyboard::KeyCode;
 use crate::{
     AssetApi, AudioApi, AudioAsset, AudioSys, ColliderData, ColliderKey, CollisionApi,
     CollisionWorld, EngineApi, EventApi, GameObject, GlobalEvent, Handler, Id, ImageAsset,
-    InputApi, InputState, RenderCommands, Resources, SpawnEvent, Vector2,
+    InputApi, InputState, Resources, RuntimeCommands, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
     pub input: &'a InputState,
-    pub event_queue: &'a mut VecDeque<RenderCommands>,
+    pub event_queue: &'a mut VecDeque<RuntimeCommands>,
     pub events: &'a mut VecDeque<GlobalEvent>,
     pub mailbox: &'a mut IndexMap<Id, Vec<Box<dyn Any>>>,
     pub camera_pos: &'a mut Vector2,
@@ -22,7 +22,7 @@ pub struct EngineContext<'a> {
 }
 impl<'a> EngineApi for EngineContext<'a> {
     fn quit(&mut self) {
-        self.event_queue.push_back(RenderCommands::Quit);
+        self.event_queue.push_back(RuntimeCommands::Quit);
     }
 
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
@@ -36,7 +36,7 @@ impl<'a> EngineApi for EngineContext<'a> {
 impl<'a> EngineContext<'a> {
     pub fn new(
         input: &'a InputState,
-        event_queue: &'a mut VecDeque<RenderCommands>,
+        event_queue: &'a mut VecDeque<RuntimeCommands>,
         events: &'a mut VecDeque<GlobalEvent>,
         mailbox: &'a mut IndexMap<Id, Vec<Box<dyn Any>>>,
         camera_pos: &'a mut Vector2,
@@ -136,6 +136,14 @@ impl<'a> InputApi for EngineContext<'a> {
         self.input
             .get_key_vector(key_up, key_down, key_left, key_right)
     }
+
+    fn is_mouse_pressed(&self, key: winit::event::MouseButton) -> bool {
+        self.input.is_mouse_pressed(key)
+    }
+
+    fn is_mouse_just_pressed(&self, key: winit::event::MouseButton) -> bool {
+        self.input.is_mouse_just_pressed(key)
+    }
 }
 
 impl<'a> EventApi for EngineContext<'a> {
@@ -176,14 +184,7 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.collision.remove_collider(key);
     }
 
-    fn move_and_slide(
-        &mut self,
-        my_id: Id,
-        position: &mut Vector2,
-        velocity: &mut Vector2,
-        delta: f32,
-    ) {
-        self.collision
-            .move_and_slide(my_id, position, velocity, delta);
+    fn move_and_slide(&mut self, my_id: Id, position: &mut Vector2, velocity: &mut Vector2) {
+        self.collision.move_and_slide(my_id, position, velocity);
     }
 }
