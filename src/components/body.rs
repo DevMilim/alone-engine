@@ -16,7 +16,11 @@ impl Component for Body2D {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         match self.body_type {
             BodyType::Rigid => {
-                ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
+                let flags =
+                    ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
+                self.on_floor = flags.on_floor;
+                self.on_wall = flags.on_wall;
+                self.on_ceiling = flags.on_ceiling;
             }
             BodyType::Character => {}
         }

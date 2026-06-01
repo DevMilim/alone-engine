@@ -34,7 +34,7 @@ impl<S: Scene> App<S> {
             render: None,
             window: None,
             base: Base::empty(),
-            camera_position: Vector2::new(LOGICAL_WIDTH as f32 / 2.0, LOGICAL_WIDTH as f32 / 2.0),
+            camera_position: Vector2::new(0.0, 0.0),
         }
     }
 
