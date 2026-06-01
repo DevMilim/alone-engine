@@ -15,6 +15,7 @@ pub struct AABB {
 }
 
 impl AABB {
+    /// Verifica se existe algoma intersecçao entre o proprio colisor e outro
     pub fn intersects(&self, other: &AABB) -> bool {
         self.x < other.x + other.width
             && self.x + self.width > other.x

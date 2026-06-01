@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use winit::{event::MouseButton, keyboard::KeyCode};
 
 use std::{any::Any, collections::VecDeque};
 
@@ -7,8 +6,8 @@ use indexmap::IndexMap;
 
 use crate::{ColliderKey, GameObject, GlobalEvent, Id};
 
+/// Gerenciador e container de eventos como mensagens diretas e eventos globais como subscribe
 pub struct EventManager {
-    pub runtime_events: VecDeque<RuntimeEvent>,
     pub global_events: VecDeque<GlobalEvent>,
     pub mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
 }
@@ -16,7 +15,6 @@ pub struct EventManager {
 impl Default for EventManager {
     fn default() -> Self {
         Self {
-            runtime_events: VecDeque::new(),
             global_events: VecDeque::new(),
             mailbox: IndexMap::new(),
         }
@@ -24,31 +22,95 @@ impl Default for EventManager {
 }
 
 impl EventManager {
-    pub fn insert_runtime_event(&mut self, event: RuntimeEvent) {
-        self.runtime_events.push_back(event);
-    }
+    /// Insere um evento global a fila de eventos que sera processado pelos GameObjects com subscribe
+    /// pode ser utilizado com
+    /// Para utilizar ele deve ser utilizada a assinatura
+    /// ```
+    /// #[derive(GameObject)]
+    /// #[game(connect(event: Event))]
+    /// pub struct Player {
+    ///     #[base]
+    ///     base: Base,
+    /// }
+    /// impl Player {
+    ///     fn event(&mut self, _ctx: &mut impl EngineApi, event: &Event) {
+    ///         println!("Evento global recebido")
+    ///     }
+    /// }
+    ///
+    /// ```
     pub fn insert_global_event(&mut self, event: GlobalEvent) {
         self.global_events.push_back(event);
     }
+    /// Insere uma mensagem a fila de caixa de mensagens
+    /// Ao cair aqui a engine ira encaminhar para o GameObject com o id especificado
+    /// Se o tipo enviado for compativel com
+    /// ```
+    /// type Message = T
+    /// ```
+    /// Se a mensagem for compativel o GameObject ira receber ela em
+    /// ```
+    /// fn on_message(&mut self, ctx: &mut impl EngineApi, msg: Self::Message){}
+    /// ```
     pub fn insert_mailbox<T: 'static>(&mut self, id: Id, mail: T) {
         self.mailbox.entry(id).or_default().push(Box::new(mail));
     }
+    /// Insere uma mensagem na caixa de mensagens mas com mensagem com tipo `Box<dyn Any + 'static>`
     pub fn insert_mailbox_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
         self.mailbox.entry(id).or_default().push(message);
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum TriggerKind {
-    Enter,
-    Exit,
-}
+/// Evento usado para Collider com `is_sensor: true`
+/// Para utilizar ele deve ser utilizada a assinatura
+/// ```
+/// #[derive(GameObject)]
+/// #[game(connect(on_trigger_event: TriggerEvent))]
+/// pub struct Player {
+///     #[base]
+///     base: Base,
+///     #[component]
+///     collider: Collider,
+/// }
+/// impl Player {
+///     fn on_trigger_event(&mut self, _ctx: &mut impl EngineApi, event: &TriggerEvent) {
+///         println!("Evento de colisão recebido")
+///     }
+/// }
+///
+/// ```
 #[derive(Debug, Clone)]
 pub struct TriggerEvent {
     pub owner: Id,
     pub sensor: ColliderKey,
     pub kind: TriggerKind,
 }
+
+/// Utilizado para definir se ocorreu uma entrada ou saida de algum colisor
+/// Como Entrada e Saida
+#[derive(Debug, Clone)]
+pub enum TriggerKind {
+    Enter,
+    Exit,
+}
+/// Evento utilizado para Spawn
+/// Exemplo:
+/// ```
+/// #[derive(GameObject)]
+/// #[game(subscribe(spawn_bullet: SpawnEvent<Bullet>))]
+/// pub struct MainScene {
+///     #[base]
+///     base: Base,
+///     #[component]
+///     bullets: Vec<Bullet>,
+/// }
+/// impl MainScene {
+///     fn spawn_bullet(&mut self, _ctx: &mut impl EngineApi, event: &SpawnEvent<Bullet>) {
+///         self.bullets.push(event.take().expect("Erro ao spawnar bullet"));
+///     }
+/// }
+///
+/// ```
 pub struct SpawnEvent<T> {
     payload: RefCell<Option<T>>,
 }
@@ -62,13 +124,4 @@ impl<T: GameObject> SpawnEvent<T> {
     pub fn take(&self) -> Option<T> {
         self.payload.borrow_mut().take()
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum RuntimeEvent {
-    KeyDown(KeyCode),
-    KeyUp(KeyCode),
-    MouseInput(MouseButton, bool),
-    MousePosition(f32, f32),
-    Quit,
 }

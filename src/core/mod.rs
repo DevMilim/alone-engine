@@ -10,10 +10,7 @@ pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
 
-use crate::{
-    AudioSys, CollisionWorld, InputState, InputType, Resources, RuntimeEvent, TriggerEvent,
-    TriggerKind,
-};
+use crate::{AudioSys, CollisionWorld, InputState, Resources, TriggerEvent, TriggerKind};
 
 #[derive(Default)]
 pub struct CoreSystems {
@@ -23,23 +20,7 @@ pub struct CoreSystems {
     pub input: InputState,
 }
 
-
 impl CoreSystems {
-    pub fn events(&mut self, cmd: RuntimeEvent) {
-        match cmd {
-            RuntimeEvent::KeyDown(keycode) => {
-                self.input.update_input_state(InputType::Key(keycode), true)
-            }
-            RuntimeEvent::KeyUp(keycode) => self
-                .input
-                .update_input_state(InputType::Key(keycode), false),
-            RuntimeEvent::MousePosition(x, y) => self.input.set_mouse_position(x, y),
-            RuntimeEvent::MouseInput(mouse_button, is_pressed) => self
-                .input
-                .update_input_state(InputType::Mouse(mouse_button), is_pressed),
-            _ => {}
-        }
-    }
     pub fn collision_step(&mut self) -> Vec<GlobalEvent> {
         self.collision.step();
         let mut trigger_events = Vec::new();

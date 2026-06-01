@@ -11,7 +11,7 @@ use winit::{
 
 use crate::{
     Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch, InputType, LOGICAL_WIDTH,
-    Render, RuntimeEvent, Scene, Vector2, WorldState,
+    Render, Scene, Vector2, WorldState,
 };
 
 pub struct App<S: Scene> {
@@ -37,24 +37,7 @@ impl<S: Scene> App<S> {
             camera_position: Vector2::new(LOGICAL_WIDTH as f32 / 2.0, LOGICAL_WIDTH as f32 / 2.0),
         }
     }
-    pub fn events(&mut self, cmd: RuntimeEvent) {
-        match cmd {
-            RuntimeEvent::Quit => self.world.is_running = false,
-            RuntimeEvent::KeyDown(keycode) => self
-                .systems
-                .input
-                .update_input_state(InputType::Key(keycode), true),
-            RuntimeEvent::KeyUp(keycode) => self
-                .systems
-                .input
-                .update_input_state(InputType::Key(keycode), false),
-            RuntimeEvent::MousePosition(x, y) => self.systems.input.set_mouse_position(x, y),
-            RuntimeEvent::MouseInput(mouse_button, is_pressed) => self
-                .systems
-                .input
-                .update_input_state(InputType::Mouse(mouse_button), is_pressed),
-        }
-    }
+
     pub fn flush_messages_and_events(ctx: &mut EngineContext, world: &mut WorldState<S>) {
         for _ in 0..10 {
             let mut something_processed = false;
@@ -127,14 +110,13 @@ impl<S: Scene> ApplicationHandler for App<S> {
                         .set_mouse_position(mouse.0 as f32 + camera.x, mouse.1 as f32 + camera.y);
                 }
             }
-            WindowEvent::Resized(size)
-                if size.width > 0 && size.height > 0 => {
-                    let _ = state.pixels.resize_surface(size.width, size.height);
+            WindowEvent::Resized(size) if size.width > 0 && size.height > 0 => {
+                let _ = state.pixels.resize_surface(size.width, size.height);
 
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
-                    }
+                if let Some(window) = &self.window {
+                    window.request_redraw();
                 }
+            }
             _ => (),
         }
     }

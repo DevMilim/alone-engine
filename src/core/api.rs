@@ -10,7 +10,6 @@ use crate::{
 };
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
-    fn quit(&mut self);
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn camera_mut(&mut self) -> &mut Vector2;
 }

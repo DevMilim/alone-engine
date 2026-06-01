@@ -7,7 +7,7 @@ use winit::keyboard::KeyCode;
 use crate::{
     AssetApi, AudioApi, AudioAsset, ColliderData, ColliderKey, CollisionApi, CollisionFlag,
     CoreSystems, EngineApi, EventApi, EventManager, GameObject, GlobalEvent, Handler, Id,
-    ImageAsset, InputApi, RuntimeEvent, SpawnEvent, Vector2,
+    ImageAsset, InputApi, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
@@ -16,10 +16,6 @@ pub struct EngineContext<'a> {
     pub camera_position: &'a mut Vector2,
 }
 impl<'a> EngineApi for EngineContext<'a> {
-    fn quit(&mut self) {
-        self.events.insert_runtime_event(RuntimeEvent::Quit);
-    }
-
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
         &mut self.events.mailbox
     }
