@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use winit::{event::MouseButton, keyboard::KeyCode};
+pub use winit::event::MouseButton;
+pub use winit::keyboard::KeyCode;
 
 use crate::Vector2;
 
@@ -26,6 +27,7 @@ impl InputState {
             map: InputMap::new(),
         }
     }
+
     pub fn set_mouse_position(&mut self, x: f32, y: f32) {
         self.mouse_position = Vector2::new(x, y);
     }

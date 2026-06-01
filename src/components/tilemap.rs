@@ -267,11 +267,11 @@ impl Tilemap {
                 .ok_or(LdtkError::TilesetDefNotFound(tileset_uid))?;
 
             let texture = if let Some(existing) = tileset_cache.get(&tileset_uid) {
-                existing.clone()
+                *existing
             } else {
                 let tileset_path = base_dir.join(&tileset_def.rel_path);
                 let texture = api.load_texture(&tileset_path.to_string_lossy());
-                tileset_cache.insert(tileset_uid, texture.clone());
+                tileset_cache.insert(tileset_uid, texture);
                 texture
             };
 
@@ -297,7 +297,7 @@ impl Tilemap {
                 };
 
                 map.tiles.push(Tile {
-                    texture: texture.clone(),
+                    texture,
                     source,
                     position,
                     flip_h: tile.f & 1 != 0,

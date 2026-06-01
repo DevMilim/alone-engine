@@ -1,4 +1,3 @@
-mod assets;
 mod audio;
 mod collision;
 mod components;
@@ -7,9 +6,9 @@ mod event;
 mod input;
 mod math;
 mod render;
+mod resources;
 mod runtime;
 
-pub use assets::*;
 pub use audio::*;
 pub use collision::*;
 pub use components::*;
@@ -19,6 +18,7 @@ pub use input::*;
 pub use macros::*;
 pub use math::*;
 pub use render::*;
+pub use resources::*;
 pub use runtime::*;
 use std::time::Instant;
 

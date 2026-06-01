@@ -8,10 +8,7 @@ pub struct Handler<T> {
 
 impl<T> Clone for Handler<T> {
     fn clone(&self) -> Self {
-        Self {
-            id: self.id.clone(),
-            _phantom: self._phantom.clone(),
-        }
+        *self
     }
 }
 

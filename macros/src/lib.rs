@@ -294,11 +294,12 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 }
 
 fn type_is_base(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(seg) = type_path.path.segments.last() {
-            return seg.ident == "Base";
-        }
+    if let Type::Path(type_path) = ty
+        && let Some(seg) = type_path.path.segments.last()
+    {
+        return seg.ident == "Base";
     }
+
     false
 }
 

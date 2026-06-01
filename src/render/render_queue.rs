@@ -1,4 +1,24 @@
-use crate::{Anchor, Color, DrawCommand, Rect, RenderApi, Vector2};
+use crate::{Color, Handler, ImageAsset, Rect, RenderApi, Vector2};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Anchor {
+    Center,
+    TopLeft,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DrawCommand {
+    Sprite {
+        position: Vector2,
+        image: Handler<ImageAsset>,
+        anchor: Anchor,
+        source: Option<Rect>,
+    },
+    Rect {
+        color: Color,
+        rect: Rect,
+    },
+}
 
 pub struct RenderQueue<'a> {
     pub queue: &'a mut [Vec<DrawCommand>; 6],

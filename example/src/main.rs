@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use alone_engine::{
-    Base, Body2D, Camera2D, Collider, Color, Component, EngineApi, GameObject, GameObjectBase,
-    KeyCode, MouseButton, Rect, Scene, SpawnEvent, Tilemap, Timer, Vector2, run_application,
+    App, Base, Body2D, Camera2D, Collider, Color, Component, EngineApi, GameObject, GameObjectBase,
+    KeyCode, MouseButton, Rect, Scene, SpawnEvent, Tilemap, Timer, Vector2,
 };
 
 #[derive(GameObject)]
@@ -76,18 +76,20 @@ impl Player {
 impl GameObject for Player {
     type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {}
-    fn update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
+    fn update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
+        if ctx.is_key_just_pressed(KeyCode::Space) {
+            ctx.spawn(Bullet::new());
+        }
         if ctx.is_mouse_just_pressed(MouseButton::Left) {
             self.set_position(ctx.mouse_position());
         }
-    }
-    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         let direction = ctx
             .get_key_vector(KeyCode::KeyW, KeyCode::KeyS, KeyCode::KeyA, KeyCode::KeyD)
             .normalize();
 
         self.body.set_velocity(direction * 100.0 * delta);
-
+    }
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         self.body.move_and_slide(ctx, &mut self.base);
     }
 }
@@ -149,5 +151,5 @@ impl GameScenes {
 }
 
 fn main() {
-    run_application(GameScenes::new());
+    App::new(GameScenes::new()).run();
 }

@@ -12,7 +12,7 @@ impl AnimationData {
     pub fn new(sprites: Vec<Handler<ImageAsset>>, fps: f32) -> Self {
         Self {
             sprites,
-            fps: fps,
+            fps,
             looped: true,
         }
     }
@@ -54,6 +54,12 @@ pub struct SpriteAnimation {
 
     timer: f32,
     current_frame: usize,
+}
+
+impl Default for SpriteAnimation {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SpriteAnimation {

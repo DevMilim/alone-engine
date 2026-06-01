@@ -138,11 +138,11 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
     }
 
     fn dispatch_destroy(&mut self, ctx: &mut impl EngineApi) {
-        if let Some(obj) = self.as_mut() {
-            if obj.is_pending_removal() {
-                obj.dispatch_destroy(ctx);
-                *self = None;
-            }
+        if let Some(obj) = self.as_mut()
+            && obj.is_pending_removal()
+        {
+            obj.dispatch_destroy(ctx);
+            *self = None;
         }
     }
 

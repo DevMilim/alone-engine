@@ -1,13 +1,56 @@
-mod aabb;
-
 use crate::{Id, Vector2};
 use std::{
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
 };
 
-pub use aabb::*;
 use indexmap::IndexMap;
+
+#[derive(Clone, Copy, Debug)]
+pub struct AABB {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl AABB {
+    pub fn intersects(&self, other: &AABB) -> bool {
+        self.x < other.x + other.width
+            && self.x + self.width > other.x
+            && self.y < other.y + other.height
+            && self.y + self.height > other.y
+    }
+    pub fn get_overlap(&self, other: &AABB) -> Option<Vector2> {
+        let left = other.x - (self.x + self.width);
+
+        let right = (other.x + other.width) - self.x;
+
+        let top = other.y - (self.y + self.height);
+        let bottom = (other.y + other.height) - self.y;
+
+        if left >= 0.0 || right <= 0.0 || top >= 0.0 || bottom <= 0.0 {
+            return None;
+        }
+        let overlap_x = if left.abs() < right.abs() {
+            left
+        } else {
+            right
+        };
+
+        let overlap_y = if top.abs() < bottom.abs() {
+            top
+        } else {
+            bottom
+        };
+
+        if overlap_x.abs() < overlap_y.abs() {
+            Some(Vector2::new(overlap_x, 0.0))
+        } else {
+            Some(Vector2::new(0.0, overlap_y))
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CollisionFlag {
@@ -32,11 +75,11 @@ pub struct ColliderKey {
 
 type Cell = (i32, i32);
 pub fn cell_of(aabb: &AABB, cell_size: f32) -> Vec<Cell> {
-    let min_x = (aabb.x as f32 / cell_size).floor() as i32;
-    let min_y = (aabb.y as f32 / cell_size).floor() as i32;
+    let min_x = (aabb.x / cell_size).floor() as i32;
+    let min_y = (aabb.y / cell_size).floor() as i32;
 
-    let max_x = ((aabb.x + aabb.width) as f32 / cell_size).floor() as i32;
-    let max_y = ((aabb.y + aabb.height) as f32 / cell_size).floor() as i32;
+    let max_x = ((aabb.x + aabb.width) / cell_size).floor() as i32;
+    let max_y = ((aabb.y + aabb.height) / cell_size).floor() as i32;
 
     let mut cells = Vec::new();
 

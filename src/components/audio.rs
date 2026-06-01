@@ -48,7 +48,6 @@ impl Sound {
                 self.playing = Some(handle);
             }
         }
-        return;
     }
     pub fn stop(&mut self) {
         if let Some(handle) = &self.playing {

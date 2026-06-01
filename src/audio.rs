@@ -25,6 +25,12 @@ pub struct AudioSys {
     _mixer: Mixer,
 }
 
+impl Default for AudioSys {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioSys {
     pub fn new() -> Self {
         let (controller, mixer) =
@@ -32,7 +38,7 @@ impl AudioSys {
 
         let mut sink = DeviceSinkBuilder::open_default_sink().unwrap();
         sink.log_on_drop(false);
-        let player = Player::connect_new(&sink.mixer());
+        let player = Player::connect_new(sink.mixer());
         player.set_volume(1.0);
 
         player.append(mixer);

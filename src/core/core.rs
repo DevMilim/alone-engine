@@ -55,7 +55,7 @@ pub trait Component {
     fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
 }
 
-static EMPTY_BASE: LazyLock<Base> = LazyLock::new(|| Base::default());
+static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
 impl<T: GameObject> GameObject for Vec<T> {
     type Message = ();
 }

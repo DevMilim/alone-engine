@@ -16,6 +16,12 @@ pub struct Timer {
     repeat: bool,
 }
 
+impl Default for Timer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Timer {
     pub fn new() -> Self {
         Self {
@@ -43,8 +49,8 @@ impl Timer {
 
 impl Component for Timer {
     fn update(&mut self, ctx: &mut impl crate::EngineApi, base: &mut crate::Base, _delta: f32) {
-        if let Some(instant) = self.instant {
-            if instant.elapsed() >= self.duration {
+        if let Some(instant) = self.instant
+            && instant.elapsed() >= self.duration {
                 if self.repeat {
                     self.instant = Some(instant + self.duration);
                 } else {
@@ -56,6 +62,5 @@ impl Component for Timer {
                     ctx.emit_targeted(base.id, TimerEvent::Timeout);
                 }
             }
-        }
     }
 }

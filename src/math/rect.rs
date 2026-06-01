@@ -9,8 +9,8 @@ pub struct Rect {
 impl Rect {
     pub fn new(x: f32, y: f32, width: u32, height: u32) -> Self {
         Self {
-            x: x,
-            y: y,
+            x,
+            y,
             width,
             height,
         }
