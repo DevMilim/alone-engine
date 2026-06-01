@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use alone_engine::{
     App, Base, Body2D, Collider, Component, EngineApi, GameObject, GameObjectBase, KeyCode, Scene,
-    Timer, TriggerEvent, Vector2,
+    Timer, Vector2,
 };
 
 #[derive(GameObject)]
