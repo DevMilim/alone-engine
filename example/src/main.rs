@@ -1,47 +1,39 @@
-use std::time::Duration;
-
 use alone_engine::{
-    App, Base, Body2D, Camera2D, Collider, Color, Component, EngineApi, GameObject, GameObjectBase,
-    KeyCode, MouseButton, Rect, Scene, SpawnEvent, Tilemap, Timer, Vector2,
+    App, Base, Body2D, Collider, Color, Component, EngineApi, GameObject, GameObjectBase, KeyCode,
+    MouseButton, Rect, Scene, Timer, Vector2,
 };
 
 #[derive(GameObject)]
-struct Bullet {
+struct Ball {
     #[base]
     base: Base,
+    #[component]
+    sensor: Collider,
+    #[component]
+    body: Body2D,
     #[component]
     timer: Timer,
 }
 
-impl Bullet {
+impl Ball {
     pub fn new() -> Self {
-        Bullet {
-            base: Base::empty(),
-            timer: Timer::new(),
+        Ball {
+            base: Base::default(),
+            sensor: Collider {
+                debug: true,
+                is_sensor: true,
+                ..Default::default()
+            },
+            body: Body2D::default(),
+            timer: Timer::default(),
         }
     }
 }
 
-#[derive(Clone)]
-pub enum BulletEvent {
-    Free,
-}
+impl GameObject for Ball {
+    type Message = ();
+    fn start(&mut self, _ctx: &mut impl EngineApi) {}
 
-impl GameObject for Bullet {
-    type Message = BulletEvent;
-    fn start(&mut self, _ctx: &mut impl EngineApi) {
-        println!("Bullet");
-        self.timer.start_timer(Duration::from_secs(2), false);
-        self.timer.set_event(BulletEvent::Free);
-    }
-    fn on_message(&mut self, _ctx: &mut impl EngineApi, msg: &Self::Message) {
-        match msg {
-            BulletEvent::Free => {
-                println!("Exit");
-                self.base.queue_free();
-            }
-        }
-    }
     fn destroy(&mut self, _ctx: &mut impl EngineApi) {
         println!("destroy chamado")
     }
@@ -54,8 +46,6 @@ pub struct Player {
     #[component]
     collider: Collider,
     #[component]
-    camera: Camera2D,
-    #[component]
     body: Body2D,
 }
 
@@ -65,9 +55,10 @@ impl Player {
             base: Base::new(position),
             collider: Collider {
                 debug: true,
+                width: 10.0,
+                height: 50.0,
                 ..Default::default()
             },
-            camera: Camera2D::new(Vector2::new(0.0, 0.0)),
             body: Body2D::default(),
         }
     }
@@ -76,11 +67,8 @@ impl Player {
 impl GameObject for Player {
     type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {}
-    fn update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
-        if ctx.is_key_just_pressed(KeyCode::Space) {
-            ctx.spawn(Bullet::new());
-        }
-        if ctx.is_mouse_just_pressed(MouseButton::Left) {
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
+        if ctx.is_mouse_pressed(MouseButton::Left) {
             self.set_position(ctx.mouse_position());
         }
         let direction = ctx
@@ -88,51 +76,38 @@ impl GameObject for Player {
             .normalize();
 
         self.body.set_velocity(direction * 100.0 * delta);
-    }
-    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
-        self.body.move_and_slide(ctx, &mut self.base);
+        println!(
+            "X: {}; Y: {}",
+            self.base.position().x,
+            self.base.position().y
+        )
     }
 }
 
 #[derive(GameObject)]
-#[game(subscribe(spawn_bullet: SpawnEvent<Bullet>))]
 pub struct MainScene {
     #[base]
     base: Base,
     #[object]
-    player: Player,
-    #[component]
-    tilemap: Option<Tilemap>,
+    player: Option<Player>,
     #[object]
-    bullets: Vec<Bullet>,
+    bullets: Option<Ball>,
 }
 impl MainScene {
     pub fn new() -> Self {
         Self {
             base: Base::default(),
-            player: Player::new(Vector2::ZERO),
-            tilemap: None,
-            bullets: Vec::new(),
+            player: None,
+            bullets: None,
         }
-    }
-    fn spawn_bullet(&mut self, _ctx: &mut impl EngineApi, event: &SpawnEvent<Bullet>) {
-        self.bullets
-            .push(event.take().expect("Erro ao spawnar bullet"));
     }
 }
 
 impl GameObject for MainScene {
     type Message = ();
     fn start(&mut self, ctx: &mut impl alone_engine::EngineApi) {
-        //self.tilemap = Some(
-        //    Tilemap::from_ldtk_file(
-        //        ctx,
-        //        "assets/tilemap.ldtk",
-        //        "Level_0",
-        //        &vec![(1, TileCollision::Full)],
-        //    )
-        //    .unwrap(),
-        //);
+        self.top_level();
+        self.player = Some(Player::new(Vector2::new(10.0, 120.0)))
     }
     fn draw(&mut self, renderer: &mut impl alone_engine::RenderApi, _blending: f32) {
         renderer.draw_rect(Rect::new(10.0, 10.0, 30, 60), Color::BLACK, 0);

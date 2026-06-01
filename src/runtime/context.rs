@@ -14,6 +14,7 @@ pub struct EngineContext<'a> {
     pub systems: &'a mut CoreSystems,
     pub events: &'a mut EventManager,
     pub camera_position: &'a mut Vector2,
+    pub window_size: &'a (u32, u32),
 }
 impl<'a> EngineApi for EngineContext<'a> {
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
@@ -22,6 +23,10 @@ impl<'a> EngineApi for EngineContext<'a> {
 
     fn camera_mut(&mut self) -> &mut Vector2 {
         self.camera_position
+    }
+
+    fn window_size(&self) -> (u32, u32) {
+        *self.window_size
     }
 }
 impl<'a> EngineContext<'a> {}

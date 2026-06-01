@@ -56,6 +56,9 @@ impl<'a> Render<'a> {
             queue.clear();
         }
     }
+    pub fn set_window_size(&mut self, size: (u32, u32)) {
+        self.window_size = size;
+    }
     pub fn render(&mut self, camera_position: Vector2, resources: &Resources) {
         self.sort();
 

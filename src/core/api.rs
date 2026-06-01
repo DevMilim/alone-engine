@@ -12,6 +12,7 @@ use crate::{
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn camera_mut(&mut self) -> &mut Vector2;
+    fn window_size(&self) -> (u32, u32);
 }
 pub trait InputApi {
     fn is_key_pressed(&self, key: KeyCode) -> bool;

@@ -10,8 +10,8 @@ use winit::{
 };
 
 use crate::{
-    Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch, InputType, LOGICAL_WIDTH,
-    Render, Scene, Vector2, WorldState,
+    Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch, InputType, LOGICAL_HEIGHT,
+    LOGICAL_WIDTH, Render, Scene, Vector2, WorldState,
 };
 
 pub struct App<S: Scene> {
@@ -113,6 +113,8 @@ impl<S: Scene> ApplicationHandler for App<S> {
             WindowEvent::Resized(size) if size.width > 0 && size.height > 0 => {
                 let _ = state.pixels.resize_surface(size.width, size.height);
 
+                state.set_window_size((LOGICAL_WIDTH, LOGICAL_HEIGHT));
+
                 if let Some(window) = &self.window {
                     window.request_redraw();
                 }
@@ -129,6 +131,7 @@ impl<S: Scene> ApplicationHandler for App<S> {
             systems: &mut self.systems,
             events: &mut self.events,
             camera_position: &mut self.camera_position,
+            window_size: &render.window_size,
         };
 
         let (is_running, blending) = self.world.update(&mut ctx, &self.base);

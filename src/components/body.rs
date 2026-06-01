@@ -1,12 +1,27 @@
 use crate::{Base, Component, EngineApi, Vector2};
 
+pub enum BodyType {
+    Rigid,
+    Character,
+}
+
 pub struct Body2D {
     pub velocity: Vector2,
     pub on_floor: bool,
     pub on_wall: bool,
     pub on_ceiling: bool,
+    pub body_type: BodyType,
 }
-impl Component for Body2D {}
+impl Component for Body2D {
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+        match self.body_type {
+            BodyType::Rigid => {
+                ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
+            }
+            BodyType::Character => {}
+        }
+    }
+}
 
 impl Body2D {
     pub fn set_velocity(&mut self, velocity: Vector2) {
@@ -37,6 +52,7 @@ impl Default for Body2D {
             on_floor: false,
             on_wall: false,
             on_ceiling: false,
+            body_type: BodyType::Rigid,
         }
     }
 }
