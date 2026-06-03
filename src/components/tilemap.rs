@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum TileCollision {
     Full,
-    Custom(AABB),
+    Custom(Rect),
     None,
 }
 
@@ -22,6 +22,7 @@ pub struct Tile {
     pub flip_h: bool,
     pub flip_v: bool,
     pub tile_collision: TileCollision,
+    pub debug: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -138,12 +139,10 @@ impl Tilemap {
                     None => continue,
                 };
 
-                // Se for None, apenas ignora
                 if matches!(collision, TileCollision::None) {
                     continue;
                 }
 
-                // 1. Trata Colliders Customizados separadamente (SEM MERGE)
                 if let TileCollision::Custom(custom) = collision {
                     visited[index] = true;
                     let world_x = px_offset_x + (x as f32 * grid_size);
@@ -152,13 +151,12 @@ impl Tilemap {
                     colliders.push(AABB {
                         x: world_x + custom.x,
                         y: world_y + custom.y,
-                        width: custom.width,
-                        height: custom.height,
+                        width: custom.width as f32,
+                        height: custom.height as f32,
                     });
                     continue;
                 }
 
-                // 2. Se chegou aqui, é TileCollision::Full. Executamos o seu algoritmo de merge
                 let mut merge_w = 0;
                 while x + merge_w < width {
                     let i = y * width + (x + merge_w);
@@ -182,7 +180,6 @@ impl Tilemap {
                     merge_h += 1;
                 }
 
-                // Marca como visitados
                 for yy in 0..merge_h {
                     for xx in 0..merge_w {
                         visited[(y + yy) * width + (x + xx)] = true;
@@ -303,6 +300,7 @@ impl Tilemap {
                     flip_h: tile.f & 1 != 0,
                     flip_v: tile.f & 2 != 0,
                     tile_collision: TileCollision::None,
+                    debug: false,
                 });
             }
         }
