@@ -2,6 +2,11 @@ use crate::{
     AABB, Base, ColliderData, ColliderKey, Color, Component, EngineApi, Rect, RenderApi, Vector2,
 };
 
+pub enum ColliderType {
+    World,
+    Box,
+}
+
 pub struct Collider {
     pub key: u32,
     pub width: f32,
@@ -12,6 +17,7 @@ pub struct Collider {
     pub mask: u32,
     pub debug: bool,
     pub is_sensor: bool,
+    pub collider_type: ColliderType,
 }
 
 impl Default for Collider {
@@ -26,6 +32,7 @@ impl Default for Collider {
             mask: 1,
             debug: false,
             is_sensor: false,
+            collider_type: ColliderType::Box,
         }
     }
 }
@@ -57,9 +64,9 @@ impl Component for Collider {
     fn draw(&mut self, ctx: &mut impl RenderApi, base: &Base, _blending: f32) {
         if self.debug {
             let color = if self.is_sensor {
-                Color::rgb(0, 0, 255)
+                Color::rgba(0, 0, 255, 255 / 2)
             } else {
-                Color::rgb(255, 0, 0)
+                Color::rgba(255, 0, 0, 255 / 2)
             };
             let draw_pos = Vector2::new(
                 base.transform.global_position.x - (self.width / 2.0) + self.offset_x,

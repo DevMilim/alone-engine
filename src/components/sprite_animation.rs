@@ -1,15 +1,26 @@
 use std::collections::HashMap;
 
-use crate::{Anchor, Component, GameObjectBase, Handler, ImageAsset, Vector2};
+use crate::{Anchor, Component, GameObjectBase, SpriteSrc, Vector2};
 
+#[derive(Debug)]
 pub struct AnimationData {
-    sprites: Vec<Handler<ImageAsset>>,
+    sprites: Vec<SpriteSrc>,
     fps: f32,
     looped: bool,
 }
 
+impl Default for AnimationData {
+    fn default() -> Self {
+        Self {
+            sprites: Vec::new(),
+            fps: 1.0,
+            looped: true,
+        }
+    }
+}
+
 impl AnimationData {
-    pub fn new(sprites: Vec<Handler<ImageAsset>>, fps: f32) -> Self {
+    pub fn new(sprites: Vec<SpriteSrc>, fps: f32) -> Self {
         Self {
             sprites,
             fps,
@@ -29,7 +40,10 @@ impl AnimationData {
     pub fn looped(&mut self, looped: bool) {
         self.looped = looped
     }
-    pub fn insert_frame(&mut self, texture: Handler<ImageAsset>) {
+    pub fn insert_frame(&mut self, texture: SpriteSrc) {
+        self.sprites.push(texture);
+    }
+    pub fn insert_src(&mut self, texture: SpriteSrc) {
         self.sprites.push(texture);
     }
     pub fn frame_duration(&self) -> f32 {
@@ -38,7 +52,7 @@ impl AnimationData {
     fn frame_count(&self) -> usize {
         self.sprites.len()
     }
-    fn get_sprite(&self, frame: usize) -> Option<Handler<ImageAsset>> {
+    fn get_sprite(&self, frame: usize) -> Option<SpriteSrc> {
         self.sprites.get(frame).copied()
     }
 }
@@ -141,9 +155,9 @@ impl Component for SpriteAnimation {
 
         renderer.draw_sprite(
             current_position + self.offset,
-            texture,
+            texture.texture,
             self.anchor,
-            None,
+            texture.src,
             base.z_index,
         );
     }

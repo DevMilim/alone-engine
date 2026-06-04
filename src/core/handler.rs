@@ -6,6 +6,15 @@ pub struct Handler<T> {
     _phantom: PhantomData<T>,
 }
 
+impl<T> Default for Handler<T> {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            _phantom: Default::default(),
+        }
+    }
+}
+
 impl<T> Clone for Handler<T> {
     fn clone(&self) -> Self {
         *self

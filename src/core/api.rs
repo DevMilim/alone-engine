@@ -64,6 +64,8 @@ pub trait CollisionApi {
         position: &mut Vector2,
         velocity: &mut Vector2,
     ) -> CollisionFlag;
+    fn snap_to_floor(&mut self, my_id: Id, snap_length: f32) -> Option<f32>;
+    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2);
 }
 
 pub trait RenderApi {

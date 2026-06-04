@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{Base, DrawCommand, EngineApi, EngineContext, GameObjectDispatch, RenderQueue, Scene};
+use crate::{Base, DrawCommand, EngineContext, GameObjectDispatch, RenderQueue, Scene};
 
 pub const FIXED_DT: f32 = 1.0 / 60.0;
 pub const MAX_ACCUM: f32 = 0.5;
@@ -43,7 +43,12 @@ impl<S: Scene> WorldState<S> {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut impl EngineApi, base: &Base) -> (bool, f32) {
+    pub fn update(
+        &mut self,
+        ctx: &mut EngineContext,
+        base: &Base,
+        fixed_update_count: &mut u64,
+    ) -> (bool, f32) {
         let now = Instant::now();
         let mut delta_time = (now - self.last_instant).as_secs_f32();
         self.last_instant = now;
@@ -63,9 +68,13 @@ impl<S: Scene> WorldState<S> {
         object.dispatch_update(ctx, base, delta_time);
 
         while self.accumulator >= FIXED_DT {
+            ctx.set_fixed_update(true);
+            *fixed_update_count += 1;
+            ctx.systems.input.current_fixed_frame = *fixed_update_count;
             object.dispatch_fixed_update(ctx, base, FIXED_DT);
 
             self.accumulator -= FIXED_DT;
+            ctx.set_fixed_update(false);
         }
 
         object.dispatch_late_update(ctx, base, delta_time);

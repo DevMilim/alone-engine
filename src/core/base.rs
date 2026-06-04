@@ -1,9 +1,9 @@
-use crate::{Id, Transform2D, Vector2};
+use crate::{Id, Transform, Vector2};
 
 #[derive(Clone)]
 pub struct Base {
     pub id: Id,
-    pub transform: Transform2D,
+    pub transform: Transform,
     pub pending_removal: bool,
     pub top_level: bool,
     is_started: bool,
@@ -11,12 +11,9 @@ pub struct Base {
 }
 
 impl Base {
-    pub fn empty() -> Self {
-        Self::new(Vector2::ZERO)
-    }
     pub fn new(position: Vector2) -> Self {
         Self {
-            transform: Transform2D::new(position.x, position.y),
+            transform: Transform::new(position.x, position.y),
             pending_removal: false,
             top_level: false,
             id: Id::new(),

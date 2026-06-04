@@ -5,20 +5,36 @@ pub enum BodyType {
     Character,
 }
 
-pub struct Body2D {
+pub struct Body {
     pub velocity: Vector2,
     pub on_floor: bool,
     pub on_wall: bool,
     pub on_ceiling: bool,
     pub body_type: BodyType,
+    pub floor_snap_length: f32,
 }
-impl Component for Body2D {
+impl Component for Body {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         match self.body_type {
             BodyType::Rigid => {
+                let mut snapped = false;
+
+                if self.velocity.y >= 0.0 {
+                    if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
+                        base.transform.position.y += snap;
+                        ctx.translate_my_colliders(base.id, Vector2::new(0.0, snap));
+                        snapped = true;
+
+                        if self.velocity.y > 0.0 {
+                            self.velocity.y = 0.0;
+                        }
+                    }
+                }
+
                 let flags =
                     ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
-                self.on_floor = flags.on_floor;
+
+                self.on_floor = snapped || flags.on_floor;
                 self.on_wall = flags.on_wall;
                 self.on_ceiling = flags.on_ceiling;
             }
@@ -27,7 +43,7 @@ impl Component for Body2D {
     }
 }
 
-impl Body2D {
+impl Body {
     pub fn set_velocity(&mut self, velocity: Vector2) {
         self.velocity = velocity
     }
@@ -49,7 +65,7 @@ impl Body2D {
     }
 }
 
-impl Default for Body2D {
+impl Default for Body {
     fn default() -> Self {
         Self {
             velocity: Vector2::ZERO,
@@ -57,6 +73,7 @@ impl Default for Body2D {
             on_wall: false,
             on_ceiling: false,
             body_type: BodyType::Rigid,
+            floor_snap_length: 4.0,
         }
     }
 }

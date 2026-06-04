@@ -1,7 +1,7 @@
-use crate::{Anchor, Component, Handler, ImageAsset, Vector2};
+use crate::{Anchor, Component, SpriteSrc, Vector2};
 
 pub struct Sprite {
-    pub texture: Handler<ImageAsset>,
+    pub texture: SpriteSrc,
     pub offset: Vector2,
     pub anchor: Anchor,
     pub visible: bool,
@@ -23,9 +23,9 @@ impl Component for Sprite {
             .lerp(base.transform.global_position, blending);
         renderer.draw_sprite(
             current_position + self.offset,
-            self.texture,
+            self.texture.texture,
             self.anchor,
-            None,
+            self.texture.src,
             base.z_index,
         );
     }
@@ -34,7 +34,7 @@ impl Component for Sprite {
 impl Default for Sprite {
     fn default() -> Self {
         Self {
-            texture: Handler::new(0),
+            texture: SpriteSrc::default(),
             offset: Vector2::ZERO,
             anchor: Anchor::Center,
             visible: true,

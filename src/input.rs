@@ -12,19 +12,23 @@ pub enum InputType {
 }
 
 pub struct InputState {
-    pressed_input: HashSet<InputType>,
-    just_pressed_input: HashSet<InputType>,
-    mouse_position: Vector2,
+    pub pressed_input: HashSet<InputType>,
+    pub just_pressed_input: HashMap<InputType, (u64, u64)>,
+    pub mouse_position: Vector2,
     pub map: InputMap,
+    pub current_update_frame: u64,
+    pub current_fixed_frame: u64,
 }
 
 impl InputState {
     pub fn new() -> Self {
         Self {
             pressed_input: HashSet::new(),
-            just_pressed_input: HashSet::new(),
+            just_pressed_input: HashMap::new(),
             mouse_position: Vector2::ZERO,
             map: InputMap::new(),
+            current_update_frame: 0,
+            current_fixed_frame: 0,
         }
     }
 
@@ -37,11 +41,19 @@ impl InputState {
         }
         false
     }
-    pub fn is_action_just_pressed(&self, action: &str) -> bool {
-        if let Some(input) = self.map.bindings.get(action) {
-            return input
-                .iter()
-                .any(|input| self.just_pressed_input.contains(input));
+    pub fn is_action_just_pressed(&self, action: &str, is_fixed_update: bool) -> bool {
+        if let Some(inputs) = self.map.bindings.get(action) {
+            return inputs.iter().any(|input| {
+                if let Some(&(target_u, target_f)) = self.just_pressed_input.get(input) {
+                    if is_fixed_update {
+                        target_f == self.current_fixed_frame
+                    } else {
+                        target_u == self.current_update_frame
+                    }
+                } else {
+                    false
+                }
+            });
         }
         false
     }
@@ -51,22 +63,41 @@ impl InputState {
     pub fn is_key_pressed(&self, key: KeyCode) -> bool {
         self.pressed_input.contains(&InputType::Key(key))
     }
-    pub fn is_key_just_pressed(&self, key: KeyCode) -> bool {
-        self.just_pressed_input.contains(&InputType::Key(key))
+    pub fn is_key_just_pressed(&self, key: KeyCode, is_fixed_update: bool) -> bool {
+        if let Some(&(target_u, target_f)) = self.just_pressed_input.get(&InputType::Key(key)) {
+            if is_fixed_update {
+                return target_f == self.current_fixed_frame;
+            } else {
+                return target_u == self.current_update_frame;
+            }
+        }
+        false
     }
     pub fn is_mouse_pressed(&self, key: MouseButton) -> bool {
         self.pressed_input.contains(&InputType::Mouse(key))
     }
-    pub fn is_mouse_just_pressed(&self, key: MouseButton) -> bool {
-        self.just_pressed_input.contains(&InputType::Mouse(key))
+    pub fn is_mouse_just_pressed(&self, key: MouseButton, is_fixed_update: bool) -> bool {
+        if let Some(&(target_u, target_f)) = self.just_pressed_input.get(&InputType::Mouse(key)) {
+            if is_fixed_update {
+                return target_f == self.current_fixed_frame;
+            } else {
+                return target_u == self.current_update_frame;
+            }
+        }
+        false
     }
     pub fn clear_frame_data(&mut self) {
-        self.just_pressed_input.clear();
+        let current_u = self.current_update_frame;
+        let current_f = self.current_fixed_frame;
+        self.just_pressed_input
+            .retain(|_, (target_u, target_f)| *target_u >= current_u || *target_f >= current_f)
     }
     pub fn update_input_state(&mut self, key: InputType, pressed: bool) {
         if pressed {
             if !self.pressed_input.contains(&key) {
-                self.just_pressed_input.insert(key);
+                let target_u = self.current_update_frame + 1;
+                let target_f = self.current_fixed_frame + 1;
+                self.just_pressed_input.insert(key, (target_u, target_f));
             }
             self.pressed_input.insert(key);
         } else {
@@ -147,6 +178,13 @@ impl Default for InputState {
     }
 }
 
+pub struct InputActions {
+    pub action: String,
+    pub keys: Vec<InputType>,
+}
+
+impl InputActions {}
+
 pub struct InputMap {
     pub bindings: HashMap<String, Vec<InputType>>,
 }
@@ -163,6 +201,7 @@ impl InputMap {
             bindings: HashMap::new(),
         }
     }
+    pub fn insert_actions() {}
     pub fn bind_action(&mut self, action: &str, key: InputType) {
         self.bindings
             .entry(action.to_string())

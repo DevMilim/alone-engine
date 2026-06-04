@@ -167,6 +167,7 @@ impl<'a> Render<'a> {
                                     if sa == 0 {
                                         continue;
                                     }
+
                                     if sa == 255 {
                                         *dst_px = *src_px;
                                     } else {
@@ -193,6 +194,11 @@ impl<'a> Render<'a> {
                     }
                     DrawCommand::Rect { color, rect } => {
                         let color_bytes = color.bytes();
+                        let sa = color_bytes[3] as u32;
+
+                        if sa == 0 {
+                            continue;
+                        }
 
                         let screen_x = (rect.x - cam_x).round();
                         let screen_y = (rect.y - cam_y).round();
@@ -205,14 +211,41 @@ impl<'a> Render<'a> {
                         let end_y = ((screen_y + rect.height as f32) as i32)
                             .max(0)
                             .min(frame_height as i32) as usize;
+
                         if start_x >= end_x || start_y >= end_y {
                             continue;
                         }
-                        for y in start_y..end_y {
-                            let row_start = y * frame_width + start_x;
-                            let row_end = y * frame_width + end_x;
 
-                            frame_pixels[row_start..row_end].fill(color_bytes);
+                        if sa == 255 {
+                            for y in start_y..end_y {
+                                let row_start = y * frame_width + start_x;
+                                let row_end = y * frame_width + end_x;
+
+                                frame_pixels[row_start..row_end].fill(color_bytes);
+                            }
+                        } else {
+                            let inv = 255u32 - sa;
+                            let sr = color_bytes[0] as u32;
+                            let sg = color_bytes[1] as u32;
+                            let sb = color_bytes[2] as u32;
+
+                            for y in start_y..end_y {
+                                let row_start = y * frame_width + start_x;
+                                let row_end = y * frame_width + end_x;
+
+                                for dst_px in &mut frame_pixels[row_start..row_end] {
+                                    let dr = dst_px[0] as u32;
+                                    let dg = dst_px[1] as u32;
+                                    let db = dst_px[2] as u32;
+
+                                    *dst_px = [
+                                        (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
+                                        (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
+                                        (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
+                                        255,
+                                    ];
+                                }
+                            }
                         }
                     }
                 }

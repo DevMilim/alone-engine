@@ -169,12 +169,9 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let base_field = match base_field {
         Some(field) => field,
         None => {
-            return syn::Error::new_spanned(
-                struct_name,
-                "Nenhum campo foi marcado com #[game(base)]",
-            )
-            .to_compile_error()
-            .into();
+            return syn::Error::new_spanned(struct_name, "Nenhum campo foi marcado com #[base]")
+                .to_compile_error()
+                .into();
         }
     };
 

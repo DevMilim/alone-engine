@@ -2,6 +2,42 @@ use std::path::Path;
 
 use image::imageops::FilterType;
 
+use crate::{Handler, Rect, Vector2};
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpriteSrc {
+    pub texture: Handler<ImageAsset>,
+    pub src: Option<Rect>,
+    pub grid_size: Option<Vector2>,
+}
+
+impl SpriteSrc {
+    pub fn new(texture: Handler<ImageAsset>, grid_size: Option<Vector2>) -> Self {
+        Self {
+            texture,
+            src: None,
+            grid_size,
+        }
+    }
+}
+
+impl SpriteSrc {
+    pub fn set_src(&mut self, x: u32, y: u32) {
+        self.src = self.calculate_scr(x, y);
+    }
+    pub fn calculate_scr(&self, x: u32, y: u32) -> Option<Rect> {
+        let Some(grid_size) = self.grid_size else {
+            return None;
+        };
+
+        let x = grid_size.x * x as f32;
+        let y = grid_size.y * y as f32;
+
+        let src = Rect::new(x, y, grid_size.x.abs() as u32, grid_size.y.abs() as u32);
+        Some(src)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageAsset {
     pub width: u32,

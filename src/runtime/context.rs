@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::{any::Any, cell::Cell};
 
 use indexmap::IndexMap;
 use rodio::Player;
@@ -10,12 +10,24 @@ use crate::{
     ImageAsset, InputApi, SpawnEvent, Vector2,
 };
 
+pub struct FixedUpdateGuard<'a> {
+    is_fixed_update: &'a Cell<bool>,
+}
+
+impl<'a> Drop for FixedUpdateGuard<'a> {
+    fn drop(&mut self) {
+        self.is_fixed_update.set(false);
+    }
+}
+
 pub struct EngineContext<'a> {
     pub systems: &'a mut CoreSystems,
     pub events: &'a mut EventManager,
     pub camera_position: &'a mut Vector2,
     pub window_size: &'a (u32, u32),
+    pub is_fixed_update: bool,
 }
+
 impl<'a> EngineApi for EngineContext<'a> {
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
         &mut self.events.mailbox
@@ -29,7 +41,11 @@ impl<'a> EngineApi for EngineContext<'a> {
         *self.window_size
     }
 }
-impl<'a> EngineContext<'a> {}
+impl<'a> EngineContext<'a> {
+    pub fn set_fixed_update(&mut self, value: bool) {
+        self.is_fixed_update = value;
+    }
+}
 
 impl<'a> AudioApi for EngineContext<'a> {
     fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
@@ -77,7 +93,9 @@ impl<'a> InputApi for EngineContext<'a> {
     }
 
     fn is_key_just_pressed(&self, key: KeyCode) -> bool {
-        self.systems.input.is_key_just_pressed(key)
+        self.systems
+            .input
+            .is_key_just_pressed(key, self.is_fixed_update)
     }
 
     fn mouse_position(&self) -> Vector2 {
@@ -89,7 +107,9 @@ impl<'a> InputApi for EngineContext<'a> {
     }
 
     fn is_action_just_pressed(&self, action: &str) -> bool {
-        self.systems.input.is_action_just_pressed(action)
+        self.systems
+            .input
+            .is_action_just_pressed(action, self.is_fixed_update)
     }
 
     fn get_vector(
@@ -121,7 +141,9 @@ impl<'a> InputApi for EngineContext<'a> {
     }
 
     fn is_mouse_just_pressed(&self, key: winit::event::MouseButton) -> bool {
-        self.systems.input.is_mouse_just_pressed(key)
+        self.systems
+            .input
+            .is_mouse_just_pressed(key, self.is_fixed_update)
     }
 }
 
@@ -172,5 +194,13 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.systems
             .collision
             .move_and_slide(my_id, position, velocity)
+    }
+
+    fn snap_to_floor(&mut self, my_id: Id, snap_length: f32) -> Option<f32> {
+        self.systems.collision.snap_to_floor(my_id, snap_length)
+    }
+
+    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
+        self.systems.collision.translate_my_colliders(my_id, offset);
     }
 }

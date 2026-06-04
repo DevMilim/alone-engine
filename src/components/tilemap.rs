@@ -241,14 +241,16 @@ impl Tilemap {
                 "Tiles" => &layer.grid_tiles,
                 "AutoLayer" => &layer.auto_tiles,
                 "IntGrid" => {
-                    map.create_colliders(
-                        &layer.int_grid_csv,
-                        layer.c_wid,
-                        layer.grid_size as f32,
-                        layer.px_offset_x as f32,
-                        layer.px_offset_y as f32,
-                        int_grid_rules,
-                    );
+                    if layer.identifier == "Collision" {
+                        map.create_colliders(
+                            &layer.int_grid_csv,
+                            layer.c_wid,
+                            layer.grid_size as f32,
+                            layer.px_offset_x as f32,
+                            layer.px_offset_y as f32,
+                            int_grid_rules,
+                        );
+                    }
                     continue;
                 }
                 _ => continue,

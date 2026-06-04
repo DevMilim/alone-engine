@@ -288,7 +288,7 @@ impl CollisionWorld {
 
         flags
     }
-    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
+    pub fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
         for (key, data) in &mut self.colliders {
             if key.id == my_id {
                 data.aabb.x += offset.x;
@@ -338,6 +338,62 @@ impl CollisionWorld {
             }
         }
         final_correction
+    }
+    pub fn snap_to_floor(&mut self, my_id: Id, snap_length: f32) -> Option<f32> {
+        let my_colliders: Vec<ColliderData> = self
+            .colliders
+            .iter()
+            .filter(|(key, _)| key.id == my_id)
+            .map(|(_, data)| *data)
+            .collect();
+        let mut best_snap = None;
+
+        for my_data in my_colliders {
+            if my_data.is_sensor {
+                continue;
+            }
+
+            let my_left = my_data.aabb.x;
+            let my_right = my_data.aabb.x + my_data.aabb.width;
+            let my_bottom = my_data.aabb.y + my_data.aabb.height;
+
+            for (key, other) in &self.colliders {
+                if key.id == my_id || other.is_sensor {
+                    continue;
+                }
+
+                let can_collide =
+                    (my_data.mask & other.layer) != 0 && (other.mask & my_data.layer) != 0;
+
+                if !can_collide {
+                    continue;
+                }
+
+                let other_left = other.aabb.x;
+                let other_right = other.aabb.x + other.aabb.width;
+                let other_top = other.aabb.y;
+
+                let horizontal_overlap = my_left < other_right && my_right > other_left;
+
+                if !horizontal_overlap {
+                    continue;
+                }
+
+                if my_bottom <= other_top {
+                    let gap = other_top - my_bottom;
+
+                    if gap <= snap_length {
+                        match best_snap {
+                            Some(current) if gap < current => best_snap = Some(gap),
+                            None => best_snap = Some(gap),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        best_snap
     }
 }
 

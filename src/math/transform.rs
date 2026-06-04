@@ -1,7 +1,7 @@
 use crate::Vector2;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Transform2D {
+pub struct Transform {
     pub position: Vector2,
     pub rotation: f32,
     pub scale: Vector2,
@@ -11,7 +11,7 @@ pub struct Transform2D {
     pub global_scale: Vector2,
 }
 
-impl Transform2D {
+impl Transform {
     pub fn new(x: f32, y: f32) -> Self {
         Self {
             position: Vector2 { x, y },
@@ -31,7 +31,7 @@ impl Transform2D {
         global_scale: Vector2::ONE,
     };
 
-    pub fn apply_parent(&mut self, parent: &Transform2D, inherit: bool) {
+    pub fn apply_parent(&mut self, parent: &Transform, inherit: bool) {
         if inherit {
             self.global_scale = self.scale * parent.scale;
             self.global_rotation = parent.global_rotation + self.rotation;
@@ -55,7 +55,7 @@ impl Transform2D {
     }
 }
 
-impl Default for Transform2D {
+impl Default for Transform {
     fn default() -> Self {
         Self::EMPTY
     }

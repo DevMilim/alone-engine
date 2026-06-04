@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use winit::{
     application::ApplicationHandler,
@@ -23,6 +23,8 @@ pub struct App<S: Scene> {
     pub window: Option<Arc<Window>>,
     pub base: Base,
     pub camera_position: Vector2,
+    pub update_frame_count: u64,
+    pub fixed_frame_count: u64,
 }
 
 impl<S: Scene> App<S> {
@@ -33,8 +35,10 @@ impl<S: Scene> App<S> {
             world: WorldState::new(root_scene),
             render: None,
             window: None,
-            base: Base::empty(),
+            base: Base::default(),
             camera_position: Vector2::new(0.0, 0.0),
+            update_frame_count: 0,
+            fixed_frame_count: 0,
         }
     }
 
@@ -123,6 +127,10 @@ impl<S: Scene> ApplicationHandler for App<S> {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.update_frame_count += 1;
+        self.systems.input.current_update_frame = self.update_frame_count;
+        self.systems.input.current_fixed_frame = self.fixed_frame_count;
+
         let Some(render) = &mut self.render else {
             panic!("Erro ao obter render")
         };
@@ -132,9 +140,12 @@ impl<S: Scene> ApplicationHandler for App<S> {
             events: &mut self.events,
             camera_position: &mut self.camera_position,
             window_size: &render.window_size,
+            is_fixed_update: false,
         };
 
-        let (is_running, blending) = self.world.update(&mut ctx, &self.base);
+        let (is_running, blending) =
+            self.world
+                .update(&mut ctx, &self.base, &mut self.fixed_frame_count);
 
         Self::flush_messages_and_events(&mut ctx, &mut self.world);
 

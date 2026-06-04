@@ -1,6 +1,6 @@
 use crate::{Component, EngineApi, LOGICAL_HEIGHT, LOGICAL_WIDTH, RenderApi, Vector2};
 
-pub struct Camera2D {
+pub struct Camera {
     pub position: Vector2,
     pub last_position: Vector2,
     pub active: bool,
@@ -9,10 +9,10 @@ pub struct Camera2D {
     pub half: Vector2,
 }
 
-impl Camera2D {
-    pub fn new(deadzone: Vector2) -> Self {
+impl Camera {
+    pub fn new(deadzone: Vector2, active: bool) -> Self {
         Self {
-            active: true,
+            active,
             lerp_speed: 10.0,
             deadzone,
             position: Vector2::ZERO,
@@ -22,17 +22,22 @@ impl Camera2D {
     }
 }
 
-impl Default for Camera2D {
+impl Default for Camera {
     fn default() -> Self {
-        Self::new(Vector2::ZERO)
+        Self::new(Vector2::ZERO, false)
     }
 }
 
-impl Component for Camera2D {
+impl Component for Camera {
     fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut crate::Base) {
         self.last_position = self.position;
     }
-    fn late_update(&mut self, _ctx: &mut impl EngineApi, base: &mut crate::Base, delta: f32) {
+    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut crate::Base, delta: f32) {
+        {
+            let camera = ctx.camera_mut();
+            camera.x = self.position.x;
+            camera.y = self.position.y;
+        }
         if !self.active {
             return;
         }
