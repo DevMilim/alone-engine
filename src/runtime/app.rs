@@ -1,4 +1,4 @@
-use std::{cell::Cell, sync::Arc};
+use std::sync::Arc;
 
 use winit::{
     application::ApplicationHandler,
@@ -143,6 +143,10 @@ impl<S: Scene> ApplicationHandler for App<S> {
             is_fixed_update: false,
         };
 
+        let global_events = ctx.systems.collision_step();
+        for event in global_events {
+            ctx.events.global_events.push_back(event);
+        }
         let (is_running, blending) =
             self.world
                 .update(&mut ctx, &self.base, &mut self.fixed_frame_count);

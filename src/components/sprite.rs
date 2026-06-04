@@ -5,6 +5,8 @@ pub struct Sprite {
     pub offset: Vector2,
     pub anchor: Anchor,
     pub visible: bool,
+    pub flip_v: bool,
+    flip_h: bool,
     pub previous_position: Vector2,
 }
 impl Component for Sprite {
@@ -26,6 +28,8 @@ impl Component for Sprite {
             self.texture.texture,
             self.anchor,
             self.texture.src,
+            self.flip_v,
+            self.flip_h,
             base.z_index,
         );
     }
@@ -39,6 +43,8 @@ impl Default for Sprite {
             anchor: Anchor::Center,
             visible: true,
             previous_position: Vector2::ZERO,
+            flip_v: false,
+            flip_h: false,
         }
     }
 }

@@ -170,6 +170,18 @@ impl InputState {
             vec.normalize()
         }
     }
+    pub fn get_key_axis(&self, negative_key: KeyCode, positive_key: KeyCode) -> f32 {
+        let neg = self.is_key_pressed(negative_key) as i32 as f32;
+        let pos = self.is_key_pressed(positive_key) as i32 as f32;
+
+        pos - neg
+    }
+    pub fn get_axis(&self, negative_action: &str, positive_action: &str) -> f32 {
+        let neg = self.is_action_pressed(negative_action) as i32 as f32;
+        let pos = self.is_action_pressed(positive_action) as i32 as f32;
+
+        pos - neg
+    }
 }
 
 impl Default for InputState {

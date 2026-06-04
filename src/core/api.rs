@@ -36,6 +36,8 @@ pub trait InputApi {
         key_left: KeyCode,
         key_right: KeyCode,
     ) -> Vector2;
+    fn get_key_axis(&self, negative_key: KeyCode, positive_key: KeyCode) -> f32;
+    fn get_axis(&self, negative_action: &str, positive_action: &str) -> f32;
 }
 
 pub trait AssetApi {
@@ -73,10 +75,12 @@ pub trait RenderApi {
     fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8);
     fn draw_sprite(
         &mut self,
-        position: Vector2,
-        texture: Handler<ImageAsset>,
+        position: crate::Vector2,
+        texture: crate::Handler<crate::ImageAsset>,
         anchor: Anchor,
         source: Option<Rect>,
+        flip_v: bool,
+        flip_h: bool,
         z_index: u8,
     );
     fn camera_mut(&mut self) -> &mut Vector2;

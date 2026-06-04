@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::{
     AABB, Base, ColliderData, ColliderKey, Color, Component, EngineApi, Rect, RenderApi, Vector2,
 };
@@ -18,6 +20,13 @@ pub struct Collider {
     pub debug: bool,
     pub is_sensor: bool,
     pub collider_type: ColliderType,
+    pub event: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+}
+
+impl Collider {
+    pub fn set_event<T: Clone + 'static>(&mut self, event: T) {
+        self.event = Some(Box::new(move || Box::new(event.clone())));
+    }
 }
 
 impl Default for Collider {
@@ -33,6 +42,7 @@ impl Default for Collider {
             debug: false,
             is_sensor: false,
             collider_type: ColliderType::Box,
+            event: None,
         }
     }
 }

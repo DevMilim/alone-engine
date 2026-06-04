@@ -84,6 +84,8 @@ impl<'a> Render<'a> {
                         image,
                         anchor,
                         source,
+                        flip_v,
+                        flip_h,
                     } => {
                         let texture_id = image.id;
                         if Some(texture_id) != last_texture_id {
@@ -144,16 +146,28 @@ impl<'a> Render<'a> {
                             };
 
                             for dst_y in screen_min_y..screen_max_y {
-                                let tex_y = (dst_y as isize - start_y) as usize;
+                                let base_tex_y = (dst_y as isize - start_y) as usize;
+                                let tex_y = if *flip_v {
+                                    sprite_h - 1 - base_tex_y
+                                } else {
+                                    base_tex_y
+                                };
 
                                 let dst_row_start = dst_y * frame_width;
                                 let tex_row_start = (src_y + tex_y) * tex_width;
 
                                 let tex_min_x = (screen_min_x as isize - start_x) as usize;
 
-                                let actual_tex_x_start = src_x + tex_min_x;
-                                let actual_tex_x_end =
-                                    actual_tex_x_start + (screen_max_x - screen_min_x);
+                                let lenght = screen_max_x - screen_min_x;
+
+                                let (actual_tex_x_start, actual_tex_x_end) = if *flip_h {
+                                    (
+                                        src_x + sprite_w - tex_min_x - lenght,
+                                        src_x + sprite_w - tex_min_x,
+                                    )
+                                } else {
+                                    (src_x + tex_min_x, src_x + tex_min_x + lenght)
+                                };
 
                                 let dst_row = &mut frame_pixels
                                     [dst_row_start + screen_min_x..dst_row_start + screen_max_x];
@@ -161,32 +175,15 @@ impl<'a> Render<'a> {
                                 let tex_row = &tex_pixels[tex_row_start + actual_tex_x_start
                                     ..tex_row_start + actual_tex_x_end];
 
-                                for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
-                                    let sa = src_px[3] as u32;
-
-                                    if sa == 0 {
-                                        continue;
+                                if *flip_h {
+                                    for (dst_px, src_px) in
+                                        dst_row.iter_mut().zip(tex_row.iter().rev())
+                                    {
+                                        Self::blending_pixel(dst_px, src_px);
                                     }
-
-                                    if sa == 255 {
-                                        *dst_px = *src_px;
-                                    } else {
-                                        let inv = 255u32 - sa;
-
-                                        let sr = src_px[0] as u32;
-                                        let sg = src_px[1] as u32;
-                                        let sb = src_px[2] as u32;
-
-                                        let dr = dst_px[0] as u32;
-                                        let dg = dst_px[1] as u32;
-                                        let db = dst_px[2] as u32;
-
-                                        *dst_px = [
-                                            (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
-                                            (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
-                                            (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
-                                            255,
-                                        ]
+                                } else {
+                                    for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
+                                        Self::blending_pixel(dst_px, src_px);
                                     }
                                 }
                             }
@@ -253,5 +250,33 @@ impl<'a> Render<'a> {
         }
         let _ = self.pixels.render();
         self.clear();
+    }
+    pub fn blending_pixel(dst_px: &mut [u8; 4], src_px: &[u8; 4]) {
+        let sa = src_px[3] as u32;
+
+        if sa == 0 {
+            return;
+        }
+
+        if sa == 255 {
+            *dst_px = *src_px;
+        } else {
+            let inv = 255u32 - sa;
+
+            let sr = src_px[0] as u32;
+            let sg = src_px[1] as u32;
+            let sb = src_px[2] as u32;
+
+            let dr = dst_px[0] as u32;
+            let dg = dst_px[1] as u32;
+            let db = dst_px[2] as u32;
+
+            *dst_px = [
+                (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
+                (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
+                (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
+                255,
+            ]
+        }
     }
 }

@@ -13,6 +13,8 @@ pub enum DrawCommand {
         image: Handler<ImageAsset>,
         anchor: Anchor,
         source: Option<Rect>,
+        flip_v: bool,
+        flip_h: bool,
     },
     Rect {
         color: Color,
@@ -40,6 +42,8 @@ impl<'a> RenderApi for RenderQueue<'a> {
         texture: crate::Handler<crate::ImageAsset>,
         anchor: Anchor,
         source: Option<Rect>,
+        flip_v: bool,
+        flip_h: bool,
         z_index: u8,
     ) {
         self.queue[z_index as usize].push(DrawCommand::Sprite {
@@ -47,6 +51,8 @@ impl<'a> RenderApi for RenderQueue<'a> {
             image: texture,
             anchor,
             source,
+            flip_v,
+            flip_h,
         })
     }
 

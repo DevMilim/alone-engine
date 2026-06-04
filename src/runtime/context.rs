@@ -145,6 +145,16 @@ impl<'a> InputApi for EngineContext<'a> {
             .input
             .is_mouse_just_pressed(key, self.is_fixed_update)
     }
+
+    fn get_key_axis(&self, negative_key: KeyCode, positive_key: KeyCode) -> f32 {
+        self.systems.input.get_key_axis(negative_key, positive_key)
+    }
+
+    fn get_axis(&self, negative_action: &str, positive_action: &str) -> f32 {
+        self.systems
+            .input
+            .get_axis(negative_action, positive_action)
+    }
 }
 
 impl<'a> EventApi for EngineContext<'a> {

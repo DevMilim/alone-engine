@@ -52,6 +52,8 @@ impl Component for Tilemap {
                 tile.texture,
                 Anchor::TopLeft,
                 Some(tile.source),
+                tile.flip_v,
+                tile.flip_h,
                 self.z_index,
             );
         }

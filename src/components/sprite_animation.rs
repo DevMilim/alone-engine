@@ -68,6 +68,9 @@ pub struct SpriteAnimation {
 
     timer: f32,
     current_frame: usize,
+
+    pub flip_v: bool,
+    pub flip_h: bool,
 }
 
 impl Default for SpriteAnimation {
@@ -87,6 +90,8 @@ impl SpriteAnimation {
             previous_position: Vector2::ZERO,
             timer: 0.0,
             current_frame: 0,
+            flip_v: false,
+            flip_h: false,
         }
     }
 }
@@ -158,6 +163,8 @@ impl Component for SpriteAnimation {
             texture.texture,
             self.anchor,
             texture.src,
+            self.flip_v,
+            self.flip_h,
             base.z_index,
         );
     }

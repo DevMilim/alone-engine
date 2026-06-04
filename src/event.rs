@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use crate::{ColliderKey, GameObject, GlobalEvent, Id};
 
 /// Gerenciador e container de eventos como mensagens diretas e eventos globais como subscribe
+#[derive(Debug)]
 pub struct EventManager {
     pub global_events: VecDeque<GlobalEvent>,
     pub mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
