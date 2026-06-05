@@ -25,6 +25,9 @@ impl CoreSystems {
         self.collision.step();
         let mut trigger_events = Vec::new();
         for (a, b) in self.collision.get_entered_pairs() {
+            if a.id == b.id {
+                continue;
+            }
             let da = self.collision.colliders.get(&a).unwrap();
             let db = self.collision.colliders.get(&b).unwrap();
 
@@ -48,6 +51,9 @@ impl CoreSystems {
             }
         }
         for (a, b) in self.collision.get_exited_pairs() {
+            if a.id == b.id {
+                continue;
+            }
             let da = self.collision.colliders.get(&a).unwrap();
             let db = self.collision.colliders.get(&b).unwrap();
 

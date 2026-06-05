@@ -43,6 +43,7 @@ impl MainScene {
         }
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
+        println!("{:?}", event);
         match event.kind {
             alone_engine::TriggerKind::Enter => self.coin_sound.as_mut().unwrap().play(ctx),
             alone_engine::TriggerKind::Exit => {}
@@ -71,6 +72,7 @@ impl GameObject for MainScene {
             .unwrap(),
         );
         self.music.as_mut().unwrap().play(ctx);
+        println!("{:?}", self.base.id)
     }
     fn fixed_update(&mut self, ctx: &mut impl alone_engine::EngineApi, _delta: f32) {}
 }
