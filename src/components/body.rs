@@ -1,7 +1,7 @@
 use crate::{Base, Component, EngineApi, Vector2};
 
 pub enum BodyType {
-    Rigid,
+    Static,
     Character,
 }
 
@@ -16,7 +16,7 @@ pub struct Body {
 impl Component for Body {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         match self.body_type {
-            BodyType::Rigid => {
+            BodyType::Static => {
                 let mut snapped = false;
 
                 if self.velocity.y >= 0.0 {
@@ -72,7 +72,7 @@ impl Default for Body {
             on_floor: false,
             on_wall: false,
             on_ceiling: false,
-            body_type: BodyType::Rigid,
+            body_type: BodyType::Static,
             floor_snap_length: 4.0,
         }
     }
