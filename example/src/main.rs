@@ -31,6 +31,7 @@ impl MainScene {
             tilemap: None,
             music: None,
             sensor: Collider {
+                one_way_collision: true,
                 debug: true,
                 height: 10.0,
                 width: 50.0,
