@@ -60,6 +60,7 @@ pub struct ColliderData {
     pub layer: u32,
     pub mask: u32,
     pub is_sensor: bool,
+    pub on_way_collision: bool,
 }
 
 impl ColliderData {
@@ -181,7 +182,12 @@ impl CollisionWorld {
         self.colliders.swap_remove(&key);
     }
 
-    pub fn get_correction(&self, my_id: Id, my_data: &ColliderData) -> Option<Vector2> {
+    pub fn get_correction(
+        &self,
+        my_id: Id,
+        my_data: &ColliderData,
+        velocity: Vector2,
+    ) -> Option<Vector2> {
         let mut correction = Vector2::ZERO;
 
         for (key, other) in &self.colliders {
@@ -191,6 +197,20 @@ impl CollisionWorld {
                 || !my_data.can_collide(other)
             {
                 continue;
+            }
+
+            if other.on_way_collision {
+                if velocity.y <= 0.0 {
+                    continue;
+                }
+                let old_bottom = my_data.aabb.y + my_data.aabb.height - velocity.y;
+                let new_bottom = my_data.aabb.y + my_data.aabb.height;
+
+                let platform_top = other.aabb.y;
+
+                if !self.should_collide_oneway(old_bottom, new_bottom, platform_top, velocity.y) {
+                    continue;
+                }
             }
 
             if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
@@ -252,8 +272,8 @@ impl CollisionWorld {
 
         let mut final_correction = Vector2::ZERO;
 
-        for data in my_colliders {
-            if let Some(c) = self.get_correction(my_id, &data) {
+        for my_data in my_colliders {
+            if let Some(c) = self.get_correction(my_id, &my_data, *velocity) {
                 if is_x_axis && c.x.abs() > final_correction.x.abs() {
                     final_correction.x = c.x;
                 }
@@ -312,5 +332,14 @@ impl CollisionWorld {
             }
         }
         best_snap
+    }
+    fn should_collide_oneway(
+        &self,
+        my_old_bottom: f32,
+        my_new_bottom: f32,
+        platform_top: f32,
+        velocity_y: f32,
+    ) -> bool {
+        velocity_y >= 0.0 && my_old_bottom <= platform_top && my_new_bottom >= platform_top
     }
 }

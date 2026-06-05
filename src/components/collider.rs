@@ -21,6 +21,7 @@ pub struct Collider {
     pub debug: bool,
     pub is_sensor: bool,
     pub collider_type: ColliderType,
+    pub one_way_collision: bool,
     pub event: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
 }
 
@@ -44,6 +45,7 @@ impl Default for Collider {
             is_sensor: false,
             collider_type: ColliderType::Box,
             event: None,
+            one_way_collision: false,
         }
     }
 }
@@ -62,6 +64,7 @@ impl Component for Collider {
             layer: self.layer,
             mask: self.mask,
             is_sensor: self.is_sensor,
+            on_way_collision: self.one_way_collision,
         };
 
         ctx.update_collider(

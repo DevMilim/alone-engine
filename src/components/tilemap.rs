@@ -70,6 +70,7 @@ impl Component for Tilemap {
                 },
                 layer: self.collision_layer,
                 mask: self.collision_layer,
+                on_way_collision: false,
                 is_sensor: false,
             };
             ctx.update_collider(

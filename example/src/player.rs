@@ -1,5 +1,5 @@
 use alone_engine::{
-    AnimationData, Base, Body, Collider, Component, GameObject, GameObjectBase, KeyCode,
+    AnimationData, Base, Body, Camera, Collider, Component, GameObject, GameObjectBase, KeyCode,
     SpriteAnimation, SpriteSrc, Vector2,
 };
 
@@ -13,6 +13,8 @@ pub struct Player {
     body: Body,
     #[component]
     collision: Collider,
+    #[component]
+    camera: Camera,
 }
 
 impl Player {
@@ -27,6 +29,10 @@ impl Player {
                 ..Default::default()
             },
             body: Body::default(),
+            camera: Camera {
+                active: true,
+                ..Default::default()
+            },
         }
     }
     pub fn create_iddle_animation(&self, texture: &mut SpriteSrc) -> AnimationData {

@@ -1,6 +1,6 @@
 use alone_engine::{
-    App, Base, Collider, Component, EngineApi, GameObject, GameObjectBase, KeyCode, PlaybackMode,
-    Scene, Sound, TileCollision, Tilemap, TriggerEvent,
+    App, Base, Collider, Component, EngineApi, GameObject, GameObjectBase, PlaybackMode, Scene,
+    Sound, TileCollision, Tilemap, TriggerEvent,
 };
 
 use crate::player::Player;
@@ -31,12 +31,11 @@ impl MainScene {
             tilemap: None,
             music: None,
             sensor: Collider {
-                is_sensor: true,
                 debug: true,
-                height: 16.0,
-                width: 16.0,
-                offset_y: 100.0 - 20.0,
-                offset_x: 150.0,
+                height: 10.0,
+                width: 50.0,
+                offset_y: 120.0,
+                offset_x: 30.0,
                 ..Default::default()
             },
             coin_sound: None,
@@ -74,7 +73,6 @@ impl GameObject for MainScene {
         self.music.as_mut().unwrap().play(ctx);
         println!("{:?}", self.base.id)
     }
-    fn fixed_update(&mut self, ctx: &mut impl alone_engine::EngineApi, _delta: f32) {}
 }
 
 #[derive(Scene)]
