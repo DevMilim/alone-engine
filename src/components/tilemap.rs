@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     AABB, Anchor, AssetApi, Base, ColliderData, ColliderKey, Component, EngineApi, GameObjectBase,
-    Handler, ImageAsset, LdtkError, LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
+    Handler, Id, ImageAsset, LdtkError, LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
 };
 
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ pub struct Tilemap {
     pub previous_position: Vector2,
     pub position: Vector2,
     pub z_index: u8,
-    pub colliders: Vec<(u32, AABB)>,
+    pub colliders: Vec<(Id, AABB)>,
     pub collision_rules: FxHashMap<i32, TileCollision>,
     pub collision_layer: u32,
 }
@@ -59,9 +59,15 @@ impl Component for Tilemap {
         }
     }
     fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+        let origin = base.position() + self.position;
         for (key, aabb) in &self.colliders {
             let data = ColliderData {
-                aabb: *aabb,
+                aabb: AABB {
+                    x: aabb.x + origin.x,
+                    y: aabb.y + origin.y,
+                    width: aabb.width,
+                    height: aabb.height,
+                },
                 layer: self.collision_layer,
                 mask: self.collision_layer,
                 is_sensor: false,
@@ -145,10 +151,11 @@ impl Tilemap {
                     continue;
                 }
 
+                let world_x = px_offset_x + (x as f32 * grid_size);
+                let world_y = px_offset_y + (y as f32 * grid_size);
+
                 if let TileCollision::Custom(custom) = collision {
                     visited[index] = true;
-                    let world_x = px_offset_x + (x as f32 * grid_size);
-                    let world_y = px_offset_y + (y as f32 * grid_size);
 
                     colliders.push(AABB {
                         x: world_x + custom.x,
@@ -165,42 +172,20 @@ impl Tilemap {
                     if visited[i] || int_grid_csv[i] != value {
                         break;
                     }
+                    visited[i] = true;
                     merge_w += 1;
                 }
-
-                let mut merge_h = 1;
-                'outer: loop {
-                    if y + merge_h >= height {
-                        break;
-                    }
-                    for xx in 0..merge_w {
-                        let i = (y + merge_h) * width + (x + xx);
-                        if visited[i] || int_grid_csv[i] != value {
-                            break 'outer;
-                        }
-                    }
-                    merge_h += 1;
-                }
-
-                for yy in 0..merge_h {
-                    for xx in 0..merge_w {
-                        visited[(y + yy) * width + (x + xx)] = true;
-                    }
-                }
-
-                let world_x = px_offset_x + (x as f32 * grid_size);
-                let world_y = px_offset_y + (y as f32 * grid_size);
 
                 colliders.push(AABB {
                     x: world_x,
                     y: world_y,
                     width: merge_w as f32 * grid_size,
-                    height: merge_h as f32 * grid_size,
+                    height: grid_size,
                 });
             }
         }
-        for (key, collider) in colliders.into_iter().enumerate() {
-            self.colliders.push((key.try_into().unwrap(), collider))
+        for collider in colliders.into_iter() {
+            self.colliders.push((Id::new(), collider))
         }
     }
 

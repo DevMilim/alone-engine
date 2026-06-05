@@ -18,7 +18,7 @@ pub struct Player {
 impl Player {
     pub fn new() -> Self {
         Self {
-            base: Base::new(Vector2::new(10.0, 10.0)),
+            base: Base::new(Vector2::new(20.0, 10.0)),
             sprite_animation: None,
             collision: Collider {
                 offset_y: 6.0,
@@ -59,7 +59,7 @@ impl GameObject for Player {
     fn fixed_update(&mut self, ctx: &mut impl alone_engine::EngineApi, delta: f32) {
         let gravity = 9.7;
         let speed = 90.0;
-        let jump_speed = -3.0;
+        let jump_speed = -200.0 * delta;
 
         if !self.body.is_on_floor() {
             self.body.velocity.y += gravity * delta;

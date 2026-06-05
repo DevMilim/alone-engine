@@ -70,7 +70,7 @@ impl ColliderData {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub struct ColliderKey {
-    pub key: u32,
+    pub key: Id,
     pub id: Id,
 }
 
@@ -79,8 +79,9 @@ type Cell = (i32, i32);
 pub fn cell_of(aabb: &AABB, cell_size: f32) -> impl Iterator<Item = Cell> {
     let min_x = (aabb.x / cell_size).floor() as i32;
     let min_y = (aabb.y / cell_size).floor() as i32;
-    let max_x = ((aabb.x + aabb.width) / cell_size).floor() as i32;
-    let max_y = ((aabb.y + aabb.height) / cell_size).floor() as i32;
+
+    let max_x = (((aabb.x + aabb.width) - 0.001) / cell_size).floor() as i32;
+    let max_y = (((aabb.y + aabb.height) - 0.001) / cell_size).floor() as i32;
 
     (min_x..=max_x).flat_map(move |x| (min_y..=max_y).map(move |y| (x, y)))
 }

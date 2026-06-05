@@ -1,7 +1,8 @@
 use std::any::Any;
 
 use crate::{
-    AABB, Base, ColliderData, ColliderKey, Color, Component, EngineApi, Rect, RenderApi, Vector2,
+    AABB, Base, ColliderData, ColliderKey, Color, Component, EngineApi, Id, Rect, RenderApi,
+    Vector2,
 };
 
 pub enum ColliderType {
@@ -10,7 +11,7 @@ pub enum ColliderType {
 }
 
 pub struct Collider {
-    pub key: u32,
+    pub key: Id,
     pub width: f32,
     pub height: f32,
     pub offset_x: f32,
@@ -32,7 +33,7 @@ impl Collider {
 impl Default for Collider {
     fn default() -> Self {
         Self {
-            key: 0,
+            key: Id::new(),
             width: 16.0,
             height: 16.0,
             offset_x: 0.0,
