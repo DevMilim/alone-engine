@@ -7,10 +7,11 @@ use crate::{
     Handler, Id, ImageAsset, LdtkError, LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TileCollision {
     Full,
     Custom(Rect),
+    OnWay,
     None,
 }
 
@@ -36,7 +37,7 @@ pub struct Tilemap {
     pub previous_position: Vector2,
     pub position: Vector2,
     pub z_index: u8,
-    pub colliders: Vec<(Id, AABB)>,
+    pub colliders: Vec<(Id, TileCollision, AABB)>,
     pub collision_rules: FxHashMap<i32, TileCollision>,
     pub collision_layer: u32,
 }
@@ -60,7 +61,8 @@ impl Component for Tilemap {
     }
     fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         let origin = base.position() + self.position;
-        for (key, aabb) in &self.colliders {
+        for (key, collision_type, aabb) in &self.colliders {
+            let is_on_way = *collision_type == TileCollision::OnWay;
             let data = ColliderData {
                 aabb: AABB {
                     x: aabb.x + origin.x,
@@ -70,7 +72,7 @@ impl Component for Tilemap {
                 },
                 layer: self.collision_layer,
                 mask: self.collision_layer,
-                on_way_collision: false,
+                on_way_collision: is_on_way,
                 is_sensor: false,
             };
             ctx.update_collider(
@@ -83,7 +85,7 @@ impl Component for Tilemap {
         }
     }
     fn destroy(&mut self, ctx: &mut impl EngineApi, base: &Base) {
-        for (key, _) in &self.colliders {
+        for (key, _, _) in &self.colliders {
             ctx.remove_collider(ColliderKey {
                 key: *key,
                 id: base.id,
@@ -131,7 +133,7 @@ impl Tilemap {
 
         let mut visited = vec![false; int_grid_csv.len()];
 
-        let mut colliders = Vec::new();
+        let mut colliders: Vec<(AABB, TileCollision)> = Vec::new();
 
         for y in 0..height {
             for x in 0..width {
@@ -158,12 +160,15 @@ impl Tilemap {
                 if let TileCollision::Custom(custom) = collision {
                     visited[index] = true;
 
-                    colliders.push(AABB {
-                        x: world_x + custom.x,
-                        y: world_y + custom.y,
-                        width: custom.width as f32,
-                        height: custom.height as f32,
-                    });
+                    colliders.push((
+                        AABB {
+                            x: world_x + custom.x,
+                            y: world_y + custom.y,
+                            width: custom.width as f32,
+                            height: custom.height as f32,
+                        },
+                        collision,
+                    ));
                     continue;
                 }
 
@@ -177,16 +182,19 @@ impl Tilemap {
                     merge_w += 1;
                 }
 
-                colliders.push(AABB {
-                    x: world_x,
-                    y: world_y,
-                    width: merge_w as f32 * grid_size,
-                    height: grid_size,
-                });
+                colliders.push((
+                    AABB {
+                        x: world_x,
+                        y: world_y,
+                        width: merge_w as f32 * grid_size,
+                        height: grid_size,
+                    },
+                    collision,
+                ));
             }
         }
-        for collider in colliders.into_iter() {
-            self.colliders.push((Id::new(), collider))
+        for (collider, collision_type) in colliders.into_iter() {
+            self.colliders.push((Id::new(), collision_type, collider))
         }
     }
 

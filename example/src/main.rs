@@ -28,17 +28,15 @@ impl MainScene {
         Self {
             base: Base::default(),
             player: Player::new(),
-            tilemap: None,
-            music: None,
             sensor: Collider {
-                one_way_collision: true,
+                is_sensor: true,
                 debug: true,
-                height: 10.0,
-                width: 50.0,
-                offset_y: 120.0,
-                offset_x: 30.0,
+                offset_x: 40.0,
+                offset_y: 100.0,
                 ..Default::default()
             },
+            tilemap: None,
+            music: None,
             coin_sound: None,
         }
     }
@@ -67,7 +65,7 @@ impl GameObject for MainScene {
                 ctx,
                 "assets/tilemap/ldtk_tilemap.ldtk",
                 "Level_0",
-                &vec![(1, TileCollision::Full)],
+                &vec![(1, TileCollision::Full), (2, TileCollision::OnWay)],
             )
             .unwrap(),
         );
