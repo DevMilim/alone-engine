@@ -25,6 +25,16 @@ impl SpriteSrc {
     pub fn set_src(&mut self, x: u32, y: u32) {
         self.src = self.calculate_scr(x, y);
     }
+    pub fn add_tile(&mut self, x: u32, y: u32) {
+        let Some(calculate_src) = self.calculate_scr(x, y) else {
+            return;
+        };
+        let Some(src) = &mut self.src else {
+            return;
+        };
+        src.width += calculate_src.width;
+    }
+
     pub fn calculate_scr(&self, x: u32, y: u32) -> Option<Rect> {
         let Some(grid_size) = self.grid_size else {
             return None;

@@ -1,4 +1,4 @@
-use std::{any::Any, cell::Cell};
+use std::any::Any;
 
 use indexmap::IndexMap;
 use rodio::Player;
@@ -9,16 +9,6 @@ use crate::{
     CoreSystems, EngineApi, EventApi, EventManager, GameObject, GlobalEvent, Handler, Id,
     ImageAsset, InputApi, SpawnEvent, Vector2,
 };
-
-pub struct FixedUpdateGuard<'a> {
-    is_fixed_update: &'a Cell<bool>,
-}
-
-impl<'a> Drop for FixedUpdateGuard<'a> {
-    fn drop(&mut self) {
-        self.is_fixed_update.set(false);
-    }
-}
 
 pub struct EngineContext<'a> {
     pub systems: &'a mut CoreSystems,

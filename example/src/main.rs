@@ -1,10 +1,13 @@
+use std::time::Duration;
+
 use alone_engine::{
     App, Base, Collider, Component, EngineApi, GameObject, GameObjectBase, PlaybackMode, Scene,
-    Sound, TileCollision, Tilemap, TriggerEvent,
+    Sound, TileCollision, Tilemap, TriggerEvent, Vector2,
 };
 
-use crate::player::Player;
+use crate::{platform::Platform, player::Player};
 
+mod platform;
 mod player;
 
 #[derive(GameObject)]
@@ -14,6 +17,8 @@ pub struct MainScene {
     base: Base,
     #[object]
     player: Player,
+    #[object]
+    platform: Platform,
     #[component]
     tilemap: Option<Tilemap>,
     #[component]
@@ -30,7 +35,6 @@ impl MainScene {
             player: Player::new(),
             sensor: Collider {
                 is_sensor: true,
-                debug: true,
                 offset_x: 40.0,
                 offset_y: 100.0,
                 ..Default::default()
@@ -38,6 +42,11 @@ impl MainScene {
             tilemap: None,
             music: None,
             coin_sound: None,
+            platform: Platform::new(
+                Vector2::new(10.0, 117.0),
+                Vector2::new(50.0, 117.0),
+                Duration::from_secs_f32(1.5),
+            ),
         }
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {

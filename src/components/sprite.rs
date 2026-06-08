@@ -6,7 +6,7 @@ pub struct Sprite {
     pub anchor: Anchor,
     pub visible: bool,
     pub flip_v: bool,
-    flip_h: bool,
+    pub flip_h: bool,
     pub previous_position: Vector2,
 }
 impl Component for Sprite {
