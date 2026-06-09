@@ -1,4 +1,4 @@
-use crate::{Base, EngineApi, GameObject, GlobalEvent, RenderApi};
+use crate::{Base, EngineApi, GameObject, GlobalEvent, RenderApi, ServerEvent};
 
 pub trait GameObjectDispatch {
     fn is_pending_removal(&self) -> bool {
@@ -8,6 +8,7 @@ pub trait GameObjectDispatch {
     fn dispatch_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_late_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
+    fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &ServerEvent);
     fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent);
     fn dispatch_message(&mut self, ctx: &mut impl EngineApi);
     fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32);
@@ -81,6 +82,10 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Vec<T> {
         for obj in self.iter_mut() {
             obj.dispatch_message(ctx);
         }
+    }
+
+    fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &ServerEvent) {
+        todo!()
     }
 }
 
@@ -156,5 +161,9 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
         if let Some(obj) = self.as_mut() {
             obj.dispatch_message(ctx);
         }
+    }
+
+    fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &ServerEvent) {
+        todo!()
     }
 }

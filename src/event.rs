@@ -6,6 +6,11 @@ use indexmap::IndexMap;
 
 use crate::{ColliderKey, GameObject, GlobalEvent, Id};
 
+pub enum ServerEvent {
+    Broadcast(Box<dyn Any>),
+    Targeted(Id, Box<dyn Any>),
+}
+
 /// Gerenciador e container de eventos como mensagens diretas e eventos globais como subscribe
 #[derive(Debug)]
 pub struct EventManager {

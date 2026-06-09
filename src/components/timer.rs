@@ -50,17 +50,18 @@ impl Timer {
 impl Component for Timer {
     fn update(&mut self, ctx: &mut impl crate::EngineApi, base: &mut crate::Base, _delta: f32) {
         if let Some(instant) = self.instant
-            && instant.elapsed() >= self.duration {
-                if self.repeat {
-                    self.instant = Some(instant + self.duration);
-                } else {
-                    self.stop();
-                }
-                if let Some(event) = &self.event {
-                    ctx.send_boxed_any(base.id, event());
-                } else {
-                    ctx.emit_targeted(base.id, TimerEvent::Timeout);
-                }
+            && instant.elapsed() >= self.duration
+        {
+            if self.repeat {
+                self.instant = Some(instant + self.duration);
+            } else {
+                self.stop();
             }
+            if let Some(event) = &self.event {
+                ctx.send_boxed_any(base.id, event());
+            } else {
+                ctx.emit_targeted(base.id, TimerEvent::Timeout);
+            }
+        }
     }
 }

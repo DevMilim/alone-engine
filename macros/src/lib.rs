@@ -47,6 +47,11 @@ struct GameReceiver {
     subscribe: Vec<Subscription>,
     #[darling(default, with = "parse_subscriptions")]
     connect: Vec<Subscription>,
+
+    #[darling(default, with = "parse_subscriptions")]
+    server_subscribe: Vec<Subscription>,
+    #[darling(default, with = "parse_subscriptions")]
+    server_connect: Vec<Subscription>,
 }
 
 #[derive(Debug)]
@@ -119,6 +124,43 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         });
         quote! {
             if let ::alone_engine::GlobalEvent::Targeted(id, any_event) = event {
+                if &self.base().id == id {
+                    #(#arms)*
+                    return;
+                }
+            }
+        }
+    });
+
+    let server_subscribe_block = (!receiver.server_subscribe.is_empty()).then(|| {
+        let arms = receiver.subscribe.iter().map(|sub| {
+            let event_ty = &sub.event_type;
+            let handler_ident = &sub.handler;
+            quote! {
+                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
+                    self.#handler_ident(ctx, payload);
+                }
+            }
+        });
+        quote! {
+            if let ::alone_engine::ServerEvent::Broadcast(any_event) = event {
+                #(#arms)*
+            }
+        }
+    });
+
+    let server_connect_block = (!receiver.server_connect.is_empty()).then(|| {
+        let arms = receiver.connect.iter().map(|sub| {
+            let event_ty = &sub.event_type;
+            let handler_ident = &sub.handler;
+            quote! {
+                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
+                    self.#handler_ident(ctx, payload);
+                }
+            }
+        });
+        quote! {
+            if let ::alone_engine::ServerEvent::Targeted(id, any_event) = event {
                 if &self.base().id == id {
                     #(#arms)*
                     return;
@@ -238,6 +280,11 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #subscribe_block
                 #connect_block
                 #(self.#object_fields.dispatch_event(ctx, event);)*
+            }
+            fn dispatch_server_event(&mut self, ctx: &mut impl ::alone_engine::EngineApi, server_event: &::alone_engine::ServerEvent) {
+                #server_subscribe_block
+                #server_connect_block
+                #(self.#object_fields.dispatch_server_event(ctx, server_event);)*
             }
 
             fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::EngineApi, parent_base: &::alone_engine::Base, delta: f32) {
