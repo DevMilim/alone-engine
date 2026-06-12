@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use alone_engine::{
-    AnimationData, Base, Body, Camera, Collider, Component, GameObject, GameObjectBase, KeyCode,
-    Sprite, SpriteAnimation, SpriteSrc, Vector2,
+    Base, Collider, Component, GameObject, GameObjectBase, Sprite, SpriteSrc, Vector2,
 };
 
 #[derive(GameObject)]
@@ -55,7 +54,7 @@ impl GameObject for Platform {
         });
         self.base.set_position(self.start_point);
     }
-    fn fixed_update(&mut self, ctx: &mut impl alone_engine::EngineApi, delta: f32) {
+    fn fixed_update(&mut self, _ctx: &mut impl alone_engine::EngineApi, delta: f32) {
         self.current_time += delta * self.direction;
 
         if self.current_time >= self.duration {

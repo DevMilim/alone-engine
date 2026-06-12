@@ -85,7 +85,9 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Vec<T> {
     }
 
     fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &ServerEvent) {
-        todo!()
+        for obj in self.iter_mut() {
+            obj.dispatch_server_event(ctx, server_event);
+        }
     }
 }
 
@@ -164,6 +166,8 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
     }
 
     fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &ServerEvent) {
-        todo!()
+        if let Some(obj) = self.as_mut() {
+            obj.dispatch_server_event(ctx, server_event);
+        }
     }
 }
