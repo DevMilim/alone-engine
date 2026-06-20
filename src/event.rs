@@ -4,9 +4,16 @@ use std::{any::Any, collections::VecDeque};
 
 use indexmap::IndexMap;
 
-use crate::{ColliderKey, GameObject, GlobalEvent, Id};
+use crate::{ColliderKey, GameObject, Id};
 
+#[derive(Debug)]
 pub enum ServerEvent {
+    Broadcast(Box<dyn Any>),
+    Targeted(Id, Box<dyn Any>),
+}
+
+#[derive(Debug)]
+pub enum GlobalEvent {
     Broadcast(Box<dyn Any>),
     Targeted(Id, Box<dyn Any>),
 }
@@ -16,6 +23,9 @@ pub enum ServerEvent {
 pub struct EventManager {
     pub global_events: VecDeque<GlobalEvent>,
     pub mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
+
+    pub global_server_events: VecDeque<ServerEvent>,
+    pub server_mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
 }
 
 impl Default for EventManager {
@@ -23,6 +33,8 @@ impl Default for EventManager {
         Self {
             global_events: VecDeque::new(),
             mailbox: IndexMap::new(),
+            global_server_events: VecDeque::new(),
+            server_mailbox: IndexMap::new(),
         }
     }
 }

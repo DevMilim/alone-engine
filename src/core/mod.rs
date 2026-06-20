@@ -10,7 +10,9 @@ pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
 
-use crate::{AudioSys, CollisionWorld, InputState, Resources, TriggerEvent, TriggerKind};
+use crate::{
+    AudioSys, CollisionWorld, GlobalEvent, InputState, Resources, TriggerEvent, TriggerKind,
+};
 
 #[derive(Default)]
 pub struct CoreSystems {

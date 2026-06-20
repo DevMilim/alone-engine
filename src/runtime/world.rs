@@ -73,6 +73,11 @@ impl<S: Scene> WorldState<S> {
             ctx.systems.input.current_fixed_frame = *fixed_update_count;
             object.dispatch_fixed_update(ctx, base, FIXED_DT);
 
+            let global_events = ctx.systems.collision_step();
+            for event in global_events {
+                ctx.events.global_events.push_back(event);
+            }
+
             self.accumulator -= FIXED_DT;
             ctx.set_fixed_update(false);
         }

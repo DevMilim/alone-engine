@@ -1,14 +1,8 @@
-use std::{any::Any, sync::LazyLock};
+use std::sync::LazyLock;
 
 use uuid::Uuid;
 
 use crate::{Base, EngineApi, GameObjectBase, RenderApi};
-
-#[derive(Debug)]
-pub enum GlobalEvent {
-    Broadcast(Box<dyn Any>),
-    Targeted(Id, Box<dyn Any>),
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Id {

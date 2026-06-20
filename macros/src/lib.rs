@@ -133,7 +133,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     });
 
     let server_subscribe_block = (!receiver.server_subscribe.is_empty()).then(|| {
-        let arms = receiver.subscribe.iter().map(|sub| {
+        let arms = receiver.server_subscribe.iter().map(|sub| {
             let event_ty = &sub.event_type;
             let handler_ident = &sub.handler;
             quote! {
@@ -143,14 +143,14 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         });
         quote! {
-            if let ::alone_engine::ServerEvent::Broadcast(any_event) = event {
+            if let ::alone_engine::ServerEvent::Broadcast(any_event) = server_event {
                 #(#arms)*
             }
         }
     });
 
     let server_connect_block = (!receiver.server_connect.is_empty()).then(|| {
-        let arms = receiver.connect.iter().map(|sub| {
+        let arms = receiver.server_connect.iter().map(|sub| {
             let event_ty = &sub.event_type;
             let handler_ident = &sub.handler;
             quote! {
@@ -160,7 +160,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         });
         quote! {
-            if let ::alone_engine::ServerEvent::Targeted(id, any_event) = event {
+            if let ::alone_engine::ServerEvent::Targeted(id, any_event) = server_event {
                 if &self.base().id == id {
                     #(#arms)*
                     return;

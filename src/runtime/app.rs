@@ -42,23 +42,6 @@ impl<S: Scene> App<S> {
         }
     }
 
-    pub fn flush_messages_and_events(ctx: &mut EngineContext, world: &mut WorldState<S>) {
-        for _ in 0..10 {
-            let mut something_processed = false;
-            while let Some(event) = &ctx.events.global_events.pop_front() {
-                something_processed = true;
-                world.last_scene().dispatch_event(ctx, event);
-            }
-            if !ctx.events.mailbox.is_empty() {
-                something_processed = true;
-
-                world.last_scene().dispatch_message(ctx);
-            }
-            if !something_processed {
-                break;
-            }
-        }
-    }
     pub fn run(&mut self) {
         let event_loop = EventLoop::new().unwrap();
 
@@ -143,15 +126,31 @@ impl<S: Scene> ApplicationHandler for App<S> {
             is_fixed_update: false,
         };
 
-        let global_events = ctx.systems.collision_step();
-        for event in global_events {
-            ctx.events.global_events.push_back(event);
+        while let Some(event) = &ctx.events.global_server_events.pop_front() {
+            self.world
+                .last_scene()
+                .dispatch_server_event(&mut ctx, event);
         }
+
         let (is_running, blending) =
             self.world
                 .update(&mut ctx, &self.base, &mut self.fixed_frame_count);
 
-        Self::flush_messages_and_events(&mut ctx, &mut self.world);
+        for _ in 0..10 {
+            let mut something_processed = false;
+            while let Some(event) = &ctx.events.global_events.pop_front() {
+                something_processed = true;
+                self.world.last_scene().dispatch_event(&mut ctx, event);
+            }
+            if !ctx.events.mailbox.is_empty() {
+                something_processed = true;
+
+                self.world.last_scene().dispatch_message(&mut ctx);
+            }
+            if !something_processed {
+                break;
+            }
+        }
 
         self.world
             .render(&mut render.queue, &mut ctx, &self.base, blending);
