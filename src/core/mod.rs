@@ -11,15 +11,30 @@ pub use handler::*;
 pub use ldtk_api::*;
 
 use crate::{
-    AudioSys, CollisionWorld, GlobalEvent, InputState, Resources, TriggerEvent, TriggerKind,
+    AudioSys, CollisionWorld, GlobalEvent, InputState, NetworkClient, NetworkServer, Resources,
+    TriggerEvent, TriggerKind,
 };
 
-#[derive(Default)]
 pub struct CoreSystems {
     pub audio: AudioSys,
     pub resources: Resources,
     pub collision: CollisionWorld,
     pub input: InputState,
+    pub net_client: Option<NetworkClient>,
+    pub net_server: Option<NetworkServer>,
+}
+
+impl Default for CoreSystems {
+    fn default() -> Self {
+        Self {
+            audio: AudioSys::default(),
+            resources: Resources::default(),
+            collision: CollisionWorld::default(),
+            input: InputState::default(),
+            net_client: None,
+            net_server: None,
+        }
+    }
 }
 
 impl CoreSystems {

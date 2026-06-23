@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
+use bincode::{Decode, Encode};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -11,10 +12,10 @@ use winit::{
 
 use crate::{
     Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch, InputType, LOGICAL_HEIGHT,
-    LOGICAL_WIDTH, Render, Scene, Vector2, WorldState,
+    LOGICAL_WIDTH, Render, Scene, ServerEvent, Vector2, WorldState,
 };
 
-pub struct App<S: Scene> {
+pub struct App<S: Scene, T: Decode<()> + Encode + 'static> {
     pub systems: CoreSystems,
     pub events: EventManager,
     pub world: WorldState<S>,
@@ -25,9 +26,10 @@ pub struct App<S: Scene> {
     pub camera_position: Vector2,
     pub update_frame_count: u64,
     pub fixed_frame_count: u64,
+    _phantom: PhantomData<T>,
 }
 
-impl<S: Scene> App<S> {
+impl<S: Scene, T: Decode<()> + Encode + 'static> App<S, T> {
     pub fn new(root_scene: S) -> Self {
         Self {
             systems: CoreSystems::default(),
@@ -39,6 +41,7 @@ impl<S: Scene> App<S> {
             camera_position: Vector2::new(0.0, 0.0),
             update_frame_count: 0,
             fixed_frame_count: 0,
+            _phantom: PhantomData::default(),
         }
     }
 
@@ -51,7 +54,7 @@ impl<S: Scene> App<S> {
     }
 }
 
-impl<S: Scene> ApplicationHandler for App<S> {
+impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attrs = Window::default_attributes()
             .with_title("winit + pixels")
@@ -126,6 +129,13 @@ impl<S: Scene> ApplicationHandler for App<S> {
             is_fixed_update: false,
         };
 
+        if let Some(client) = &mut ctx.systems.net_client {
+            for event in client.drain::<ServerEvent>() {
+                self.world
+                    .last_scene()
+                    .dispatch_server_event(&mut ctx, &event);
+            }
+        }
         while let Some(event) = &ctx.events.global_server_events.pop_front() {
             self.world
                 .last_scene()

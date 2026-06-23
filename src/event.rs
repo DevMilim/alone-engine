@@ -2,14 +2,32 @@ use std::cell::RefCell;
 
 use std::{any::Any, collections::VecDeque};
 
+use bincode::config::{Configuration, standard};
+use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 
 use crate::{ColliderKey, GameObject, Id};
 
-#[derive(Debug)]
+#[derive(Debug, Encode, Decode, Clone)]
 pub enum ServerEvent {
-    Broadcast(Box<dyn Any>),
-    Targeted(Id, Box<dyn Any>),
+    Broadcast(Vec<u8>),
+    Targeted(Id, Vec<u8>),
+}
+
+impl ServerEvent {
+    pub fn downcast_ref<T: Decode<()> + Encode + 'static>(&self) -> Option<T> {
+        let config = standard();
+        let value =
+            bincode::decode_from_slice::<T, Configuration>(&self.clone().get_event(), config)
+                .ok()?;
+        Some(value.0)
+    }
+    pub fn get_event(self) -> Vec<u8> {
+        match self {
+            ServerEvent::Broadcast(items) => items,
+            ServerEvent::Targeted(_, items) => items,
+        }
+    }
 }
 
 #[derive(Debug)]

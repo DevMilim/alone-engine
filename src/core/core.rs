@@ -1,17 +1,20 @@
 use std::sync::LazyLock;
 
+use bincode::{Decode, Encode};
 use uuid::Uuid;
 
 use crate::{Base, EngineApi, GameObjectBase, RenderApi};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 pub struct Id {
-    id: Uuid,
+    id: [u8; 16],
 }
 
 impl Id {
     pub fn new() -> Self {
-        Self { id: Uuid::now_v7() }
+        Self {
+            id: *Uuid::now_v7().as_bytes(),
+        }
     }
 }
 
