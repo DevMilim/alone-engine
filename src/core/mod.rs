@@ -9,10 +9,12 @@ pub use base::*;
 pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
+use std::sync::mpsc::{Receiver, Sender, channel};
+use tokio::runtime::{Handle, Runtime};
 
 use crate::{
-    AudioSys, CollisionWorld, GlobalEvent, InputState, NetworkClient, NetworkServer, Resources,
-    TriggerEvent, TriggerKind,
+    AudioSys, BackGroundEvent, CollisionWorld, GlobalEvent, InputState, NetworkClient,
+    NetworkServer, Resources, TriggerEvent, TriggerKind,
 };
 
 pub struct CoreSystems {
@@ -20,12 +22,27 @@ pub struct CoreSystems {
     pub resources: Resources,
     pub collision: CollisionWorld,
     pub input: InputState,
+    pub async_handle: Handle,
     pub net_client: Option<NetworkClient>,
     pub net_server: Option<NetworkServer>,
+
+    pub bg_event_sender: Sender<BackGroundEvent>,
+    pub bg_event_receiver: Receiver<BackGroundEvent>,
 }
 
 impl Default for CoreSystems {
     fn default() -> Self {
+        let (handle_tx, handle_rx) = channel::<Handle>();
+
+        std::thread::spawn(move || {
+            let rt = Runtime::new().expect("Falha ao criar Runtime");
+
+            handle_tx.send(rt.handle().clone()).unwrap();
+
+            rt.block_on(async { std::future::pending::<()>().await });
+        });
+        let async_handle = handle_rx.recv().expect("Falha ao receber Handle");
+        let (bg_tx, bg_rx) = channel::<BackGroundEvent>();
         Self {
             audio: AudioSys::default(),
             resources: Resources::default(),
@@ -33,6 +50,9 @@ impl Default for CoreSystems {
             input: InputState::default(),
             net_client: None,
             net_server: None,
+            async_handle,
+            bg_event_sender: bg_tx,
+            bg_event_receiver: bg_rx,
         }
     }
 }

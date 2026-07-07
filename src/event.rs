@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::{any::Any, collections::VecDeque};
 
 use bincode::config::{Configuration, standard};
@@ -34,6 +35,13 @@ impl ServerEvent {
 pub enum GlobalEvent {
     Broadcast(Box<dyn Any>),
     Targeted(Id, Box<dyn Any>),
+}
+
+#[derive(Debug)]
+pub enum BackGroundEvent {
+    Broadcast(Box<dyn Any + Send + 'static>),
+    Targeted(Id, Box<dyn Any + Send + 'static>),
+    Send(Id, Box<dyn Any + Send + 'static>),
 }
 
 /// Gerenciador e container de eventos como mensagens diretas e eventos globais como subscribe

@@ -175,6 +175,22 @@ impl<'a> EventApi for EngineContext<'a> {
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
         self.events.insert_mailbox_boxed_any(id, message);
     }
+
+    fn spawn_task(
+        &self,
+        future_fn: impl FnOnce(
+            std::sync::mpsc::Sender<crate::BackGroundEvent>,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>
+        + Send
+        + 'static,
+    ) {
+        let tx_clone = self.systems.bg_event_sender.clone();
+        self.systems.async_handle.spawn(async move {
+            let future = future_fn(tx_clone);
+            future.await;
+        });
+    }
 }
 impl<'a> CollisionApi for EngineContext<'a> {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {

@@ -1,61 +1,62 @@
 use bincode::{Decode, Encode, config::standard, encode_to_vec};
-use std::{io, sync::Arc};
+use futures_util::{SinkExt, StreamExt};
+use std::io;
 use tokio::{
-    net::UdpSocket,
-    runtime::Runtime,
+    runtime::Handle,
     sync::mpsc::{Receiver, Sender, channel},
 };
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 pub struct NetworkClient {
-    _rt: Runtime,
     pub sender: Sender<Vec<u8>>,
     pub receiver: Receiver<Vec<u8>>,
 }
 
 impl NetworkClient {
-    pub fn new(addr: &str, remote_addr: &str) -> io::Result<Self> {
-        let rt = Runtime::new()?;
-
+    pub fn new(server_url: &str, handle: &Handle) -> io::Result<Self> {
         let (tx_to_net, mut rx_to_net) = channel::<Vec<u8>>(100);
         let (tx_from_net, rx_from_net) = channel::<Vec<u8>>(100);
 
-        let addr = addr.to_string();
-        let remote_addr = remote_addr.to_string();
+        let url = if !server_url.starts_with("ws://") && !server_url.starts_with("wss://") {
+            format!("ws://{}", server_url)
+        } else {
+            server_url.to_string()
+        };
 
-        rt.spawn(async move {
-            let sock = UdpSocket::bind(addr).await.unwrap();
-            let sock = Arc::new(sock);
+        handle.spawn(async move {
+            match connect_async(&url).await {
+                Ok((ws_stream, _response)) => {
+                    println!("Conectado ao servidor: {}", url);
 
-            sock.connect(remote_addr).await.unwrap();
-
-            let sock_send = Arc::clone(&sock);
-            tokio::spawn(async move {
-                while let Some(data) = rx_to_net.recv().await {
-                    if let Err(e) = sock_send.send(&data).await {
-                        eprintln!("Erro ao enviar UDP: {}", e);
-                    }
-                }
-            });
-            let sock_recv = Arc::clone(&sock);
-            tokio::spawn(async move {
-                let mut buf = [0; 1024];
-                loop {
-                    match sock_recv.recv(&mut buf).await {
-                        Ok(len) => {
-                            if tx_from_net.send(buf[..len].to_vec()).await.is_err() {
+                    let (mut ws_sender, mut ws_receiver) = ws_stream.split();
+                    let tx_task = tokio::spawn(async move {
+                        while let Some(data) = rx_to_net.recv().await {
+                            if ws_sender.send(Message::Binary(data.into())).await.is_err() {
+                                eprintln!("Conexão perdida");
                                 break;
                             }
                         }
-                        Err(e) => {
-                            eprintln!("Erro na leitura do UDP: {}", e);
-                            break;
+                    });
+                    while let Some(msg) = ws_receiver.next().await {
+                        match msg {
+                            Ok(Message::Binary(data)) => {
+                                if tx_from_net.send(data.into()).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Ok(Message::Close(_)) | Err(_) => {
+                                println!("desconectado do servidor");
+                                break;
+                            }
+                            _ => {}
                         }
                     }
+                    tx_task.abort();
                 }
-            });
+                Err(_) => eprintln!("Falha ao conectar ao servidor"),
+            }
         });
         Ok(Self {
-            _rt: rt,
             sender: tx_to_net,
             receiver: rx_from_net,
         })
@@ -64,8 +65,9 @@ impl NetworkClient {
         let config = standard();
         let mut values = Vec::new();
         while let Ok(event) = self.receiver.try_recv() {
-            let server_event = bincode::decode_from_slice(&event, config).unwrap();
-            values.push(server_event.0);
+            if let Ok((server_event, _)) = bincode::decode_from_slice::<T, _>(&event, config) {
+                values.push(server_event);
+            }
         }
         values
     }
