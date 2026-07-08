@@ -1,6 +1,7 @@
-use crate::{Id, Vector2};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
+
+use crate::{core::Id, math::Vector2};
 
 #[derive(Clone, Copy, Debug)]
 pub struct AABB {

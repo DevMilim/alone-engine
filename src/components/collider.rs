@@ -1,8 +1,9 @@
 use std::any::Any;
 
 use crate::{
-    AABB, Base, ColliderData, ColliderKey, Color, Component, EngineApi, Id, Rect, RenderApi,
-    Vector2,
+    collision::{AABB, ColliderData, ColliderKey},
+    core::{Base, Component, EngineApi, Id, RenderApi},
+    math::{Color, Rect, Vector2},
 };
 
 pub enum ColliderType {

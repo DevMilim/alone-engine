@@ -1,4 +1,7 @@
-use crate::{Base, Component, EngineApi, Vector2};
+use crate::{
+    core::{Base, Component, EngineApi},
+    math::Vector2,
+};
 
 pub enum BodyType {
     Static,

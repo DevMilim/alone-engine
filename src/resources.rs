@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::{AudioAsset, Handler, ImageAsset};
+use crate::{audio::AudioAsset, core::Handler, render::ImageAsset};
 
 /// Utilizado para armazenar assets em cache
 pub struct AssetCache<T> {

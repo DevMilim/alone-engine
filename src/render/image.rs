@@ -2,7 +2,10 @@ use std::path::Path;
 
 use image::imageops::FilterType;
 
-use crate::{Handler, Rect, Vector2};
+use crate::{
+    core::Handler,
+    math::{Rect, Vector2},
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SpriteSrc {

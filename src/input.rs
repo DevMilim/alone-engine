@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
-use crate::Vector2;
+use crate::math::Vector2;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum InputType {

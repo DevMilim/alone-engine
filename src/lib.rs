@@ -1,28 +1,32 @@
-mod audio;
-mod collision;
-mod components;
-mod core;
-mod event;
-mod input;
-mod math;
-mod network;
-mod render;
-mod resources;
-mod runtime;
-
-pub use audio::*;
-use bincode::config::standard;
-pub use collision::*;
-pub use components::*;
-pub use core::*;
-pub use event::*;
-pub use input::*;
+pub mod audio;
+pub mod collision;
+pub mod components;
+pub mod core;
+pub mod event;
+pub mod input;
+pub mod math;
+pub mod network;
+pub mod render;
+pub mod resources;
+pub mod runtime;
 pub use macros::*;
-pub use math::*;
-pub use network::*;
-pub use render::*;
-pub use resources::*;
-pub use runtime::*;
+
+pub mod prelude {
+    pub use crate::audio::*;
+    pub use crate::collision::*;
+    pub use crate::components::*;
+    pub use crate::core::*;
+    pub use crate::event::*;
+    pub use crate::input::*;
+    pub use crate::math::*;
+    pub use crate::network::*;
+    pub use crate::render::*;
+    pub use crate::resources::*;
+    pub use crate::runtime::*;
+    pub use macros::*;
+}
+
+use bincode::config::standard;
 use std::time::Duration;
 use tokio::time::sleep;
 

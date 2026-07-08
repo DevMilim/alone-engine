@@ -9,7 +9,9 @@ use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::{NetworkEvent, ServerEvent, serialize_bytes};
+use crate::event::ServerEvent;
+use crate::network::NetworkEvent;
+use crate::serialize_bytes;
 
 pub struct NetworkServer {
     pub sender: Sender<(SocketAddr, ServerEvent)>,

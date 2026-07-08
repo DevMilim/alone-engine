@@ -6,7 +6,8 @@ use std::{any::Any, collections::VecDeque};
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 
-use crate::{ColliderKey, GameObject, Id};
+use crate::collision::ColliderKey;
+use crate::core::{GameObject, Id};
 
 #[derive(Debug, Encode, Decode, Clone)]
 pub enum ServerEvent {

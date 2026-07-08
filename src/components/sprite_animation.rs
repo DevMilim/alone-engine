@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{Anchor, Component, GameObjectBase, SpriteSrc, Vector2};
+use crate::{
+    core::{Base, Component, EngineApi, GameObjectBase, RenderApi},
+    math::Vector2,
+    render::{Anchor, SpriteSrc},
+};
 
 #[derive(Debug)]
 pub struct AnimationData {
@@ -110,10 +114,10 @@ impl SpriteAnimation {
 }
 
 impl Component for SpriteAnimation {
-    fn start(&mut self, _ctx: &mut impl crate::EngineApi, base: &mut crate::Base) {
+    fn start(&mut self, _ctx: &mut impl EngineApi, base: &mut Base) {
         self.previous_position = base.transform.global_position
     }
-    fn update(&mut self, _ctx: &mut impl crate::EngineApi, base: &mut crate::Base, delta: f32) {
+    fn update(&mut self, _ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
         self.previous_position = base.transform.global_position;
 
         let Some(animation_name) = self.current_animation.as_ref() else {
@@ -139,7 +143,7 @@ impl Component for SpriteAnimation {
             }
         }
     }
-    fn draw(&mut self, renderer: &mut impl crate::RenderApi, base: &crate::Base, blending: f32) {
+    fn draw(&mut self, renderer: &mut impl RenderApi, base: &Base, blending: f32) {
         if !self.visible {
             return;
         }

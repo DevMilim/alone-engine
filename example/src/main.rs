@@ -1,8 +1,12 @@
 use std::time::Duration;
 
 use alone_engine::{
-    App, Base, Collider, Component, EngineApi, GameObject, GameObjectBase, PlaybackMode, Scene,
-    Sound, TileCollision, Tilemap, TriggerEvent, Vector2,
+    GameObject, Scene,
+    components::{Collider, PlaybackMode, Sound, TileCollision, Tilemap},
+    core::{Base, Component, EngineApi, GameObject, GameObjectBase},
+    event::{TriggerEvent, TriggerKind},
+    math::Vector2,
+    runtime::App,
 };
 
 use crate::{platform::Platform, player::Player};
@@ -52,15 +56,15 @@ impl MainScene {
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
         println!("{:?}", event);
         match event.kind {
-            alone_engine::TriggerKind::Enter => self.coin_sound.as_mut().unwrap().play(ctx),
-            alone_engine::TriggerKind::Exit => {}
+            TriggerKind::Enter => self.coin_sound.as_mut().unwrap().play(ctx),
+            TriggerKind::Exit => {}
         }
     }
 }
 
 impl GameObject for MainScene {
     type Message = ();
-    fn start(&mut self, ctx: &mut impl alone_engine::EngineApi) {
+    fn start(&mut self, ctx: &mut impl EngineApi) {
         self.coin_sound = Some(Sound::new(
             ctx.load_audio("assets/sounds/coin.wav"),
             PlaybackMode::OneShot,

@@ -13,8 +13,12 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use tokio::runtime::{Handle, Runtime};
 
 use crate::{
-    AudioSys, BackGroundEvent, CollisionWorld, GlobalEvent, InputState, NetworkClient,
-    NetworkServer, Resources, TriggerEvent, TriggerKind,
+    audio::AudioSys,
+    collision::CollisionWorld,
+    event::{BackGroundEvent, GlobalEvent, TriggerEvent, TriggerKind},
+    input::InputState,
+    network::{NetworkClient, NetworkServer},
+    resources::Resources,
 };
 
 pub enum NetworkType {

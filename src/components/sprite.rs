@@ -1,4 +1,8 @@
-use crate::{Anchor, Component, SpriteSrc, Vector2};
+use crate::{
+    core::{Base, Component, EngineApi, RenderApi},
+    math::Vector2,
+    render::{Anchor, SpriteSrc},
+};
 
 pub struct Sprite {
     pub texture: SpriteSrc,
@@ -10,13 +14,13 @@ pub struct Sprite {
     pub previous_position: Vector2,
 }
 impl Component for Sprite {
-    fn start(&mut self, _ctx: &mut impl crate::EngineApi, base: &mut crate::Base) {
+    fn start(&mut self, _ctx: &mut impl EngineApi, base: &mut Base) {
         self.previous_position = base.transform.global_position
     }
-    fn update(&mut self, _ctx: &mut impl crate::EngineApi, base: &mut crate::Base, _delta: f32) {
+    fn update(&mut self, _ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         self.previous_position = base.transform.global_position;
     }
-    fn draw(&mut self, renderer: &mut impl crate::RenderApi, base: &crate::Base, blending: f32) {
+    fn draw(&mut self, renderer: &mut impl RenderApi, base: &Base, blending: f32) {
         if !self.visible {
             return;
         }

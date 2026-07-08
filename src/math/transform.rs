@@ -1,4 +1,4 @@
-use crate::Vector2;
+use crate::math::Vector2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {

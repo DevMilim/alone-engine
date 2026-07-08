@@ -6,8 +6,12 @@ use rodio::Player;
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
-    Anchor, AsyncContext, AudioAsset, ColliderData, ColliderKey, CollisionFlag, Color, DrawCommand,
-    GameObject, Handler, Id, ImageAsset, Rect, Vector2,
+    audio::AudioAsset,
+    collision::{ColliderData, ColliderKey, CollisionFlag},
+    core::{GameObject, Handler, Id},
+    math::{Color, Rect, Vector2},
+    render::{Anchor, DrawCommand, ImageAsset},
+    runtime::AsyncContext,
 };
 
 pub trait ServerApi {
@@ -87,8 +91,8 @@ pub trait RenderApi {
     fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8);
     fn draw_sprite(
         &mut self,
-        position: crate::Vector2,
-        texture: crate::Handler<crate::ImageAsset>,
+        position: Vector2,
+        texture: Handler<ImageAsset>,
         anchor: Anchor,
         source: Option<Rect>,
         flip_v: bool,

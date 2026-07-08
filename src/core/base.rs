@@ -1,4 +1,7 @@
-use crate::{Id, Transform, Vector2};
+use crate::{
+    core::Id,
+    math::{Transform, Vector2},
+};
 
 #[derive(Clone)]
 pub struct Base {

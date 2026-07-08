@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::Component;
+use crate::core::{Base, Component, EngineApi};
 
 pub enum TimerEvent {
     Timeout,
@@ -48,7 +48,7 @@ impl Timer {
 }
 
 impl Component for Timer {
-    fn update(&mut self, ctx: &mut impl crate::EngineApi, base: &mut crate::Base, _delta: f32) {
+    fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         if let Some(instant) = self.instant
             && instant.elapsed() >= self.duration
         {

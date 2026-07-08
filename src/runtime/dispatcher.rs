@@ -1,4 +1,7 @@
-use crate::{Base, EngineApi, GameObject, GlobalEvent, NetworkMessage, RenderApi};
+use crate::{
+    core::{Base, EngineApi, GameObject, RenderApi},
+    event::{GlobalEvent, NetworkMessage},
+};
 
 pub trait GameObjectDispatch {
     fn is_pending_removal(&self) -> bool {

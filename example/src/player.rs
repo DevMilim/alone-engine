@@ -1,6 +1,11 @@
 use alone_engine::{
-    AnimationData, Base, Body, Camera, Collider, Component, GameObject, GameObjectBase, KeyCode,
-    SpriteAnimation, SpriteSrc, Vector2, sleep_tokio,
+    GameObject,
+    components::{AnimationData, Body, Camera, Collider, SpriteAnimation},
+    core::{Base, Component, EngineApi, GameObject, GameObjectBase},
+    input::KeyCode,
+    math::Vector2,
+    render::SpriteSrc,
+    sleep_tokio,
 };
 
 #[derive(GameObject)]
@@ -53,7 +58,7 @@ pub enum PlayerMessage {
 
 impl GameObject for Player {
     type Message = PlayerMessage;
-    fn start(&mut self, ctx: &mut impl alone_engine::EngineApi) {
+    fn start(&mut self, ctx: &mut impl EngineApi) {
         println!("Player inicializado");
         let mut animation = SpriteAnimation::new();
 
@@ -76,7 +81,7 @@ impl GameObject for Player {
             async_ctx.send(id, PlayerMessage::AsyncTask);
         });
     }
-    fn fixed_update(&mut self, ctx: &mut impl alone_engine::EngineApi, delta: f32) {
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         let gravity = 9.7;
         let speed = 90.0;
         let jump_speed = -200.0 * delta;
@@ -95,7 +100,7 @@ impl GameObject for Player {
         }
         self.body.velocity.x = speed * direction * delta;
     }
-    fn on_message(&mut self, _ctx: &mut impl alone_engine::EngineApi, _msg: &Self::Message) {
+    fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
         println!("Mensagem recebida")
     }
 }

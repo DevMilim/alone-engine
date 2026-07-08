@@ -3,8 +3,13 @@ use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    AABB, Anchor, AssetApi, Base, ColliderData, ColliderKey, Component, EngineApi, GameObjectBase,
-    Handler, Id, ImageAsset, LdtkError, LdtkProject, LdtkTile, Rect, TilesetDef, Vector2,
+    collision::{AABB, ColliderData, ColliderKey},
+    core::{
+        AssetApi, Base, Component, EngineApi, GameObjectBase, Handler, Id, LdtkError, LdtkProject,
+        LdtkTile, RenderApi, TilesetDef,
+    },
+    math::{Rect, Vector2},
+    render::{Anchor, ImageAsset},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +48,7 @@ pub struct Tilemap {
 }
 
 impl Component for Tilemap {
-    fn draw(&mut self, renderer: &mut impl crate::RenderApi, base: &Base, _blending: f32) {
+    fn draw(&mut self, renderer: &mut impl RenderApi, base: &Base, _blending: f32) {
         if !self.visible {
             return;
         }

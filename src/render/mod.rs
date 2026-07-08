@@ -10,7 +10,7 @@ use std::{sync::Arc, time::Instant};
 
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::{Resources, Vector2};
+use crate::{math::Vector2, resources::Resources};
 
 pub const LOGICAL_WIDTH: u32 = 340;
 pub const LOGICAL_HEIGHT: u32 = 180;

@@ -1,3 +1,7 @@
+use crate::{
+    audio::AudioAsset,
+    core::{AssetApi, AudioApi, Handler, InputApi},
+};
 use std::{any::Any, net::SocketAddr, sync::mpsc::Sender};
 
 use bincode::{Decode, Encode};
@@ -6,11 +10,14 @@ use rodio::Player;
 use winit::keyboard::KeyCode;
 
 use crate::{
-    AssetApi, AudioApi, AudioAsset, BackGroundEvent, ColliderData, ColliderKey, CollisionApi,
-    CollisionFlag, CoreSystems, EngineApi, EventApi, EventManager, GameObject, GlobalEvent,
-    Handler, Id, ImageAsset, InputApi,
-    NetworkType::{Client, Server},
-    ServerApi, ServerEvent, SpawnEvent, Vector2, serialize_bytes,
+    collision::{ColliderData, ColliderKey, CollisionFlag},
+    core::{
+        CollisionApi, CoreSystems, EngineApi, EventApi, GameObject, Id, NetworkType, ServerApi,
+    },
+    event::{BackGroundEvent, EventManager, GlobalEvent, ServerEvent, SpawnEvent},
+    math::Vector2,
+    render::ImageAsset,
+    serialize_bytes,
 };
 
 pub struct EngineContext<'a> {
@@ -246,7 +253,7 @@ impl<'a> ServerApi for EngineContext<'a> {
     /// envia um evento para uma entidade especifica do servidor
     fn send_to_server<E: Encode + Decode<()>>(&mut self, id: Id, event: E) {
         let event = serialize_bytes(&event);
-        if let Client(client) = &mut self.systems.network {
+        if let NetworkType::Client(client) = &mut self.systems.network {
             client.send(ServerEvent::Targeted(id, event));
         } else {
             eprintln!("Tentando enviar dados ao servidor, mas este no não e um cliente.")
@@ -260,7 +267,7 @@ impl<'a> ServerApi for EngineContext<'a> {
         target: std::net::SocketAddr,
         event: E,
     ) {
-        if let Server(client) = &mut self.systems.network {
+        if let NetworkType::Server(client) = &mut self.systems.network {
             let event = serialize_bytes(&event);
             client.send(target, ServerEvent::Targeted(id, event));
         } else {
@@ -270,7 +277,7 @@ impl<'a> ServerApi for EngineContext<'a> {
 
     /// emite um evento para o servidor
     fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E) {
-        if let Client(client) = &mut self.systems.network {
+        if let NetworkType::Client(client) = &mut self.systems.network {
             let event = serialize_bytes(&event);
             client.send(ServerEvent::Broadcast(event));
         } else {
@@ -280,7 +287,7 @@ impl<'a> ServerApi for EngineContext<'a> {
 
     /// emite um evento para o cliente
     fn emit_to_client<E: Encode + Decode<()>>(&mut self, target: SocketAddr, event: E) {
-        if let Server(server) = &mut self.systems.network {
+        if let NetworkType::Server(server) = &mut self.systems.network {
             let event = serialize_bytes(&event);
             server.send(target, ServerEvent::Broadcast(event));
         } else {

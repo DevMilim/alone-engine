@@ -5,7 +5,7 @@ use rodio::{
     mixer::{self, Mixer},
 };
 
-use crate::{Handler, Resources};
+use crate::{core::Handler, resources::Resources};
 
 pub struct AudioAsset {
     pub bytes: Vec<u8>,

@@ -1,6 +1,9 @@
 use rodio::Player;
 
-use crate::{AudioAsset, Component, EngineApi, Handler};
+use crate::{
+    audio::AudioAsset,
+    core::{Base, Component, EngineApi, Handler},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaybackMode {
@@ -73,12 +76,12 @@ impl Sound {
 }
 
 impl Component for Sound {
-    fn start(&mut self, ctx: &mut impl EngineApi, _base: &mut crate::Base) {
+    fn start(&mut self, ctx: &mut impl EngineApi, _base: &mut Base) {
         if self.auto_play {
             self.play(ctx);
         }
     }
-    fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &crate::Base) {
+    fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {
         self.stop();
     }
 }

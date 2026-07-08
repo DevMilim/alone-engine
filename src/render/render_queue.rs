@@ -1,4 +1,8 @@
-use crate::{Color, Handler, ImageAsset, Rect, RenderApi, Vector2};
+use crate::{
+    core::{Handler, RenderApi},
+    math::{Color, Rect, Vector2},
+    render::ImageAsset,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Anchor {
@@ -38,8 +42,8 @@ impl<'a> RenderApi for RenderQueue<'a> {
 
     fn draw_sprite(
         &mut self,
-        position: crate::Vector2,
-        texture: crate::Handler<crate::ImageAsset>,
+        position: Vector2,
+        texture: Handler<ImageAsset>,
         anchor: Anchor,
         source: Option<Rect>,
         flip_v: bool,
@@ -56,7 +60,7 @@ impl<'a> RenderApi for RenderQueue<'a> {
         })
     }
 
-    fn camera_mut(&mut self) -> &mut crate::Vector2 {
+    fn camera_mut(&mut self) -> &mut Vector2 {
         self.camera
     }
 }

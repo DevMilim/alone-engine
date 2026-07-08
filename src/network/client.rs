@@ -6,7 +6,7 @@ use tokio::{
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::{NetworkEvent, ServerEvent, deserialize_bytes, serialize_bytes};
+use crate::{deserialize_bytes, event::ServerEvent, network::NetworkEvent, serialize_bytes};
 
 pub struct NetworkClient {
     pub sender: Sender<ServerEvent>,

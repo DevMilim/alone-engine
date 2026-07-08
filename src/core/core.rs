@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use bincode::{Decode, Encode};
 use uuid::Uuid;
 
-use crate::{Base, EngineApi, GameObjectBase, RenderApi};
+use crate::core::{Base, EngineApi, GameObjectBase, RenderApi};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 pub struct Id {

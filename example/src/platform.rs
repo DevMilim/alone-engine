@@ -1,7 +1,11 @@
 use std::time::Duration;
 
 use alone_engine::{
-    Base, Collider, Component, GameObject, GameObjectBase, Sprite, SpriteSrc, Vector2,
+    GameObject,
+    components::{Collider, Sprite},
+    core::{Base, Component, EngineApi, GameObject, GameObjectBase},
+    math::Vector2,
+    render::SpriteSrc,
 };
 
 #[derive(GameObject)]
@@ -41,7 +45,7 @@ impl Platform {
 
 impl GameObject for Platform {
     type Message = ();
-    fn start(&mut self, ctx: &mut impl alone_engine::EngineApi) {
+    fn start(&mut self, ctx: &mut impl EngineApi) {
         let mut sprite = SpriteSrc::new(
             ctx.load_texture("assets/sprites/platforms.png"),
             Some(Vector2::new(16.0, 10.0)),
@@ -54,7 +58,7 @@ impl GameObject for Platform {
         });
         self.base.set_position(self.start_point);
     }
-    fn fixed_update(&mut self, _ctx: &mut impl alone_engine::EngineApi, delta: f32) {
+    fn fixed_update(&mut self, _ctx: &mut impl EngineApi, delta: f32) {
         self.current_time += delta * self.direction;
 
         if self.current_time >= self.duration {

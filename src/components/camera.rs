@@ -1,4 +1,8 @@
-use crate::{Component, EngineApi, LOGICAL_HEIGHT, LOGICAL_WIDTH, RenderApi, Vector2};
+use crate::{
+    core::{Base, Component, EngineApi, RenderApi},
+    math::Vector2,
+    render::{LOGICAL_HEIGHT, LOGICAL_WIDTH},
+};
 
 pub struct Camera {
     pub position: Vector2,
@@ -29,10 +33,10 @@ impl Default for Camera {
 }
 
 impl Component for Camera {
-    fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut crate::Base) {
+    fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base) {
         self.last_position = self.position;
     }
-    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut crate::Base, delta: f32) {
+    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
         {
             let camera = ctx.camera_mut();
             camera.x = self.position.x;
@@ -81,7 +85,7 @@ impl Component for Camera {
             self.position.y = target_pos.y;
         }
     }
-    fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &crate::Base, blending: f32) {
+    fn draw(&mut self, _renderer: &mut impl RenderApi, _base: &Base, blending: f32) {
         if !self.active {
             return;
         }

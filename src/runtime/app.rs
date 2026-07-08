@@ -11,11 +11,13 @@ use winit::{
 };
 
 use crate::{
-    Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch,
-    GlobalEvent::{self, Targeted},
-    InputType, LOGICAL_HEIGHT, LOGICAL_WIDTH, NetworkClient, NetworkMessage, NetworkServer,
-    NetworkType::{self, Client, Server},
-    Render, Scene, Vector2, WorldState,
+    core::{Base, CoreSystems, NetworkType},
+    event::{BackGroundEvent, EventManager, GlobalEvent, NetworkMessage},
+    input::InputType,
+    math::Vector2,
+    network::{NetworkClient, NetworkServer},
+    render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
+    runtime::{EngineContext, GameObjectDispatch, Scene, WorldState},
 };
 
 pub struct App<S: Scene, T: Decode<()> + Encode + 'static> {
@@ -140,13 +142,13 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
             is_fixed_update: false,
         };
 
-        if let Client(client) = &mut ctx.systems.network {
+        if let NetworkType::Client(client) = &mut ctx.systems.network {
             for event in client.drain() {
                 self.world
                     .last_scene()
                     .dispatch_server_event(&mut ctx, &NetworkMessage::new(event, None));
             }
-        } else if let Server(client) = &mut ctx.systems.network {
+        } else if let NetworkType::Server(client) = &mut ctx.systems.network {
             for (socket, event) in client.drain() {
                 self.world
                     .last_scene()
@@ -159,15 +161,17 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
 
         while let Ok(bg_event) = ctx.systems.bg_event_receiver.try_recv() {
             match bg_event {
-                crate::BackGroundEvent::Broadcast(event) => {
+                BackGroundEvent::Broadcast(event) => {
                     ctx.events
                         .global_events
                         .push_back(GlobalEvent::Broadcast(event));
                 }
-                crate::BackGroundEvent::Targeted(id, event) => {
-                    ctx.events.global_events.push_back(Targeted(id, event));
+                BackGroundEvent::Targeted(id, event) => {
+                    ctx.events
+                        .global_events
+                        .push_back(GlobalEvent::Targeted(id, event));
                 }
-                crate::BackGroundEvent::Send(id, message) => {
+                BackGroundEvent::Send(id, message) => {
                     ctx.events.mailbox.entry(id).or_default().push(message);
                 }
             }
