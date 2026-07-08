@@ -3,11 +3,10 @@ use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::{any::Any, collections::VecDeque};
 
-use bincode::config::{Configuration, standard};
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 
-use crate::{ColliderKey, GameObject, Id, deserialize_bytes};
+use crate::{ColliderKey, GameObject, Id};
 
 #[derive(Debug, Encode, Decode, Clone)]
 pub enum ServerEvent {
@@ -28,7 +27,8 @@ impl NetworkMessage {
 
 impl ServerEvent {
     pub fn downcast_ref<T: Decode<()> + Encode + 'static>(&self) -> Option<T> {
-        Some(deserialize_bytes(&self.clone().get_event()).unwrap())
+        let bytes = self.clone().get_event();
+        crate::deserialize_bytes::<T>(&bytes)
     }
 
     pub fn get_event(self) -> Vec<u8> {

@@ -11,7 +11,7 @@ mod resources;
 mod runtime;
 
 pub use audio::*;
-use bincode::{Decode, Encode, decode_from_slice, encode_to_vec};
+use bincode::config::standard;
 pub use collision::*;
 pub use components::*;
 pub use core::*;
@@ -26,14 +26,15 @@ pub use runtime::*;
 use std::time::Duration;
 use tokio::time::sleep;
 
-pub fn serialize_bytes<T: Encode>(value: &T) -> Vec<u8> {
-    encode_to_vec(value, bincode::config::standard()).unwrap()
+pub fn serialize_bytes<T: bincode::Encode>(item: &T) -> Vec<u8> {
+    bincode::encode_to_vec(item, standard()).expect("Falha crítica ao serializar bytes")
 }
 
-pub fn deserialize_bytes<T: Decode<()>>(bytes: &[u8]) -> Option<T> {
-    decode_from_slice(bytes, bincode::config::standard())
-        .ok()?
-        .0
+pub fn deserialize_bytes<T: bincode::Decode<()>>(bytes: &[u8]) -> Option<T> {
+    match bincode::decode_from_slice(bytes, standard()) {
+        Ok((item, _bytes_read)) => Some(item),
+        Err(_e) => None,
+    }
 }
 
 pub async fn sleep_tokio(secs: f32) {

@@ -1,17 +1,20 @@
 use std::{any::Any, net::SocketAddr};
 
+use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 use rodio::Player;
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
     Anchor, AsyncContext, AudioAsset, ColliderData, ColliderKey, CollisionFlag, Color, DrawCommand,
-    GameObject, Handler, Id, ImageAsset, Rect, ServerEvent, Vector2,
+    GameObject, Handler, Id, ImageAsset, Rect, Vector2,
 };
 
 pub trait ServerApi {
-    fn send_to_server(&mut self, message: ServerEvent);
-    fn send_to_client(&mut self, target: SocketAddr, message: ServerEvent);
+    fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E);
+    fn emit_to_client<E: Encode + Decode<()>>(&mut self, target: SocketAddr, event: E);
+    fn send_to_server<E: Encode + Decode<()>>(&mut self, id: Id, message: E);
+    fn send_to_client<E: Encode + Decode<()>>(&mut self, id: Id, target: SocketAddr, message: E);
 }
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi {

@@ -9,7 +9,7 @@ use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::{NetworkEvent, ServerEvent, deserialize_bytes, serialize_bytes};
+use crate::{NetworkEvent, ServerEvent, serialize_bytes};
 
 pub struct NetworkServer {
     pub sender: Sender<(SocketAddr, ServerEvent)>,
@@ -69,14 +69,13 @@ impl NetworkServer {
                         while let Some(msg) = ws_receiver.next().await {
                             match msg {
                                 Ok(Message::Binary(data)) => {
-                                    if let Some(server_event) = deserialize_bytes(&data.to_vec()) {
-                                        if tx_from_net_clone
-                                            .send((peer_addr, server_event))
-                                            .await
-                                            .is_err()
-                                        {
-                                            break;
-                                        }
+                                    let server_event = ServerEvent::Broadcast(data.to_vec());
+                                    if tx_from_net_clone
+                                        .send((peer_addr, server_event))
+                                        .await
+                                        .is_err()
+                                    {
+                                        break;
                                     }
                                 }
                                 Ok(Message::Close(_)) | Err(_) => {

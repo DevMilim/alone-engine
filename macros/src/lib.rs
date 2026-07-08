@@ -138,8 +138,10 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             let handler_ident = &sub.handler;
             quote! {
                 if let Some(payload) = server_event.event.downcast_ref::<#event_ty>() {
-
                     self.#handler_ident(ctx, payload, server_event.socket);
+                } else {
+                    // ADD ISSO NA SUA MACRO
+                    println!("[RASTREIO 3] Macro tentou ler o Broadcast, mas o bincode rejeitou o tipo!");
                 }
             }
         });
