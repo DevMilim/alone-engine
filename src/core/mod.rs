@@ -17,14 +17,19 @@ use crate::{
     NetworkServer, Resources, TriggerEvent, TriggerKind,
 };
 
+pub enum NetworkType {
+    None,
+    Server(NetworkServer),
+    Client(NetworkClient),
+}
+
 pub struct CoreSystems {
     pub audio: AudioSys,
     pub resources: Resources,
     pub collision: CollisionWorld,
     pub input: InputState,
     pub async_handle: Handle,
-    pub net_client: Option<NetworkClient>,
-    pub net_server: Option<NetworkServer>,
+    pub network: NetworkType,
 
     pub bg_event_sender: Sender<BackGroundEvent>,
     pub bg_event_receiver: Receiver<BackGroundEvent>,
@@ -48,8 +53,7 @@ impl Default for CoreSystems {
             resources: Resources::default(),
             collision: CollisionWorld::default(),
             input: InputState::default(),
-            net_client: None,
-            net_server: None,
+            network: NetworkType::None,
             async_handle,
             bg_event_sender: bg_tx,
             bg_event_receiver: bg_rx,

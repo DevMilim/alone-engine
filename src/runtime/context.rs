@@ -1,13 +1,13 @@
-use std::any::Any;
+use std::{any::Any, sync::mpsc::Sender};
 
 use indexmap::IndexMap;
 use rodio::Player;
 use winit::keyboard::KeyCode;
 
 use crate::{
-    AssetApi, AudioApi, AudioAsset, ColliderData, ColliderKey, CollisionApi, CollisionFlag,
-    CoreSystems, EngineApi, EventApi, EventManager, GameObject, GlobalEvent, Handler, Id,
-    ImageAsset, InputApi, SpawnEvent, Vector2,
+    AssetApi, AudioApi, AudioAsset, BackGroundEvent, ColliderData, ColliderKey, CollisionApi,
+    CollisionFlag, CoreSystems, EngineApi, EventApi, EventManager, GameObject, GlobalEvent,
+    Handler, Id, ImageAsset, InputApi, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
@@ -29,6 +29,19 @@ impl<'a> EngineApi for EngineContext<'a> {
 
     fn window_size(&self) -> (u32, u32) {
         *self.window_size
+    }
+
+    fn async_ctx(&self) -> AsyncContext {
+        AsyncContext {
+            sender: self.systems.bg_event_sender.clone(),
+        }
+    }
+
+    fn spawn_task<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.systems.async_handle.spawn(future);
     }
 }
 impl<'a> EngineContext<'a> {
@@ -175,22 +188,6 @@ impl<'a> EventApi for EngineContext<'a> {
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
         self.events.insert_mailbox_boxed_any(id, message);
     }
-
-    fn spawn_task(
-        &self,
-        future_fn: impl FnOnce(
-            std::sync::mpsc::Sender<crate::BackGroundEvent>,
-        )
-            -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>
-        + Send
-        + 'static,
-    ) {
-        let tx_clone = self.systems.bg_event_sender.clone();
-        self.systems.async_handle.spawn(async move {
-            let future = future_fn(tx_clone);
-            future.await;
-        });
-    }
 }
 impl<'a> CollisionApi for EngineContext<'a> {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {
@@ -218,5 +215,27 @@ impl<'a> CollisionApi for EngineContext<'a> {
 
     fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
         self.systems.collision.translate_my_colliders(my_id, offset);
+    }
+}
+
+pub struct AsyncContext {
+    sender: Sender<BackGroundEvent>,
+}
+
+impl AsyncContext {
+    pub fn emit<T: Any + Send + 'static>(&self, event: T) {
+        let _ = self
+            .sender
+            .send(BackGroundEvent::Broadcast(Box::new(event)));
+    }
+    pub fn emit_targeted<T: Any + Send + 'static>(&self, id: Id, event: T) {
+        let _ = self
+            .sender
+            .send(BackGroundEvent::Targeted(id, Box::new(event)));
+    }
+    pub fn send<T: Any + Send + 'static>(&self, id: Id, message: T) {
+        let _ = self
+            .sender
+            .send(BackGroundEvent::Send(id, Box::new(message)));
     }
 }

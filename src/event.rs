@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 
-use std::sync::mpsc::{Receiver, Sender, channel};
 use std::{any::Any, collections::VecDeque};
 
 use bincode::config::{Configuration, standard};
@@ -13,6 +12,7 @@ use crate::{ColliderKey, GameObject, Id};
 pub enum ServerEvent {
     Broadcast(Vec<u8>),
     Targeted(Id, Vec<u8>),
+    Send(Id, Vec<u8>),
 }
 
 impl ServerEvent {
@@ -27,6 +27,7 @@ impl ServerEvent {
         match self {
             ServerEvent::Broadcast(items) => items,
             ServerEvent::Targeted(_, items) => items,
+            ServerEvent::Send(_, items) => items,
         }
     }
 }

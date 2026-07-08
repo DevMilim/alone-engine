@@ -252,6 +252,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 self.start(ctx);
                 #(self.#component_fields.start(ctx, &mut self.#base_field);)*
                 #(self.#object_fields.dispatch_start(ctx, &self.#base_field);)*
+                self.on_start();
             }
 
             fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::EngineApi) {
@@ -291,7 +292,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
-                    self.on_start();
                 }
                 self.update(ctx, delta);
                 #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*

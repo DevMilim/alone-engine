@@ -11,8 +11,11 @@ use winit::{
 };
 
 use crate::{
-    Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch, InputType, LOGICAL_HEIGHT,
-    LOGICAL_WIDTH, Render, Scene, ServerEvent, Vector2, WorldState,
+    Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch,
+    GlobalEvent::{self, Targeted},
+    InputType, LOGICAL_HEIGHT, LOGICAL_WIDTH, NetworkClient, NetworkServer,
+    NetworkType::{self, Client, Server},
+    Render, Scene, ServerEvent, Vector2, WorldState,
 };
 
 pub struct App<S: Scene, T: Decode<()> + Encode + 'static> {
@@ -51,6 +54,14 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> App<S, T> {
         event_loop.set_control_flow(ControlFlow::Poll);
 
         event_loop.run_app(self).unwrap();
+    }
+    pub fn start_server(&mut self, addr: &str) {
+        self.systems.network =
+            NetworkType::Server(NetworkServer::new(addr, &self.systems.async_handle).unwrap());
+    }
+    pub fn start_client(&mut self, addr: &str) {
+        self.systems.network =
+            NetworkType::Client(NetworkClient::new(addr, &self.systems.async_handle).unwrap());
     }
 }
 
@@ -129,7 +140,13 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
             is_fixed_update: false,
         };
 
-        if let Some(client) = &mut ctx.systems.net_client {
+        if let Client(client) = &mut ctx.systems.network {
+            for event in client.drain::<ServerEvent>() {
+                self.world
+                    .last_scene()
+                    .dispatch_server_event(&mut ctx, &event);
+            }
+        } else if let Server(client) = &mut ctx.systems.network {
             for event in client.drain::<ServerEvent>() {
                 self.world
                     .last_scene()
@@ -145,6 +162,22 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
         let (is_running, blending) =
             self.world
                 .update(&mut ctx, &self.base, &mut self.fixed_frame_count);
+
+        while let Ok(bg_event) = ctx.systems.bg_event_receiver.try_recv() {
+            match bg_event {
+                crate::BackGroundEvent::Broadcast(event) => {
+                    ctx.events
+                        .global_events
+                        .push_back(GlobalEvent::Broadcast(event));
+                }
+                crate::BackGroundEvent::Targeted(id, event) => {
+                    ctx.events.global_events.push_back(Targeted(id, event));
+                }
+                crate::BackGroundEvent::Send(id, message) => {
+                    ctx.events.mailbox.entry(id).or_default().push(message);
+                }
+            }
+        }
 
         for _ in 0..10 {
             let mut something_processed = false;

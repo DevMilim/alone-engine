@@ -5,14 +5,18 @@ use rodio::Player;
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
-    Anchor, AudioAsset, BackGroundEvent, ColliderData, ColliderKey, CollisionFlag, Color,
-    DrawCommand, GameObject, Handler, Id, ImageAsset, Rect, Vector2,
+    Anchor, AsyncContext, AudioAsset, ColliderData, ColliderKey, CollisionFlag, Color, DrawCommand,
+    GameObject, Handler, Id, ImageAsset, Rect, Vector2,
 };
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn camera_mut(&mut self) -> &mut Vector2;
     fn window_size(&self) -> (u32, u32);
+    fn async_ctx(&self) -> AsyncContext;
+    fn spawn_task<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static;
 }
 pub trait InputApi {
     fn is_key_pressed(&self, key: KeyCode) -> bool;
@@ -56,15 +60,6 @@ pub trait EventApi {
     fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
     fn spawn<T: GameObject + 'static>(&mut self, obj: T);
     fn mail_box_is_empty(&self) -> bool;
-    fn spawn_task(
-        &self,
-        future_fn: impl FnOnce(
-            std::sync::mpsc::Sender<BackGroundEvent>,
-        )
-            -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>
-        + Send
-        + 'static,
-    );
 }
 pub trait CollisionApi {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);

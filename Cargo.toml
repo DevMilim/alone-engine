@@ -5,7 +5,7 @@ edition = "2024"
 
 [workspace]
 resolver = "3"
-members = ["macros", "example"]
+members = ["macros", "example", "net_test"]
 
 [dependencies]
 image = "0.25.10"

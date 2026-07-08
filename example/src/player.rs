@@ -1,6 +1,6 @@
 use alone_engine::{
     AnimationData, Base, Body, Camera, Collider, Component, GameObject, GameObjectBase, KeyCode,
-    SpriteAnimation, SpriteSrc, Vector2,
+    SpriteAnimation, SpriteSrc, Vector2, sleep_tokio,
 };
 
 #[derive(GameObject)]
@@ -47,9 +47,14 @@ impl Player {
     }
 }
 
+pub enum PlayerMessage {
+    AsyncTask,
+}
+
 impl GameObject for Player {
-    type Message = ();
+    type Message = PlayerMessage;
     fn start(&mut self, ctx: &mut impl alone_engine::EngineApi) {
+        println!("Player inicializado");
         let mut animation = SpriteAnimation::new();
 
         let mut texture = SpriteSrc::new(
@@ -60,7 +65,16 @@ impl GameObject for Player {
 
         animation.new_animation(iddle_frames, "iddle");
         animation.play("iddle");
-        self.sprite_animation = Some(animation)
+        self.sprite_animation = Some(animation);
+        let async_ctx = ctx.async_ctx();
+
+        let id = self.base.id.clone();
+        println!("Player id{:?}", id);
+
+        ctx.spawn_task(async move {
+            sleep_tokio(5.0).await;
+            async_ctx.send(id, PlayerMessage::AsyncTask);
+        });
     }
     fn fixed_update(&mut self, ctx: &mut impl alone_engine::EngineApi, delta: f32) {
         let gravity = 9.7;
@@ -80,5 +94,8 @@ impl GameObject for Player {
             self.sprite_animation.as_mut().unwrap().flip_h = false
         }
         self.body.velocity.x = speed * direction * delta;
+    }
+    fn on_message(&mut self, _ctx: &mut impl alone_engine::EngineApi, _msg: &Self::Message) {
+        println!("Mensagem recebida")
     }
 }
