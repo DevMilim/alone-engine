@@ -1,4 +1,8 @@
-use alone_engine::{App, Base, EngineApi, GameObject, GameObjectBase, Scene};
+use std::net::SocketAddr;
+
+use alone_engine::{
+    App, Base, EngineApi, GameObject, GameObjectBase, KeyCode, NetworkEvent, Scene, serialize_bytes,
+};
 use bincode::{Decode, Encode};
 
 #[derive(Debug, Clone, Encode, Decode)]
@@ -7,6 +11,7 @@ pub struct PingEvent {
 }
 
 #[derive(GameObject)]
+#[game(server_subscribe(event: String))]
 pub struct MainScene {
     #[base]
     base: Base,
@@ -17,12 +22,20 @@ impl MainScene {
             base: Base::default(),
         }
     }
+
+    fn event(&mut self, ctx: &mut impl EngineApi, event: String, socket_addr: Option<SocketAddr>) {
+        println!("Evento recebido");
+        println!("{}", event)
+    }
 }
 
 impl GameObject for MainScene {
     type Message = ();
+
     fn update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
-        ctx.emit("Hello".to_string());
+        if ctx.is_key_pressed(KeyCode::Space) {
+            ctx.emit("Hello".to_string());
+        }
     }
 }
 
@@ -39,6 +52,6 @@ impl GameScenes {
 
 fn main() {
     let mut app = App::<GameScenes, ()>::new(GameScenes::new());
-    app.start_server("localhost:3000");
+    app.start_client("localhost:3000");
     app.run();
 }

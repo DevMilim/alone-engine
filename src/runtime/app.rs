@@ -13,9 +13,9 @@ use winit::{
 use crate::{
     Base, CoreSystems, EngineContext, EventManager, GameObjectDispatch,
     GlobalEvent::{self, Targeted},
-    InputType, LOGICAL_HEIGHT, LOGICAL_WIDTH, NetworkClient, NetworkServer,
+    InputType, LOGICAL_HEIGHT, LOGICAL_WIDTH, NetworkClient, NetworkMessage, NetworkServer,
     NetworkType::{self, Client, Server},
-    Render, Scene, ServerEvent, Vector2, WorldState,
+    Render, Scene, Vector2, WorldState,
 };
 
 pub struct App<S: Scene, T: Decode<()> + Encode + 'static> {
@@ -141,24 +141,18 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
         };
 
         if let Client(client) = &mut ctx.systems.network {
-            for event in client.drain::<ServerEvent>() {
+            for event in client.drain() {
                 self.world
                     .last_scene()
-                    .dispatch_server_event(&mut ctx, &event);
+                    .dispatch_server_event(&mut ctx, &NetworkMessage::new(event, None));
             }
         } else if let Server(client) = &mut ctx.systems.network {
-            for event in client.drain::<ServerEvent>() {
+            for (socket, event) in client.drain() {
                 self.world
                     .last_scene()
-                    .dispatch_server_event(&mut ctx, &event);
+                    .dispatch_server_event(&mut ctx, &NetworkMessage::new(event, Some(socket)));
             }
         }
-        while let Some(event) = &ctx.events.global_server_events.pop_front() {
-            self.world
-                .last_scene()
-                .dispatch_server_event(&mut ctx, event);
-        }
-
         let (is_running, blending) =
             self.world
                 .update(&mut ctx, &self.base, &mut self.fixed_frame_count);

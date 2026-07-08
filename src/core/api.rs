@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::{any::Any, net::SocketAddr};
 
 use indexmap::IndexMap;
 use rodio::Player;
@@ -6,10 +6,15 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
     Anchor, AsyncContext, AudioAsset, ColliderData, ColliderKey, CollisionFlag, Color, DrawCommand,
-    GameObject, Handler, Id, ImageAsset, Rect, Vector2,
+    GameObject, Handler, Id, ImageAsset, Rect, ServerEvent, Vector2,
 };
 
-pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi {
+pub trait ServerApi {
+    fn send_to_server(&mut self, message: ServerEvent);
+    fn send_to_client(&mut self, target: SocketAddr, message: ServerEvent);
+}
+
+pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi {
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn camera_mut(&mut self) -> &mut Vector2;
     fn window_size(&self) -> (u32, u32);

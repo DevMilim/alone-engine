@@ -137,13 +137,14 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             let event_ty = &sub.event_type;
             let handler_ident = &sub.handler;
             quote! {
-                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
-                    self.#handler_ident(ctx, payload);
+                if let Some(payload) = server_event.event.downcast_ref::<#event_ty>() {
+
+                    self.#handler_ident(ctx, payload, server_event.socket);
                 }
             }
         });
         quote! {
-            if let ::alone_engine::ServerEvent::Broadcast(any_event) = server_event {
+            if let ::alone_engine::ServerEvent::Broadcast(_) = server_event.event {
                 #(#arms)*
             }
         }
@@ -154,13 +155,13 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             let event_ty = &sub.event_type;
             let handler_ident = &sub.handler;
             quote! {
-                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
-                    self.#handler_ident(ctx, payload);
+                if let Some(payload) = server_event.event.downcast_ref::<#event_ty>() {
+                    self.#handler_ident(ctx, payload, server_event.socket);
                 }
             }
         });
         quote! {
-            if let ::alone_engine::ServerEvent::Targeted(id, any_event) = server_event {
+            if let ::alone_engine::ServerEvent::Targeted(id, _) = &server_event.event {
                 if &self.base().id == id {
                     #(#arms)*
                     return;
@@ -282,7 +283,8 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #connect_block
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
-            fn dispatch_server_event(&mut self, ctx: &mut impl ::alone_engine::EngineApi, server_event: &::alone_engine::ServerEvent) {
+            fn dispatch_server_event(&mut self, ctx: &mut impl ::alone_engine::EngineApi, server_event: &::alone_engine::NetworkMessage) {
+                
                 #server_subscribe_block
                 #server_connect_block
                 #(self.#object_fields.dispatch_server_event(ctx, server_event);)*

@@ -1,4 +1,3 @@
-use bincode::{Decode, Encode, config::standard, encode_to_vec};
 use futures_util::{SinkExt, StreamExt};
 use std::io;
 use tokio::{
@@ -7,15 +6,17 @@ use tokio::{
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use crate::{NetworkEvent, ServerEvent, deserialize_bytes, serialize_bytes};
+
 pub struct NetworkClient {
-    pub sender: Sender<Vec<u8>>,
-    pub receiver: Receiver<Vec<u8>>,
+    pub sender: Sender<ServerEvent>,
+    pub receiver: Receiver<ServerEvent>,
 }
 
 impl NetworkClient {
     pub fn new(server_url: &str, handle: &Handle) -> io::Result<Self> {
-        let (tx_to_net, mut rx_to_net) = channel::<Vec<u8>>(100);
-        let (tx_from_net, rx_from_net) = channel::<Vec<u8>>(100);
+        let (tx_to_net, mut rx_to_net) = channel::<ServerEvent>(100);
+        let (tx_from_net, rx_from_net) = channel::<ServerEvent>(100);
 
         let url = if !server_url.starts_with("ws://") && !server_url.starts_with("wss://") {
             format!("ws://{}", server_url)
@@ -29,9 +30,21 @@ impl NetworkClient {
                     println!("Conectado ao servidor: {}", url);
 
                     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
+
+                    let encoded_connected = serialize_bytes(&NetworkEvent::Connected);
+
+                    let _ = tx_from_net
+                        .send(ServerEvent::Broadcast(encoded_connected))
+                        .await;
+
                     let tx_task = tokio::spawn(async move {
                         while let Some(data) = rx_to_net.recv().await {
-                            if ws_sender.send(Message::Binary(data.into())).await.is_err() {
+                            let serialized_event = serialize_bytes(&data);
+                            if ws_sender
+                                .send(Message::Binary(serialized_event.into()))
+                                .await
+                                .is_err()
+                            {
                                 eprintln!("Conexão perdida");
                                 break;
                             }
@@ -40,8 +53,12 @@ impl NetworkClient {
                     while let Some(msg) = ws_receiver.next().await {
                         match msg {
                             Ok(Message::Binary(data)) => {
-                                if tx_from_net.send(data.into()).await.is_err() {
-                                    break;
+                                if let Some(deserialized_event) =
+                                    deserialize_bytes::<ServerEvent>(&data)
+                                {
+                                    if tx_from_net.send(deserialized_event).await.is_err() {
+                                        break;
+                                    }
                                 }
                             }
                             Ok(Message::Close(_)) | Err(_) => {
@@ -52,6 +69,11 @@ impl NetworkClient {
                         }
                     }
                     tx_task.abort();
+                    let encoded_disconnected = serialize_bytes(&NetworkEvent::Disconnected);
+
+                    let _ = tx_from_net
+                        .send(ServerEvent::Broadcast(encoded_disconnected))
+                        .await;
                 }
                 Err(_) => eprintln!("Falha ao conectar ao servidor"),
             }
@@ -61,19 +83,14 @@ impl NetworkClient {
             receiver: rx_from_net,
         })
     }
-    pub fn drain<T: Decode<()> + Encode + 'static>(&mut self) -> Vec<T> {
-        let config = standard();
+    pub fn drain(&mut self) -> Vec<ServerEvent> {
         let mut values = Vec::new();
         while let Ok(event) = self.receiver.try_recv() {
-            if let Ok((server_event, _)) = bincode::decode_from_slice::<T, _>(&event, config) {
-                values.push(server_event);
-            }
+            values.push(event);
         }
         values
     }
-    pub fn send<T: Decode<()> + Encode + 'static>(&self, event: T) {
-        let config = standard();
-        let bytes = encode_to_vec(event, config).unwrap();
-        let _ = self.sender.try_send(bytes);
+    pub fn send(&self, event: ServerEvent) {
+        let _ = self.sender.try_send(event);
     }
 }

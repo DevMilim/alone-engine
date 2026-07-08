@@ -7,7 +7,9 @@ use winit::keyboard::KeyCode;
 use crate::{
     AssetApi, AudioApi, AudioAsset, BackGroundEvent, ColliderData, ColliderKey, CollisionApi,
     CollisionFlag, CoreSystems, EngineApi, EventApi, EventManager, GameObject, GlobalEvent,
-    Handler, Id, ImageAsset, InputApi, SpawnEvent, Vector2,
+    Handler, Id, ImageAsset, InputApi,
+    NetworkType::{Client, Server},
+    ServerApi, ServerEvent, SpawnEvent, Vector2,
 };
 
 pub struct EngineContext<'a> {
@@ -237,5 +239,22 @@ impl AsyncContext {
         let _ = self
             .sender
             .send(BackGroundEvent::Send(id, Box::new(message)));
+    }
+}
+impl<'a> ServerApi for EngineContext<'a> {
+    fn send_to_server(&mut self, message: ServerEvent) {
+        if let Client(client) = &mut self.systems.network {
+            client.send(message);
+        } else {
+            eprintln!("Tentando enviar dados ao servidor, mas este no não e um cliente.")
+        }
+    }
+
+    fn send_to_client(&mut self, target: std::net::SocketAddr, message: ServerEvent) {
+        if let Server(client) = &mut self.systems.network {
+            client.send(target, message);
+        } else {
+            eprintln!("Tentando enviar dados ao cliente, mas este no não e um servidor.")
+        }
     }
 }
