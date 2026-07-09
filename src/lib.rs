@@ -9,6 +9,8 @@ pub mod network;
 pub mod render;
 pub mod resources;
 pub mod runtime;
+pub mod ui;
+
 pub use macros::*;
 
 pub mod prelude {
@@ -23,6 +25,7 @@ pub mod prelude {
     pub use crate::render::*;
     pub use crate::resources::*;
     pub use crate::runtime::*;
+    pub use crate::ui::*;
     pub use macros::*;
 }
 
