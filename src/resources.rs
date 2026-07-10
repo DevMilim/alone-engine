@@ -48,7 +48,6 @@ impl<T> AssetCache<T> {
     pub fn clear(&mut self) {
         self.assets.clear();
         self.path_map.clear();
-        self.next_id = 0;
     }
 }
 

@@ -1,6 +1,6 @@
 use alone_engine::{
     GameObject,
-    components::{AnimationData, Body, Camera, Collider, SpriteAnimation},
+    components::{AnimationData, Body, BodyType, Camera, Collider, SpriteAnimation},
     core::{Base, Component, EngineApi, GameObject, GameObjectBase},
     input::KeyCode,
     math::Vector2,
@@ -33,7 +33,10 @@ impl Player {
                 width: 12.0,
                 ..Default::default()
             },
-            body: Body::default(),
+            body: Body {
+                body_type: BodyType::Character,
+                ..Default::default()
+            },
             camera: Camera {
                 active: true,
                 ..Default::default()

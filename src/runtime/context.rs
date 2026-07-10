@@ -1,7 +1,8 @@
 use crate::{
     audio::AudioAsset,
-    core::{AssetApi, AudioApi, Handler, InputApi},
+    core::{AssetApi, AudioApi, Handler, InputApi, SceneApi},
     network::NetworkError,
+    runtime::AppCommands,
 };
 use std::{any::Any, net::SocketAddr, sync::mpsc::Sender};
 
@@ -63,7 +64,7 @@ impl<'a> EngineContext<'a> {
 
 impl<'a> AudioApi for EngineContext<'a> {
     fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
-        if let Some(id) = self.systems.resources.textures.get_id(path) {
+        if let Some(id) = self.systems.resources.sounds.get_id(path) {
             return Handler::new(id);
         }
         let sound_asset = AudioAsset::load_audio(path);
@@ -308,7 +309,33 @@ impl<'a> ServerApi for EngineContext<'a> {
                 client.send(target, ServerEvent::Broadcast(serialize_bytes(&event)))?;
                 Ok(())
             }
-            _ => Err(NetworkError::NotAClient),
+            _ => Err(NetworkError::NotAServer),
         }
+    }
+}
+
+impl<'a> SceneApi for EngineContext<'a> {
+    fn push_scene<T: crate::prelude::Scene + 'static>(&mut self, scene: T) {
+        self.events
+            .aplication_commands
+            .push_back(AppCommands::PushScene(Box::new(scene)));
+    }
+
+    fn change_scene<T: crate::prelude::Scene + 'static>(&mut self, scene: T) {
+        self.events
+            .aplication_commands
+            .push_back(AppCommands::ChangeScene(Box::new(scene)));
+    }
+
+    fn pop_scene(&mut self) {
+        self.events
+            .aplication_commands
+            .push_back(AppCommands::PopScene);
+    }
+
+    fn clear_scene(&mut self) {
+        self.events
+            .aplication_commands
+            .push_back(AppCommands::ClearScenes);
     }
 }

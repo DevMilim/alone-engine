@@ -9,8 +9,10 @@ use crate::{
 pub const FIXED_DT: f32 = 1.0 / 60.0;
 pub const MAX_ACCUM: f32 = 0.5;
 
+pub enum SceneError {}
+
 pub struct WorldState<S: Scene> {
-    pub objects: Vec<S>,
+    pub scenes: Vec<S>,
     pub accumulator: f32,
     pub last_instant: Instant,
     pub is_running: bool,
@@ -19,14 +21,44 @@ pub struct WorldState<S: Scene> {
 impl<S: Scene> WorldState<S> {
     pub fn new(root_scene: S) -> Self {
         Self {
-            objects: vec![root_scene],
+            scenes: vec![root_scene],
             accumulator: 0.0,
             last_instant: Instant::now(),
             is_running: true,
         }
     }
+    pub fn change_scene(&mut self, scene: S, ctx: &mut EngineContext) {
+        if let Some(mut old) = self.scenes.pop() {
+            old.get_dispatch().dispatch_destroy(ctx);
+        }
+        self.scenes.push(scene);
+    }
+    pub fn pop_scene(&mut self, ctx: &mut EngineContext) {
+        if self.scenes.len() <= 1 {
+            eprintln!("Tentativa de pop_scene na ultima cena da pilha");
+            return;
+        }
+        if let Some(mut scene) = self.scenes.pop() {
+            scene.get_dispatch().dispatch_destroy(ctx);
+        }
+    }
+    pub fn push_scene(&mut self, scene: S) {
+        self.scenes.push(scene);
+    }
+    pub fn clear_scenes(&mut self, ctx: &mut EngineContext) {
+        if self.scenes.len() <= 1 {
+            return;
+        }
+        let keep = self.scenes.len() - 1;
+        for mut scene in self.scenes.drain(..keep) {
+            scene.get_dispatch().dispatch_destroy(ctx);
+        }
+    }
     pub fn last_scene(&mut self) -> &mut impl GameObjectDispatch {
-        self.objects.last_mut().unwrap().get_dispatch()
+        self.scenes
+            .last_mut()
+            .expect("WorldState.scenes não deveria ficar vazio")
+            .get_dispatch()
     }
     pub fn render(
         &mut self,
@@ -39,7 +71,7 @@ impl<S: Scene> WorldState<S> {
             queue: renderer,
             camera: ctx.camera_position,
         };
-        if let Some(obj) = self.objects.last_mut() {
+        if let Some(obj) = self.scenes.last_mut() {
             obj.get_dispatch()
                 .dispatch_draw(&mut render_ctx, base, blending);
         } else {
@@ -63,7 +95,7 @@ impl<S: Scene> WorldState<S> {
 
         self.accumulator += delta_time;
 
-        let Some(object) = self.objects.last_mut() else {
+        let Some(object) = self.scenes.last_mut() else {
             self.quit();
             return (false, 0.0);
         };

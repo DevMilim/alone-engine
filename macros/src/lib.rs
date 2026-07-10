@@ -297,6 +297,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
+                    self.mark_as_started();
                 }
                 self.update(ctx, delta);
                 #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
@@ -351,7 +352,6 @@ fn type_is_base(ty: &Type) -> bool {
 
     false
 }
-
 #[proc_macro_derive(Scene)]
 pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -366,16 +366,104 @@ pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let variants = data.variants.iter().map(|v| &v.ident);
+    let mut variant_idents: Vec<_> = data.variants.iter().map(|v| &v.ident).collect();
+
+    let mut variant_types = Vec::new();
+
+    for variant in &data.variants {
+        variant_idents.push(&variant.ident);
+
+        match &variant.fields {
+            syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                variant_types.push(&fields.unnamed.first().unwrap().ty);
+            }
+            _ => {
+                return syn::Error::new_spanned(
+                    variant,
+                    "Cada variante de Scene deve possuir exatamente um campo não nomeado. Ex: MainScene(MainScene)"
+                )
+                .into_compile_error()
+                .into();
+            }
+        }
+    }
 
     quote! {
-        impl ::alone_engine::prelude::Scene for #name {
-            fn get_dispatch(&mut self) -> &mut impl ::alone_engine::prelude::GameObjectDispatch {
+        impl ::alone_engine::prelude::GameObjectDispatch for #name {
+            fn is_pending_removal(&self) -> bool {
                 match self {
-                    #(Self::#variants(inner) => inner,)*
+                    #(Self::#variant_idents(inner) => inner.is_pending_removal(),)*
+                }
+            }
+
+            fn dispatch_start(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_start(ctx, parent_base),)*
+                }
+            }
+
+            fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_message(ctx),)*
+                }
+            }
+
+            fn dispatch_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, event: &::alone_engine::prelude::GlobalEvent) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_event(ctx, event),)*
+                }
+            }
+
+            fn dispatch_server_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, server_event: &::alone_engine::prelude::NetworkMessage) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_server_event(ctx, server_event),)*
+                }
+            }
+
+            fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_update(ctx, parent_base, delta),)*
+                }
+            }
+
+            fn dispatch_late_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_late_update(ctx, parent_base, delta),)*
+                }
+            }
+
+            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_fixed_update(ctx, parent_base, delta),)*
+                }
+            }
+
+            fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::prelude::RenderApi, parent_base: &::alone_engine::prelude::Base, blending: f32) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_draw(renderer, parent_base, blending),)*
+                }
+            }
+
+            fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.dispatch_destroy(ctx),)*
                 }
             }
         }
+
+        impl ::alone_engine::prelude::Scene for #name {
+            fn get_dispatch(&mut self) -> &mut impl ::alone_engine::prelude::GameObjectDispatch {
+                self
+            }
+        }
+
+        #(
+            impl From<#variant_types> for #name {
+                fn from(scene: #variant_types) -> Self {
+                    Self::#variant_idents(scene)
+                }
+            }
+        )*
     }
     .into()
 }

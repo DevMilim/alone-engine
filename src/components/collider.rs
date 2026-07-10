@@ -52,7 +52,7 @@ impl Default for Collider {
 }
 
 impl Component for Collider {
-    fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+    fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         let aabb = AABB {
             x: base.transform.global_position.x - (self.width / 2.0) + self.offset_x,
             y: base.transform.global_position.y - (self.height / 2.0) + self.offset_y,

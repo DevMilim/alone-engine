@@ -94,7 +94,6 @@ pub struct CollisionWorld {
     grid: HashMap<Cell, Vec<ColliderKey>>,
     last_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
     current_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
-    platform_deltas: HashMap<Id, Vector2>,
 }
 
 impl CollisionWorld {

@@ -22,7 +22,7 @@ impl AudioAsset {
 pub struct AudioSys {
     sink: MixerDeviceSink,
     players: Mutex<Vec<Player>>,
-    _mixer: Mixer,
+    mixer_controller: Mixer,
 }
 
 impl Default for AudioSys {
@@ -46,7 +46,7 @@ impl AudioSys {
         Self {
             sink,
             players: Mutex::new(Vec::new()),
-            _mixer: controller,
+            mixer_controller: controller,
         }
     }
     pub fn play_controled(
@@ -58,9 +58,7 @@ impl AudioSys {
         let sound_bytes = &resources.sounds.get(sound).unwrap().bytes;
         let source = Decoder::try_from(Cursor::new(sound_bytes.to_vec())).unwrap();
 
-        let mixer = self.sink.mixer();
-
-        let player = Player::connect_new(mixer);
+        let player = Player::connect_new(&self.mixer_controller);
         if looped {
             player.append(source.repeat_infinite());
         } else {
@@ -78,9 +76,12 @@ impl AudioSys {
         let player = Player::connect_new(mixer);
         player.append(source);
 
-        if let Ok(mut players) = self.players.lock() {
-            players.retain(|p| !p.empty());
-            players.push(player);
+        match self.players.lock() {
+            Ok(mut players) => {
+                players.retain(|p| !p.empty());
+                players.push(player);
+            }
+            Err(e) => eprintln!("AudioSys: mutex poisoned, som pode não persistir: {e}"),
         }
     }
 }

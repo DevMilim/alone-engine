@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 
 use crate::collision::ColliderKey;
 use crate::core::{GameObject, Id};
+use crate::runtime::AppCommands;
 
 #[derive(Debug, Encode, Decode, Clone)]
 pub enum ServerEvent {
@@ -62,6 +63,8 @@ pub struct EventManager {
 
     pub global_server_events: VecDeque<ServerEvent>,
     pub server_mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
+
+    pub aplication_commands: VecDeque<AppCommands>,
 }
 
 impl Default for EventManager {
@@ -71,6 +74,7 @@ impl Default for EventManager {
             mailbox: IndexMap::new(),
             global_server_events: VecDeque::new(),
             server_mailbox: IndexMap::new(),
+            aplication_commands: VecDeque::new(),
         }
     }
 }

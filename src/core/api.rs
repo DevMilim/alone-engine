@@ -12,7 +12,7 @@ use crate::{
     math::{Color, Rect, Vector2},
     network::NetworkError,
     render::{Anchor, DrawCommand, ImageAsset},
-    runtime::AsyncContext,
+    runtime::{AsyncContext, Scene},
 };
 
 pub trait ServerApi {
@@ -35,7 +35,9 @@ pub trait ServerApi {
     ) -> Result<(), NetworkError>;
 }
 
-pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi {
+pub trait EngineApi:
+    InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi + SceneApi
+{
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn camera_mut(&mut self) -> &mut Vector2;
     fn window_size(&self) -> (u32, u32);
@@ -119,4 +121,11 @@ pub trait RenderApi {
 pub trait AudioApi {
     fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player;
     fn load_audio(&mut self, path: &str) -> Handler<AudioAsset>;
+}
+
+pub trait SceneApi {
+    fn push_scene<T: Scene + 'static>(&mut self, scene: T);
+    fn change_scene<T: Scene + 'static>(&mut self, scene: T);
+    fn pop_scene(&mut self);
+    fn clear_scene(&mut self);
 }

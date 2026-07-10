@@ -90,14 +90,9 @@ impl GameObject for MainScene {
 #[derive(Scene)]
 pub enum GameScenes {
     MainScene(MainScene),
-}
-
-impl GameScenes {
-    fn new() -> Self {
-        GameScenes::MainScene(MainScene::new())
-    }
+    PayerScene(Player),
 }
 
 fn main() {
-    App::<GameScenes, ()>::new(GameScenes::new()).run();
+    App::<GameScenes>::new(MainScene::new().into()).run();
 }

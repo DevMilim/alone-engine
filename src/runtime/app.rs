@@ -1,6 +1,5 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::{any::Any, sync::Arc};
 
-use bincode::{Decode, Encode};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -20,7 +19,15 @@ use crate::{
     runtime::{EngineContext, GameObjectDispatch, Scene, WorldState},
 };
 
-pub struct App<S: Scene, T: Decode<()> + Encode + 'static> {
+#[derive(Debug)]
+pub enum AppCommands {
+    ChangeScene(Box<dyn Any>),
+    PushScene(Box<dyn Any>),
+    ClearScenes,
+    PopScene,
+}
+
+pub struct App<S: Scene + 'static> {
     pub systems: CoreSystems,
     pub events: EventManager,
     pub world: WorldState<S>,
@@ -31,10 +38,9 @@ pub struct App<S: Scene, T: Decode<()> + Encode + 'static> {
     pub camera_position: Vector2,
     pub update_frame_count: u64,
     pub fixed_frame_count: u64,
-    _phantom: PhantomData<T>,
 }
 
-impl<S: Scene, T: Decode<()> + Encode + 'static> App<S, T> {
+impl<S: Scene + 'static> App<S> {
     pub fn new(root_scene: S) -> Self {
         Self {
             systems: CoreSystems::default(),
@@ -46,7 +52,6 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> App<S, T> {
             camera_position: Vector2::new(0.0, 0.0),
             update_frame_count: 0,
             fixed_frame_count: 0,
-            _phantom: PhantomData::default(),
         }
     }
 
@@ -67,7 +72,7 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> App<S, T> {
     }
 }
 
-impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T> {
+impl<S: Scene + 'static> ApplicationHandler for App<S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attrs = Window::default_attributes()
             .with_title("winit + pixels")
@@ -194,6 +199,27 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
             }
             if round == MAX_EVENT_ROUNDS - 1 && something_processed {
                 eprintln!("limite de rounds de evento atingido, possivel loop de eventos")
+            }
+        }
+
+        while let Some(cmd) = ctx.events.aplication_commands.pop_front() {
+            match cmd {
+                AppCommands::ChangeScene(scene) => {
+                    if let Ok(scene) = scene.downcast::<S>() {
+                        self.world.change_scene(*scene, &mut ctx);
+                    }
+                }
+                AppCommands::PushScene(scene) => {
+                    if let Ok(scene) = scene.downcast::<S>() {
+                        self.world.push_scene(*scene);
+                    }
+                }
+                AppCommands::PopScene => {
+                    self.world.pop_scene(&mut ctx);
+                }
+                AppCommands::ClearScenes => {
+                    self.world.clear_scenes(&mut ctx);
+                }
             }
         }
 
