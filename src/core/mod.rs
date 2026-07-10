@@ -14,7 +14,7 @@ use tokio::runtime::{Handle, Runtime};
 
 use crate::{
     audio::AudioSys,
-    collision::CollisionWorld,
+    collision::{ColliderKey, CollisionWorld},
     event::{BackGroundEvent, GlobalEvent, TriggerEvent, TriggerKind},
     input::InputState,
     network::{NetworkClient, NetworkServer},
@@ -68,60 +68,51 @@ impl Default for CoreSystems {
 impl CoreSystems {
     pub fn collision_step(&mut self) -> Vec<GlobalEvent> {
         self.collision.step();
-        let mut trigger_events = Vec::new();
-        for (a, b) in self.collision.get_entered_pairs() {
-            if a.id == b.id {
-                continue;
-            }
-            let da = self.collision.colliders.get(&a).unwrap();
-            let db = self.collision.colliders.get(&b).unwrap();
 
-            if da.is_sensor {
-                let ev = TriggerEvent {
-                    owner: b.id,
-                    sensor: a.clone(),
-                    kind: TriggerKind::Enter,
-                };
-                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev.clone())));
-                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev)));
-            }
-            if db.is_sensor {
-                let ev = TriggerEvent {
-                    owner: a.id,
-                    sensor: b.clone(),
-                    kind: TriggerKind::Enter,
-                };
-                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev.clone())));
-                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev)));
-            }
-        }
-        for (a, b) in self.collision.get_exited_pairs() {
-            if a.id == b.id {
-                continue;
-            }
-            let da = self.collision.colliders.get(&a).unwrap();
-            let db = self.collision.colliders.get(&b).unwrap();
+        let mut trigger_events =
+            self.emit_trigger_events(self.collision.get_entered_pairs(), TriggerKind::Enter);
+        trigger_events
+            .extend(self.emit_trigger_events(self.collision.get_exited_pairs(), TriggerKind::Exit));
 
-            if da.is_sensor {
-                let ev = TriggerEvent {
-                    owner: b.id,
-                    sensor: a.clone(),
-                    kind: TriggerKind::Exit,
-                };
-                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev.clone())));
-                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev)));
-            }
-            if db.is_sensor {
-                let ev = TriggerEvent {
-                    owner: a.id,
-                    sensor: b.clone(),
-                    kind: TriggerKind::Exit,
-                };
-                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev.clone())));
-                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev)));
-            }
-        }
         self.collision.commit();
+        trigger_events
+    }
+    fn emit_trigger_events(
+        &self,
+        pairs: Vec<(ColliderKey, ColliderKey)>,
+        kind: TriggerKind,
+    ) -> Vec<GlobalEvent> {
+        let mut trigger_events = Vec::new();
+        for (a, b) in pairs {
+            if a.id == b.id {
+                continue;
+            }
+            let (Some(da), Some(db)) = (
+                self.collision.colliders.get(&a),
+                self.collision.colliders.get(&b),
+            ) else {
+                continue;
+            };
+
+            if da.is_sensor {
+                let ev = TriggerEvent {
+                    owner: b.id,
+                    sensor: a,
+                    kind,
+                };
+                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev)));
+                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev)));
+            }
+            if db.is_sensor {
+                let ev = TriggerEvent {
+                    owner: a.id,
+                    sensor: b,
+                    kind,
+                };
+                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev)));
+                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev)));
+            }
+        }
         trigger_events
     }
 }

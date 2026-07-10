@@ -64,7 +64,8 @@ impl<S: Scene> WorldState<S> {
         self.accumulator += delta_time;
 
         let Some(object) = self.objects.last_mut() else {
-            panic!("Nenhum objeto iniciado")
+            self.quit();
+            return (false, 0.0);
         };
 
         let object = object.get_dispatch();

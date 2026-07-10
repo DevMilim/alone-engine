@@ -27,7 +27,7 @@ impl NetworkMessage {
 }
 
 impl ServerEvent {
-    pub fn downcast_ref<T: Decode<()> + Encode + 'static>(&self) -> Option<T> {
+    pub fn decode<T: Decode<()> + Encode + 'static>(&self) -> Option<T> {
         let bytes = self.clone().get_event();
         crate::deserialize_bytes::<T>(&bytes)
     }
@@ -133,7 +133,7 @@ impl EventManager {
 /// }
 ///
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct TriggerEvent {
     pub owner: Id,
     pub sensor: ColliderKey,
@@ -142,7 +142,7 @@ pub struct TriggerEvent {
 
 /// Utilizado para definir se ocorreu uma entrada ou saida de algum colisor
 /// Como Entrada e Saida
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum TriggerKind {
     Enter,
     Exit,

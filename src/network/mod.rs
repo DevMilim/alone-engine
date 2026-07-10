@@ -9,4 +9,12 @@ pub use server::*;
 pub enum NetworkEvent {
     Connected,
     Disconnected,
+    ConnectFailed,
+}
+
+pub enum NetworkError {
+    NotAClient,
+    NotAServer,
+    ChannelFull,
+    Disconnected,
 }

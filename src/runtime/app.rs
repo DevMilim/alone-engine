@@ -177,11 +177,12 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
             }
         }
 
-        for _ in 0..10 {
+        const MAX_EVENT_ROUNDS: u32 = 10;
+        for round in 0..MAX_EVENT_ROUNDS {
             let mut something_processed = false;
-            while let Some(event) = &ctx.events.global_events.pop_front() {
+            while let Some(event) = ctx.events.global_events.pop_front() {
                 something_processed = true;
-                self.world.last_scene().dispatch_event(&mut ctx, event);
+                self.world.last_scene().dispatch_event(&mut ctx, &event);
             }
             if !ctx.events.mailbox.is_empty() {
                 something_processed = true;
@@ -190,6 +191,9 @@ impl<S: Scene, T: Decode<()> + Encode + 'static> ApplicationHandler for App<S, T
             }
             if !something_processed {
                 break;
+            }
+            if round == MAX_EVENT_ROUNDS - 1 && something_processed {
+                eprintln!("limite de rounds de evento atingido, possivel loop de eventos")
             }
         }
 

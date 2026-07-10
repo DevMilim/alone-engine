@@ -10,15 +10,29 @@ use crate::{
     collision::{ColliderData, ColliderKey, CollisionFlag},
     core::{GameObject, Handler, Id},
     math::{Color, Rect, Vector2},
+    network::NetworkError,
     render::{Anchor, DrawCommand, ImageAsset},
     runtime::AsyncContext,
 };
 
 pub trait ServerApi {
-    fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E);
-    fn emit_to_client<E: Encode + Decode<()>>(&mut self, target: SocketAddr, event: E);
-    fn send_to_server<E: Encode + Decode<()>>(&mut self, id: Id, message: E);
-    fn send_to_client<E: Encode + Decode<()>>(&mut self, id: Id, target: SocketAddr, message: E);
+    fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E) -> Result<(), NetworkError>;
+    fn emit_to_client<E: Encode + Decode<()>>(
+        &mut self,
+        target: SocketAddr,
+        event: E,
+    ) -> Result<(), NetworkError>;
+    fn send_to_server<E: Encode + Decode<()>>(
+        &mut self,
+        id: Id,
+        message: E,
+    ) -> Result<(), NetworkError>;
+    fn send_to_client<E: Encode + Decode<()>>(
+        &mut self,
+        id: Id,
+        target: SocketAddr,
+        message: E,
+    ) -> Result<(), NetworkError>;
 }
 
 pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi {
@@ -26,7 +40,7 @@ pub trait EngineApi: InputApi + AssetApi + EventApi + AudioApi + CollisionApi + 
     fn camera_mut(&mut self) -> &mut Vector2;
     fn window_size(&self) -> (u32, u32);
     fn async_ctx(&self) -> AsyncContext;
-    fn spawn_task<F>(&self, future: F)
+    fn async_task<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static;
 }

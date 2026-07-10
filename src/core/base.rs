@@ -61,7 +61,7 @@ pub trait GameObjectBase {
         self.base().is_started
     }
 
-    fn on_start(&mut self) {
+    fn mark_as_started(&mut self) {
         self.base_mut().is_started = true
     }
 

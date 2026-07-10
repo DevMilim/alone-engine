@@ -6,7 +6,12 @@ use tokio::{
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::{deserialize_bytes, event::ServerEvent, network::NetworkEvent, serialize_bytes};
+use crate::{
+    deserialize_bytes,
+    event::ServerEvent,
+    network::{NetworkError, NetworkEvent},
+    serialize_bytes,
+};
 
 pub struct NetworkClient {
     pub sender: Sender<ServerEvent>,
@@ -75,7 +80,11 @@ impl NetworkClient {
                         .send(ServerEvent::Broadcast(encoded_disconnected))
                         .await;
                 }
-                Err(_) => eprintln!("Falha ao conectar ao servidor"),
+                Err(_) => {
+                    eprintln!("Falha ao conectar ao servidor");
+                    let encoded = serialize_bytes(&NetworkEvent::ConnectFailed); // nova variante
+                    let _ = tx_from_net.send(ServerEvent::Broadcast(encoded)).await;
+                }
             }
         });
         Ok(Self {
@@ -90,7 +99,10 @@ impl NetworkClient {
         }
         values
     }
-    pub fn send(&self, event: ServerEvent) {
-        let _ = self.sender.try_send(event);
+    pub fn send(&self, event: ServerEvent) -> Result<(), NetworkError> {
+        self.sender.try_send(event).map_err(|e| match e {
+            tokio::sync::mpsc::error::TrySendError::Full(_) => NetworkError::ChannelFull,
+            tokio::sync::mpsc::error::TrySendError::Closed(_) => NetworkError::Disconnected,
+        })
     }
 }

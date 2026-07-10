@@ -76,7 +76,7 @@ impl GameObject for Player {
         let id = self.base.id.clone();
         println!("Player id{:?}", id);
 
-        ctx.spawn_task(async move {
+        ctx.async_task(async move {
             sleep_tokio(5.0).await;
             async_ctx.send(id, PlayerMessage::AsyncTask);
         });

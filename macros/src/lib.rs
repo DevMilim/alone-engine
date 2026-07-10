@@ -137,10 +137,10 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             let event_ty = &sub.event_type;
             let handler_ident = &sub.handler;
             quote! {
-                if let Some(payload) = server_event.event.downcast_ref::<#event_ty>() {
+                if let Some(payload) = server_event.event.decode::<#event_ty>() {
                     self.#handler_ident(ctx, payload, server_event.socket);
                 } else {
-                    // ADD ISSO NA SUA MACRO
+                    #[cfg(debug_assertions)]
                     println!("[RASTREIO 3] Macro tentou ler o Broadcast, mas o bincode rejeitou o tipo!");
                 }
             }
@@ -157,7 +157,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             let event_ty = &sub.event_type;
             let handler_ident = &sub.handler;
             quote! {
-                if let Some(payload) = server_event.event.downcast_ref::<#event_ty>() {
+                if let Some(payload) = server_event.event.decode::<#event_ty>() {
                     self.#handler_ident(ctx, payload, server_event.socket);
                 }
             }
@@ -255,7 +255,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 self.start(ctx);
                 #(self.#component_fields.start(ctx, &mut self.#base_field);)*
                 #(self.#object_fields.dispatch_start(ctx, &self.#base_field);)*
-                self.on_start();
+                self.mark_as_started();
             }
 
             fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
@@ -269,6 +269,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                         if let Some(message) = msg.downcast_ref::<<Self as ::alone_engine::prelude::GameObject>::Message>() {
                             self.on_message(ctx, message);
                         } else {
+                            #[cfg(debug_assertions)]
                             println!("Tipo de evento incompatível recebido");
                         }
                     }
@@ -306,7 +307,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
-                    self.on_start();
+                    self.mark_as_started();
                 }
                 self.late_update(ctx, delta);
                 #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
@@ -317,7 +318,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
-                    self.on_start();
+                    self.mark_as_started();
                 }
                 self.fixed_update(ctx, delta);
                 #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*

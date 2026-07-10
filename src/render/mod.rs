@@ -45,7 +45,7 @@ impl<'a> Render<'a> {
     }
     pub fn sort(&mut self) {
         for queue in &mut self.queue {
-            queue.sort_unstable_by_key(|cmd| match cmd {
+            queue.sort_by_key(|cmd| match cmd {
                 DrawCommand::Sprite { image, .. } => (1, image.id),
                 DrawCommand::Rect { .. } => (0, 0),
             });

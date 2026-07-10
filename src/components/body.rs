@@ -19,7 +19,7 @@ pub struct Body {
 impl Component for Body {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         match self.body_type {
-            BodyType::Static => {
+            BodyType::Character => {
                 let mut snapped = false;
 
                 if self.velocity.y >= 0.0 {
@@ -41,7 +41,7 @@ impl Component for Body {
                 self.on_wall = flags.on_wall;
                 self.on_ceiling = flags.on_ceiling;
             }
-            BodyType::Character => {}
+            BodyType::Static => {}
         }
     }
 }

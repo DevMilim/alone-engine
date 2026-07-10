@@ -1,6 +1,7 @@
 use crate::{
     audio::AudioAsset,
     core::{AssetApi, AudioApi, Handler, InputApi},
+    network::NetworkError,
 };
 use std::{any::Any, net::SocketAddr, sync::mpsc::Sender};
 
@@ -47,7 +48,7 @@ impl<'a> EngineApi for EngineContext<'a> {
         }
     }
 
-    fn spawn_task<F>(&self, future: F)
+    fn async_task<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
@@ -62,6 +63,9 @@ impl<'a> EngineContext<'a> {
 
 impl<'a> AudioApi for EngineContext<'a> {
     fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
+        if let Some(id) = self.systems.resources.textures.get_id(path) {
+            return Handler::new(id);
+        }
         let sound_asset = AudioAsset::load_audio(path);
         self.systems.resources.sounds.insert(path, sound_asset)
     }
@@ -251,12 +255,17 @@ impl AsyncContext {
 }
 impl<'a> ServerApi for EngineContext<'a> {
     /// envia um evento para uma entidade especifica do servidor
-    fn send_to_server<E: Encode + Decode<()>>(&mut self, id: Id, event: E) {
-        let event = serialize_bytes(&event);
-        if let NetworkType::Client(client) = &mut self.systems.network {
-            client.send(ServerEvent::Targeted(id, event));
-        } else {
-            eprintln!("Tentando enviar dados ao servidor, mas este no não e um cliente.")
+    fn send_to_server<E: Encode + Decode<()>>(
+        &mut self,
+        id: Id,
+        event: E,
+    ) -> Result<(), NetworkError> {
+        match &mut self.systems.network {
+            NetworkType::Client(client) => {
+                client.send(ServerEvent::Targeted(id, serialize_bytes(&event)))?;
+                Ok(())
+            }
+            _ => Err(NetworkError::NotAClient),
         }
     }
 
@@ -266,32 +275,40 @@ impl<'a> ServerApi for EngineContext<'a> {
         id: Id,
         target: std::net::SocketAddr,
         event: E,
-    ) {
-        if let NetworkType::Server(client) = &mut self.systems.network {
-            let event = serialize_bytes(&event);
-            client.send(target, ServerEvent::Targeted(id, event));
-        } else {
-            eprintln!("Tentando enviar dados ao cliente, mas este no não e um servidor.")
+    ) -> Result<(), NetworkError> {
+        match &mut self.systems.network {
+            NetworkType::Server(server) => {
+                server.send(target, ServerEvent::Targeted(id, serialize_bytes(&event)))?;
+                Ok(())
+            }
+            _ => Err(NetworkError::NotAServer),
         }
     }
 
     /// emite um evento para o servidor
-    fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E) {
-        if let NetworkType::Client(client) = &mut self.systems.network {
-            let event = serialize_bytes(&event);
-            client.send(ServerEvent::Broadcast(event));
-        } else {
-            eprintln!("Tentando enviar dados ao servidor, mas este no não e um cliente.")
+    fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E) -> Result<(), NetworkError> {
+        match &mut self.systems.network {
+            NetworkType::Client(client) => {
+                client.send(ServerEvent::Broadcast(serialize_bytes(&event)))?;
+
+                Ok(())
+            }
+            _ => Err(NetworkError::NotAClient),
         }
     }
 
     /// emite um evento para o cliente
-    fn emit_to_client<E: Encode + Decode<()>>(&mut self, target: SocketAddr, event: E) {
-        if let NetworkType::Server(server) = &mut self.systems.network {
-            let event = serialize_bytes(&event);
-            server.send(target, ServerEvent::Broadcast(event));
-        } else {
-            eprintln!("Tentando enviar dados ao cliente, mas este no não e um servidor.")
+    fn emit_to_client<E: Encode + Decode<()>>(
+        &mut self,
+        target: SocketAddr,
+        event: E,
+    ) -> Result<(), NetworkError> {
+        match &mut self.systems.network {
+            NetworkType::Server(client) => {
+                client.send(target, ServerEvent::Broadcast(serialize_bytes(&event)))?;
+                Ok(())
+            }
+            _ => Err(NetworkError::NotAClient),
         }
     }
 }
