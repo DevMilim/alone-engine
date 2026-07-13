@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use alone_engine::{
-    GameObject, ObjectEnum, Scene,
+    GameObject, Scene,
     components::{Collider, PlaybackMode, Sound, TileCollision, Tilemap},
     core::{Base, Component, EngineApi, GameObject, GameObjectBase},
     event::{TriggerEvent, TriggerKind},
@@ -14,23 +14,15 @@ use crate::{platform::Platform, player::Player};
 mod platform;
 mod player;
 
-#[derive(ObjectEnum)]
-pub enum GameObjects {
-    Platform(Platform),
-    Player(Player),
-}
-
-impl GameObject for GameObjects {
-    type Message = ();
-}
-
 #[derive(GameObject)]
 #[game(connect(collision: TriggerEvent))]
 pub struct MainScene {
     #[base]
     base: Base,
     #[object]
-    objects: GameObjects,
+    player: Player,
+    #[object]
+    platform: Platform,
     #[component]
     tilemap: Option<Tilemap>,
     #[component]
@@ -53,7 +45,12 @@ impl MainScene {
             tilemap: None,
             music: None,
             coin_sound: None,
-            objects: GameObjects::Player(Player::new()),
+            player: Player::new(),
+            platform: Platform::new(
+                Vector2::new(10.0, 117.0),
+                Vector2::new(50.0, 117.0),
+                Duration::from_secs_f32(1.5),
+            ),
         }
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
