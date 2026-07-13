@@ -252,6 +252,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 if self.is_started() {
                     return;
                 }
+                ctx.register_alive(self.base().id);
                 self.start(ctx);
                 #(self.#component_fields.start(ctx, &mut self.#base_field);)*
                 #(self.#object_fields.dispatch_start(ctx, &self.#base_field);)*
@@ -297,7 +298,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
-                    self.mark_as_started();
                 }
                 self.update(ctx, delta);
                 #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
@@ -308,7 +308,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
-                    self.mark_as_started();
                 }
                 self.late_update(ctx, delta);
                 #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
@@ -319,7 +318,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
-                    self.mark_as_started();
                 }
                 self.fixed_update(ctx, delta);
                 #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*
@@ -334,6 +332,8 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
 
             fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+                ctx.unregister_alive(self.base().id);
+                ctx.abort_tasks_of(self.base().id);
                 self.destroy(ctx);
                 #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 #(self.#object_fields.dispatch_destroy(ctx);)*
@@ -352,43 +352,54 @@ fn type_is_base(ty: &Type) -> bool {
 
     false
 }
-#[proc_macro_derive(Scene)]
-pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+
+fn derive_object_dispatch_enum(input: &syn::DeriveInput) -> Result<proc_macro2::TokenStream, TokenStream> {
     let name = &input.ident;
 
-    let data = match input.data {
+    let data = match &input.data {
         syn::Data::Enum(d) => d,
         _ => {
-            return syn::Error::new_spanned(name, "Scene só pode ser utilizado em enums")
+            return Err(syn::Error::new_spanned(name, "Só pode ser utilizado em enums")
                 .into_compile_error()
-                .into();
+                .into());
         }
     };
 
-    let mut variant_idents: Vec<_> = data.variants.iter().map(|v| &v.ident).collect();
-
+    let mut variant_idents = Vec::new();
     let mut variant_types = Vec::new();
 
     for variant in &data.variants {
         variant_idents.push(&variant.ident);
-
         match &variant.fields {
             syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                 variant_types.push(&fields.unnamed.first().unwrap().ty);
             }
             _ => {
-                return syn::Error::new_spanned(
+                return Err(syn::Error::new_spanned(
                     variant,
-                    "Cada variante de Scene deve possuir exatamente um campo não nomeado. Ex: MainScene(MainScene)"
-                )
-                .into_compile_error()
-                .into();
+                    "Cada variante deve possuir exatamente um campo não nomeado. Ex: Potion(Potion)"
+                ).into_compile_error().into());
             }
         }
     }
+    let mut seen_types = std::collections::HashSet::new();
+    let mut from_impls = Vec::new();
 
-    quote! {
+    for (ident, ty) in variant_idents.iter().zip(variant_types.iter()) {
+        let ty_string = quote!{#ty}.to_string();
+        if seen_types.insert(ty_string) {
+            from_impls.push(quote! {
+                impl From<#ty> for #name {
+                    fn from(obj: #ty) -> Self {
+                        Self::#ident(obj)
+                    }
+                }
+            });
+        }
+    }
+
+    Ok(quote! {
         impl ::alone_engine::prelude::GameObjectDispatch for #name {
             fn is_pending_removal(&self) -> bool {
                 match self {
@@ -450,20 +461,53 @@ pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
                 }
             }
         }
+        impl ::alone_engine::prelude::GameObjectBase for #name {
+            fn base(&self) -> &::alone_engine::prelude::Base {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.base(),)*
+                }
+            }
+            fn base_mut(&mut self) -> &mut ::alone_engine::prelude::Base {
+                match self {
+                    #(Self::#variant_idents(inner) => inner.base_mut(),)*
+                }
+            }
+        }
 
+        #(#from_impls)*
+    })
+}
+
+#[proc_macro_derive(ObjectEnum)]
+pub fn object_enum_derive(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    match derive_object_dispatch_enum(&input) {
+        Ok(tokens) => tokens.into(),
+        Err(err) => err,
+    }
+}
+
+#[proc_macro_derive(Scene)]
+pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &input.ident;
+
+    let dispatch_impl = match derive_object_dispatch_enum(&input) {
+        Ok(tokens) => tokens,
+        Err(err) => return err,
+    };
+
+    let scene_impl = quote! {
         impl ::alone_engine::prelude::Scene for #name {
             fn get_dispatch(&mut self) -> &mut impl ::alone_engine::prelude::GameObjectDispatch {
                 self
             }
         }
+    };
 
-        #(
-            impl From<#variant_types> for #name {
-                fn from(scene: #variant_types) -> Self {
-                    Self::#variant_idents(scene)
-                }
-            }
-        )*
+    quote! {
+        #dispatch_impl
+        #scene_impl
     }
     .into()
 }

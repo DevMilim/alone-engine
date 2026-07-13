@@ -202,6 +202,10 @@ impl<S: Scene + 'static> ApplicationHandler for App<S> {
             }
         }
 
+        ctx.events
+            .mailbox
+            .retain(|id, _| ctx.events.live_ids.contains(id));
+
         while let Some(cmd) = ctx.events.aplication_commands.pop_front() {
             match cmd {
                 AppCommands::ChangeScene(scene) => {

@@ -5,6 +5,7 @@ use std::{any::Any, collections::VecDeque};
 
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
+use rustc_hash::FxHashSet;
 
 use crate::collision::ColliderKey;
 use crate::core::{GameObject, Id};
@@ -65,6 +66,7 @@ pub struct EventManager {
     pub server_mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
 
     pub aplication_commands: VecDeque<AppCommands>,
+    pub live_ids: FxHashSet<Id>,
 }
 
 impl Default for EventManager {
@@ -75,6 +77,7 @@ impl Default for EventManager {
             global_server_events: VecDeque::new(),
             server_mailbox: IndexMap::new(),
             aplication_commands: VecDeque::new(),
+            live_ids: FxHashSet::default(),
         }
     }
 }

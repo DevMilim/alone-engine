@@ -42,9 +42,12 @@ pub trait EngineApi:
     fn camera_mut(&mut self) -> &mut Vector2;
     fn window_size(&self) -> (u32, u32);
     fn async_ctx(&self) -> AsyncContext;
-    fn async_task<F>(&self, future: F)
+    fn async_task<F>(&mut self, owner_id: Id, future: F)
     where
         F: Future<Output = ()> + Send + 'static;
+    fn abort_tasks_of(&mut self, id: Id);
+    fn register_alive(&mut self, id: Id);
+    fn unregister_alive(&mut self, id: Id);
 }
 pub trait InputApi {
     fn is_key_pressed(&self, key: KeyCode) -> bool;

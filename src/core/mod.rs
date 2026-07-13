@@ -9,8 +9,14 @@ pub use base::*;
 pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
-use std::sync::mpsc::{Receiver, Sender, channel};
-use tokio::runtime::{Handle, Runtime};
+use std::{
+    collections::HashMap,
+    sync::mpsc::{Receiver, Sender, channel},
+};
+use tokio::{
+    runtime::{Handle, Runtime},
+    task::JoinHandle,
+};
 
 use crate::{
     audio::AudioSys,
@@ -37,6 +43,7 @@ pub struct CoreSystems {
 
     pub bg_event_sender: Sender<BackGroundEvent>,
     pub bg_event_receiver: Receiver<BackGroundEvent>,
+    pub task_handles: HashMap<Id, Vec<JoinHandle<()>>>,
 }
 
 impl Default for CoreSystems {
@@ -61,6 +68,7 @@ impl Default for CoreSystems {
             async_handle,
             bg_event_sender: bg_tx,
             bg_event_receiver: bg_rx,
+            task_handles: HashMap::new(),
         }
     }
 }

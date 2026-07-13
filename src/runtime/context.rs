@@ -49,11 +49,27 @@ impl<'a> EngineApi for EngineContext<'a> {
         }
     }
 
-    fn async_task<F>(&self, future: F)
+    fn async_task<F>(&mut self, owner_id: Id, future: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        self.systems.async_handle.spawn(future);
+        let handle = self.systems.async_handle.spawn(future);
+        let handles = self.systems.task_handles.entry(owner_id).or_default();
+        handles.retain(|h| !h.is_finished());
+        handles.push(handle);
+    }
+    fn abort_tasks_of(&mut self, id: Id) {
+        if let Some(handles) = self.systems.task_handles.remove(&id) {
+            for handle in handles {
+                handle.abort();
+            }
+        };
+    }
+    fn register_alive(&mut self, id: Id) {
+        self.events.live_ids.insert(id);
+    }
+    fn unregister_alive(&mut self, id: Id) {
+        self.events.live_ids.remove(&id);
     }
 }
 impl<'a> EngineContext<'a> {
