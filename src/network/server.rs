@@ -11,7 +11,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::event::ServerEvent;
 use crate::network::{NetworkError, NetworkEvent};
-use crate::serialize_bytes;
+use crate::{deserialize_bytes, serialize_bytes};
 
 pub struct NetworkServer {
     pub sender: Sender<(SocketAddr, ServerEvent)>,
@@ -77,14 +77,16 @@ impl NetworkServer {
                                 while let Some(msg) = ws_receiver.next().await {
                                     match msg {
                                         Ok(Message::Binary(data)) => {
-                                            let server_event =
-                                                ServerEvent::Broadcast(data.to_vec());
-                                            if tx_from_net_clone
-                                                .send((peer_addr, server_event))
-                                                .await
-                                                .is_err()
+                                            if let Some(deserialized_event) =
+                                                deserialize_bytes::<ServerEvent>(&data)
                                             {
-                                                break;
+                                                if tx_from_net_clone
+                                                    .send((peer_addr, deserialized_event))
+                                                    .await
+                                                    .is_err()
+                                                {
+                                                    break;
+                                                }
                                             }
                                         }
                                         Ok(Message::Close(_)) | Err(_) => {

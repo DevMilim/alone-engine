@@ -43,15 +43,15 @@ impl Player {
             },
         }
     }
-    pub fn create_iddle_animation(&self, texture: &mut SpriteSrc) -> AnimationData {
-        let mut iddle_frames = AnimationData::default();
+    pub fn create_idle_animation(&self, texture: &mut SpriteSrc) -> AnimationData {
+        let mut idle_frames = AnimationData::default();
         for sprite in 0..3 {
             texture.set_src(sprite, 0);
-            iddle_frames.insert_frame(texture.clone());
+            idle_frames.insert_frame(texture.clone());
         }
 
-        iddle_frames.set_fps(10.0);
-        iddle_frames
+        idle_frames.set_fps(10.0);
+        idle_frames
     }
 }
 
@@ -69,10 +69,10 @@ impl GameObject for Player {
             ctx.load_texture("assets/sprites/knight.png"),
             Some(Vector2::new(32.0, 32.0)),
         );
-        let iddle_frames = self.create_iddle_animation(&mut texture);
+        let iddle_frames = self.create_idle_animation(&mut texture);
 
-        animation.new_animation(iddle_frames, "iddle");
-        animation.play("iddle");
+        animation.new_animation(iddle_frames, "idle");
+        animation.play("idle");
         self.sprite_animation = Some(animation);
         let async_ctx = ctx.async_ctx();
 
