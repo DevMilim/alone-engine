@@ -193,7 +193,7 @@ impl CollisionWorld {
         velocity: Vector2,
     ) -> Option<Vector2> {
         let mut correction = Vector2::ZERO;
-        let mut neighbors_tested = HashSet::new(); // Ou evite o HashSet se possível
+        let mut neighbors_tested = HashSet::new();
 
         for cell in cell_of(&my_data.aabb, 64.0) {
             if let Some(bucket) = self.grid.get(&cell) {
