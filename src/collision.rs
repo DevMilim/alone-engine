@@ -1,4 +1,5 @@
 use indexmap::{IndexMap, IndexSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{HashMap, HashSet};
 
 use crate::{core::Id, math::Vector2};
@@ -91,7 +92,7 @@ pub fn cell_of(aabb: &AABB, cell_size: f32) -> impl Iterator<Item = Cell> {
 #[derive(Default)]
 pub struct CollisionWorld {
     pub colliders: IndexMap<ColliderKey, ColliderData>,
-    grid: HashMap<Cell, Vec<ColliderKey>>,
+    grid: FxHashMap<Cell, Vec<ColliderKey>>,
     last_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
     current_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
 }
@@ -103,7 +104,9 @@ impl CollisionWorld {
 
     pub fn step(&mut self) {
         self.current_overlaps.clear();
-        self.grid.clear();
+        for bucket in self.grid.values_mut() {
+            bucket.clear();
+        }
 
         for (&key, data) in &self.colliders {
             for cell in cell_of(&data.aabb, 64.0) {
@@ -111,7 +114,7 @@ impl CollisionWorld {
             }
         }
 
-        let mut tested = HashSet::new();
+        let mut tested = FxHashSet::default();
 
         for bucket in self.grid.values() {
             for i in 0..bucket.len() {
@@ -190,38 +193,53 @@ impl CollisionWorld {
         velocity: Vector2,
     ) -> Option<Vector2> {
         let mut correction = Vector2::ZERO;
+        let mut neighbors_tested = HashSet::new(); // Ou evite o HashSet se possível
 
-        for (key, other) in &self.colliders {
-            if key.id == my_id
-                || my_data.is_sensor
-                || other.is_sensor
-                || !my_data.can_collide(other)
-            {
-                continue;
-            }
-
-            if other.on_way_collision {
-                if velocity.y <= 0.0 {
-                    continue;
-                }
-                let old_bottom = my_data.aabb.y + my_data.aabb.height - velocity.y;
-                let new_bottom = my_data.aabb.y + my_data.aabb.height;
-
-                let platform_top = other.aabb.y;
-
-                if !self.should_collide_oneway(old_bottom, new_bottom, platform_top, velocity.y) {
-                    continue;
-                }
-            }
-
-            if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
-                let update_axis = |corr: &mut f32, over: f32| {
-                    if over.abs() > corr.abs() {
-                        *corr = over + (0.001 * over.signum());
+        for cell in cell_of(&my_data.aabb, 64.0) {
+            if let Some(bucket) = self.grid.get(&cell) {
+                for &other_key in bucket {
+                    if !neighbors_tested.insert(other_key) {
+                        continue;
                     }
-                };
-                update_axis(&mut correction.x, overlap.x);
-                update_axis(&mut correction.y, overlap.y);
+
+                    let other = self.colliders.get(&other_key).unwrap();
+                    //if key.id == my_id
+                    //    || my_data.is_sensor
+                    //    || other.is_sensor
+                    //    || !my_data.can_collide(other)
+                    //{
+                    //    continue;
+                    //}
+
+                    if other.on_way_collision {
+                        if velocity.y <= 0.0 {
+                            continue;
+                        }
+                        let old_bottom = my_data.aabb.y + my_data.aabb.height - velocity.y;
+                        let new_bottom = my_data.aabb.y + my_data.aabb.height;
+
+                        let platform_top = other.aabb.y;
+
+                        if !self.should_collide_oneway(
+                            old_bottom,
+                            new_bottom,
+                            platform_top,
+                            velocity.y,
+                        ) {
+                            continue;
+                        }
+                    }
+
+                    if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
+                        let update_axis = |corr: &mut f32, over: f32| {
+                            if over.abs() > corr.abs() {
+                                *corr = over + (0.001 * over.signum());
+                            }
+                        };
+                        update_axis(&mut correction.x, overlap.x);
+                        update_axis(&mut correction.y, overlap.y);
+                    }
+                }
             }
         }
         (correction != Vector2::ZERO).then_some(correction)
@@ -264,17 +282,12 @@ impl CollisionWorld {
         velocity: &mut Vector2,
         is_x_axis: bool,
     ) -> Vector2 {
-        let my_colliders: Vec<_> = self
-            .colliders
-            .iter()
-            .filter(|(k, _)| k.id == my_id)
-            .map(|(_, &d)| d)
-            .collect();
-
         let mut final_correction = Vector2::ZERO;
-
-        for my_data in my_colliders {
-            if let Some(c) = self.get_correction(my_id, &my_data, *velocity) {
+        for (key, my_data) in &self.colliders {
+            if key.id != my_id {
+                continue;
+            }
+            if let Some(c) = self.get_correction(my_id, my_data, *velocity) {
                 if is_x_axis && c.x.abs() > final_correction.x.abs() {
                     final_correction.x = c.x;
                 }
