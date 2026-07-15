@@ -1,6 +1,6 @@
 use crate::{
     audio::AudioAsset,
-    core::{AssetApi, AudioApi, Handler, InputApi, SceneApi},
+    core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
     network::NetworkError,
     runtime::AppCommands,
 };
@@ -30,11 +30,8 @@ pub struct EngineContext<'a> {
     pub is_fixed_update: bool,
 }
 
-impl<'a> EngineApi for EngineContext<'a> {
-    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
-        &mut self.events.mailbox
-    }
-
+impl<'a> EngineApi for EngineContext<'a> {}
+impl<'a> CoreApi for EngineContext<'a> {
     fn camera_mut(&mut self) -> &mut Vector2 {
         self.camera_position
     }
@@ -65,12 +62,6 @@ impl<'a> EngineApi for EngineContext<'a> {
             }
         };
     }
-    fn register_alive(&mut self, id: Id) {
-        self.events.live_ids.insert(id);
-    }
-    fn unregister_alive(&mut self, id: Id) {
-        self.events.live_ids.remove(&id);
-    }
 }
 impl<'a> EngineContext<'a> {
     pub fn set_fixed_update(&mut self, value: bool) {
@@ -79,14 +70,6 @@ impl<'a> EngineContext<'a> {
 }
 
 impl<'a> AudioApi for EngineContext<'a> {
-    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
-        if let Some(id) = self.systems.resources.sounds.get_id(path) {
-            return Handler::new(id);
-        }
-        let sound_asset = AudioAsset::load_audio(path);
-        self.systems.resources.sounds.insert(path, sound_asset)
-    }
-
     fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player {
         self.systems
             .audio
@@ -119,6 +102,13 @@ impl<'a> AssetApi for EngineContext<'a> {
             .resources
             .textures
             .insert(&path_key, texture_asset)
+    }
+    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
+        if let Some(id) = self.systems.resources.sounds.get_id(path) {
+            return Handler::new(id);
+        }
+        let sound_asset = AudioAsset::load_audio(path);
+        self.systems.resources.sounds.insert(path, sound_asset)
     }
 }
 impl<'a> InputApi for EngineContext<'a> {
@@ -208,8 +198,9 @@ impl<'a> EventApi for EngineContext<'a> {
         let event = GlobalEvent::Targeted(id, Box::new(event));
         self.events.insert_global_event(event);
     }
-    fn spawn<T: GameObject + 'static>(&mut self, obj: T) {
-        self.emit(SpawnEvent::new(obj));
+
+    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
+        &mut self.events.mailbox
     }
 
     fn mail_box_is_empty(&self) -> bool {
@@ -353,5 +344,17 @@ impl<'a> SceneApi for EngineContext<'a> {
         self.events
             .aplication_commands
             .push_back(AppCommands::ClearScenes);
+    }
+}
+
+impl<'a> WorldApi for EngineContext<'a> {
+    fn spawn<T: GameObject + 'static>(&mut self, obj: T) {
+        self.emit(SpawnEvent::new(obj));
+    }
+    fn register_alive(&mut self, id: Id) {
+        self.events.live_ids.insert(id);
+    }
+    fn unregister_alive(&mut self, id: Id) {
+        self.events.live_ids.remove(&id);
     }
 }

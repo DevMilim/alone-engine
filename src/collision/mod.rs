@@ -1,52 +1,11 @@
-use indexmap::{IndexMap, IndexSet};
-use std::collections::{HashMap, HashSet};
+mod aabb;
+
+pub use aabb::*;
+
+use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{core::Id, math::Vector2};
-
-#[derive(Clone, Copy, Debug)]
-pub struct AABB {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
-
-impl AABB {
-    pub fn intersects(&self, other: &AABB) -> bool {
-        self.x < other.x + other.width
-            && self.x + self.width > other.x
-            && self.y < other.y + other.height
-            && self.y + self.height > other.y
-    }
-
-    pub fn get_overlap(&self, other: &AABB) -> Option<Vector2> {
-        let left = other.x - (self.x + self.width);
-        let right = (other.x + other.width) - self.x;
-        let top = other.y - (self.y + self.height);
-        let bottom = (other.y + other.height) - self.y;
-
-        if left >= 0.0 || right <= 0.0 || top >= 0.0 || bottom <= 0.0 {
-            return None;
-        }
-
-        let overlap_x = if left.abs() < right.abs() {
-            left
-        } else {
-            right
-        };
-        let overlap_y = if top.abs() < bottom.abs() {
-            top
-        } else {
-            bottom
-        };
-
-        Some(if overlap_x.abs() < overlap_y.abs() {
-            Vector2::new(overlap_x, 0.0)
-        } else {
-            Vector2::new(0.0, overlap_y)
-        })
-    }
-}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CollisionFlag {
@@ -94,16 +53,16 @@ pub fn cell_of(aabb: &AABB, cell_size: f32) -> impl Iterator<Item = Cell> {
 pub struct CollisionWorld {
     pub colliders: IndexMap<ColliderKey, ColliderData>,
 
-    owners: HashMap<Id, Vec<ColliderKey>>,
+    owners: FxHashMap<Id, Vec<ColliderKey>>,
 
-    grid: HashMap<Cell, Vec<ColliderKey>>,
+    grid: FxHashMap<Cell, Vec<ColliderKey>>,
 
-    last_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
-    current_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
+    last_overlaps: FxHashSet<(ColliderKey, ColliderKey)>,
+    current_overlaps: FxHashSet<(ColliderKey, ColliderKey)>,
 
-    tested_pairs: HashSet<(ColliderKey, ColliderKey)>,
+    tested_pairs: FxHashSet<(ColliderKey, ColliderKey)>,
     query_result: Vec<ColliderKey>,
-    query_seen: HashSet<ColliderKey>,
+    query_seen: FxHashSet<ColliderKey>,
 }
 
 impl CollisionWorld {

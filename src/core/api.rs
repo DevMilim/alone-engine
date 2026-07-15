@@ -15,6 +15,27 @@ use crate::{
     runtime::{AsyncContext, Scene},
 };
 
+pub trait EngineApi:
+    CoreApi + WorldApi + InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi + SceneApi
+{
+}
+
+pub trait CoreApi {
+    fn camera_mut(&mut self) -> &mut Vector2;
+    fn window_size(&self) -> (u32, u32);
+    fn async_ctx(&self) -> AsyncContext;
+    fn async_task<F>(&mut self, owner_id: Id, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static;
+    fn abort_tasks_of(&mut self, id: Id);
+}
+
+pub trait WorldApi {
+    fn spawn<T: GameObject + 'static>(&mut self, obj: T);
+    fn register_alive(&mut self, id: Id);
+    fn unregister_alive(&mut self, id: Id);
+}
+
 pub trait ServerApi {
     fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E) -> Result<(), NetworkError>;
     fn emit_to_client<E: Encode + Decode<()>>(
@@ -33,21 +54,6 @@ pub trait ServerApi {
         target: SocketAddr,
         message: E,
     ) -> Result<(), NetworkError>;
-}
-
-pub trait EngineApi:
-    InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi + SceneApi
-{
-    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
-    fn camera_mut(&mut self) -> &mut Vector2;
-    fn window_size(&self) -> (u32, u32);
-    fn async_ctx(&self) -> AsyncContext;
-    fn async_task<F>(&mut self, owner_id: Id, future: F)
-    where
-        F: Future<Output = ()> + Send + 'static;
-    fn abort_tasks_of(&mut self, id: Id);
-    fn register_alive(&mut self, id: Id);
-    fn unregister_alive(&mut self, id: Id);
 }
 pub trait InputApi {
     fn is_key_pressed(&self, key: KeyCode) -> bool;
@@ -75,21 +81,12 @@ pub trait InputApi {
     fn get_axis(&self, negative_action: &str, positive_action: &str) -> f32;
 }
 
-pub trait AssetApi {
-    fn load_texture(&mut self, path: &str) -> Handler<ImageAsset>;
-    fn load_texture_and_resize(
-        &mut self,
-        path: &str,
-        width: u32,
-        height: u32,
-    ) -> Handler<ImageAsset>;
-}
 pub trait EventApi {
     fn send<T: 'static>(&mut self, id: Id, message: T);
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>);
     fn emit<T: 'static>(&mut self, event: T);
     fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
-    fn spawn<T: GameObject + 'static>(&mut self, obj: T);
+    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn mail_box_is_empty(&self) -> bool;
 }
 pub trait CollisionApi {
@@ -120,10 +117,18 @@ pub trait RenderApi {
     );
     fn camera_mut(&mut self) -> &mut Vector2;
 }
-
+pub trait AssetApi {
+    fn load_texture(&mut self, path: &str) -> Handler<ImageAsset>;
+    fn load_texture_and_resize(
+        &mut self,
+        path: &str,
+        width: u32,
+        height: u32,
+    ) -> Handler<ImageAsset>;
+    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset>;
+}
 pub trait AudioApi {
     fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player;
-    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset>;
 }
 
 pub trait SceneApi {
