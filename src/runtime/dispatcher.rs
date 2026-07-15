@@ -171,3 +171,25 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
         }
     }
 }
+pub struct EmptyGlobals;
+
+impl GameObjectDispatch for EmptyGlobals {
+    fn dispatch_start(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
+
+    fn dispatch_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
+
+    fn dispatch_late_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
+
+    fn dispatch_fixed_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
+
+    fn dispatch_server_event(&mut self, _ctx: &mut impl EngineApi, _server_event: &NetworkMessage) {
+    }
+
+    fn dispatch_event(&mut self, _ctx: &mut impl EngineApi, _event: &GlobalEvent) {}
+
+    fn dispatch_message(&mut self, _ctx: &mut impl EngineApi) {}
+
+    fn dispatch_draw(&mut self, _ctx: &mut impl RenderApi, _base: &Base, _blending: f32) {}
+
+    fn dispatch_destroy(&mut self, _ctx: &mut impl EngineApi) {}
+}

@@ -16,7 +16,7 @@ use crate::{
     math::Vector2,
     network::{NetworkClient, NetworkServer},
     render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
-    runtime::{EngineContext, GameObjectDispatch, Scene, WorldState},
+    runtime::{EmptyGlobals, EngineContext, GameObjectDispatch, Scene, WorldState},
 };
 
 #[derive(Debug)]
@@ -27,10 +27,10 @@ pub enum AppCommands {
     PopScene,
 }
 
-pub struct App<S: Scene + 'static> {
+pub struct App<S: Scene + 'static, P: GameObjectDispatch = EmptyGlobals> {
     pub systems: CoreSystems,
     pub events: EventManager,
-    pub world: WorldState<S>,
+    pub world: WorldState<S, P>,
     pub render: Option<Render<'static>>,
 
     pub window: Option<Arc<Window>>,
@@ -40,7 +40,7 @@ pub struct App<S: Scene + 'static> {
     pub fixed_frame_count: u64,
 }
 
-impl<S: Scene + 'static> App<S> {
+impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
     pub fn new(root_scene: S) -> Self {
         Self {
             systems: CoreSystems::default(),
@@ -62,6 +62,10 @@ impl<S: Scene + 'static> App<S> {
 
         event_loop.run_app(self).unwrap();
     }
+    pub fn with_globals(&mut self, global: P) -> &mut Self {
+        self.world.global = Some(global);
+        self
+    }
     pub fn start_server(&mut self, addr: &str) {
         self.systems.network =
             NetworkType::Server(NetworkServer::new(addr, &self.systems.async_handle).unwrap());
@@ -72,7 +76,7 @@ impl<S: Scene + 'static> App<S> {
     }
 }
 
-impl<S: Scene + 'static> ApplicationHandler for App<S> {
+impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attrs = Window::default_attributes()
             .with_title("winit + pixels")

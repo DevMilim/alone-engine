@@ -11,19 +11,21 @@ pub const MAX_ACCUM: f32 = 0.5;
 
 pub enum SceneError {}
 
-pub struct WorldState<S: Scene> {
+pub struct WorldState<S: Scene, P: GameObjectDispatch> {
     pub scenes: Vec<S>,
+    pub global: Option<P>,
     pub accumulator: f32,
     pub last_instant: Instant,
     pub is_running: bool,
 }
 
-impl<S: Scene> WorldState<S> {
+impl<S: Scene, P: GameObjectDispatch> WorldState<S, P> {
     pub fn new(root_scene: S) -> Self {
         Self {
             scenes: vec![root_scene],
             accumulator: 0.0,
             last_instant: Instant::now(),
+            global: None,
             is_running: true,
         }
     }
@@ -71,6 +73,9 @@ impl<S: Scene> WorldState<S> {
             queue: renderer,
             camera: ctx.camera_position,
         };
+        if let Some(global) = &mut self.global {
+            global.dispatch_draw(&mut render_ctx, base, blending);
+        }
         if let Some(obj) = self.scenes.last_mut() {
             obj.get_dispatch()
                 .dispatch_draw(&mut render_ctx, base, blending);
@@ -102,6 +107,9 @@ impl<S: Scene> WorldState<S> {
 
         let object = object.get_dispatch();
 
+        if let Some(global) = &mut self.global {
+            global.dispatch_update(ctx, base, delta_time);
+        }
         object.dispatch_update(ctx, base, delta_time);
 
         while self.accumulator >= FIXED_DT {
@@ -109,19 +117,24 @@ impl<S: Scene> WorldState<S> {
             *fixed_update_count += 1;
             ctx.systems.input.current_fixed_frame = *fixed_update_count;
 
-            ctx.systems.collision.rebuild_grid();
-
+            if let Some(global) = &mut self.global {
+                global.dispatch_fixed_update(ctx, base, FIXED_DT);
+            }
             object.dispatch_fixed_update(ctx, base, FIXED_DT);
 
             let global_events = ctx.systems.collision_step();
             for event in global_events {
                 ctx.events.global_events.push_back(event);
             }
+            ctx.systems.collision.rebuild_grid();
 
             self.accumulator -= FIXED_DT;
             ctx.set_fixed_update(false);
         }
 
+        if let Some(global) = &mut self.global {
+            global.dispatch_late_update(ctx, base, delta_time);
+        }
         object.dispatch_late_update(ctx, base, delta_time);
 
         let blending = self.accumulator / FIXED_DT;
