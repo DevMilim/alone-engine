@@ -1,5 +1,4 @@
 use indexmap::{IndexMap, IndexSet};
-use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{HashMap, HashSet};
 
 use crate::{core::Id, math::Vector2};
@@ -79,6 +78,8 @@ pub struct ColliderKey {
 
 type Cell = (i32, i32);
 
+const CELL_SIZE: f32 = 64.0;
+
 pub fn cell_of(aabb: &AABB, cell_size: f32) -> impl Iterator<Item = Cell> {
     let min_x = (aabb.x / cell_size).floor() as i32;
     let min_y = (aabb.y / cell_size).floor() as i32;
@@ -92,29 +93,53 @@ pub fn cell_of(aabb: &AABB, cell_size: f32) -> impl Iterator<Item = Cell> {
 #[derive(Default)]
 pub struct CollisionWorld {
     pub colliders: IndexMap<ColliderKey, ColliderData>,
-    grid: FxHashMap<Cell, Vec<ColliderKey>>,
+
+    owners: HashMap<Id, Vec<ColliderKey>>,
+
+    grid: HashMap<Cell, Vec<ColliderKey>>,
+
     last_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
     current_overlaps: IndexSet<(ColliderKey, ColliderKey)>,
+
+    tested_pairs: HashSet<(ColliderKey, ColliderKey)>,
+    query_result: Vec<ColliderKey>,
+    query_seen: HashSet<ColliderKey>,
 }
 
 impl CollisionWorld {
     pub fn new() -> Self {
         Self::default()
     }
-
-    pub fn step(&mut self) {
-        self.current_overlaps.clear();
+    pub fn rebuild_grid(&mut self) {
         for bucket in self.grid.values_mut() {
             bucket.clear();
         }
-
         for (&key, data) in &self.colliders {
-            for cell in cell_of(&data.aabb, 64.0) {
+            for cell in cell_of(&data.aabb, CELL_SIZE) {
                 self.grid.entry(cell).or_default().push(key);
             }
         }
+    }
 
-        let mut tested = FxHashSet::default();
+    fn query_nearby(&mut self, aabb: &AABB) {
+        self.query_result.clear();
+        self.query_seen.clear();
+        for cell in cell_of(aabb, CELL_SIZE) {
+            if let Some(bucket) = self.grid.get(&cell) {
+                for &key in bucket {
+                    if self.query_seen.insert(key) {
+                        self.query_result.push(key);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn step(&mut self) {
+        self.current_overlaps.clear();
+        self.rebuild_grid();
+
+        self.tested_pairs.clear();
 
         for bucket in self.grid.values() {
             for i in 0..bucket.len() {
@@ -123,7 +148,7 @@ impl CollisionWorld {
 
                     let pair = if a < b { (a, b) } else { (b, a) };
 
-                    if !tested.insert(pair) {
+                    if !self.tested_pairs.insert(pair) {
                         continue;
                     }
 
@@ -179,69 +204,71 @@ impl CollisionWorld {
     }
 
     pub fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {
-        self.colliders.insert(key, data);
+        if self.colliders.insert(key, data).is_none() {
+            self.owners.entry(key.id).or_default().push(key);
+        }
     }
 
     pub fn remove_collider(&mut self, key: ColliderKey) {
         self.colliders.swap_remove(&key);
+        if let Some(list) = self.owners.get_mut(&key.id) {
+            list.retain(|k| *k != key);
+            if list.is_empty() {
+                self.owners.remove(&key.id);
+            }
+        }
     }
 
     pub fn get_correction(
-        &self,
+        &mut self,
         my_id: Id,
         my_data: &ColliderData,
         velocity: Vector2,
     ) -> Option<Vector2> {
         let mut correction = Vector2::ZERO;
-        let mut neighbors_tested = HashSet::new();
 
-        for cell in cell_of(&my_data.aabb, 64.0) {
-            if let Some(bucket) = self.grid.get(&cell) {
-                for &other_key in bucket {
-                    if !neighbors_tested.insert(other_key) {
-                        continue;
-                    }
+        self.query_nearby(&my_data.aabb);
+        let candidates = std::mem::take(&mut self.query_result);
 
-                    let other = self.colliders.get(&other_key).unwrap();
-                    //if key.id == my_id
-                    //    || my_data.is_sensor
-                    //    || other.is_sensor
-                    //    || !my_data.can_collide(other)
-                    //{
-                    //    continue;
-                    //}
+        for key in &candidates {
+            if key.id == my_id {
+                continue;
+            }
+            let Some(other) = self.colliders.get(key) else {
+                continue;
+            };
 
-                    if other.on_way_collision {
-                        if velocity.y <= 0.0 {
-                            continue;
-                        }
-                        let old_bottom = my_data.aabb.y + my_data.aabb.height - velocity.y;
-                        let new_bottom = my_data.aabb.y + my_data.aabb.height;
+            if my_data.is_sensor || other.is_sensor || !my_data.can_collide(other) {
+                continue;
+            }
 
-                        let platform_top = other.aabb.y;
+            if other.on_way_collision {
+                if velocity.y <= 0.0 {
+                    continue;
+                }
+                let old_bottom = my_data.aabb.y + my_data.aabb.height - velocity.y;
+                let new_bottom = my_data.aabb.y + my_data.aabb.height;
 
-                        if !self.should_collide_oneway(
-                            old_bottom,
-                            new_bottom,
-                            platform_top,
-                            velocity.y,
-                        ) {
-                            continue;
-                        }
-                    }
+                let platform_top = other.aabb.y;
 
-                    if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
-                        let update_axis = |corr: &mut f32, over: f32| {
-                            if over.abs() > corr.abs() {
-                                *corr = over + (0.001 * over.signum());
-                            }
-                        };
-                        update_axis(&mut correction.x, overlap.x);
-                        update_axis(&mut correction.y, overlap.y);
-                    }
+                if !self.should_collide_oneway(old_bottom, new_bottom, platform_top, velocity.y) {
+                    continue;
                 }
             }
+
+            if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
+                let update_axis = |corr: &mut f32, over: f32| {
+                    if over.abs() > corr.abs() {
+                        *corr = over + (0.001 * over.signum());
+                    }
+                };
+                update_axis(&mut correction.x, overlap.x);
+                update_axis(&mut correction.y, overlap.y);
+            }
         }
+
+        self.query_result = candidates;
+
         (correction != Vector2::ZERO).then_some(correction)
     }
 
@@ -267,10 +294,12 @@ impl CollisionWorld {
     }
 
     pub fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
-        for (key, data) in &mut self.colliders {
-            if key.id == my_id {
-                data.aabb.x += offset.x;
-                data.aabb.y += offset.y;
+        if let Some(keys) = self.owners.get(&my_id) {
+            for &key in keys {
+                if let Some(data) = self.colliders.get_mut(&key) {
+                    data.aabb.x += offset.x;
+                    data.aabb.y += offset.y;
+                }
             }
         }
     }
@@ -282,12 +311,19 @@ impl CollisionWorld {
         velocity: &mut Vector2,
         is_x_axis: bool,
     ) -> Vector2 {
+        let my_keys: Vec<ColliderKey> = self
+            .owners
+            .get(&my_id)
+            .map(|keys| keys.clone())
+            .unwrap_or_default();
+
         let mut final_correction = Vector2::ZERO;
-        for (key, my_data) in &self.colliders {
-            if key.id != my_id {
+
+        for key in &my_keys {
+            let Some(&my_data) = self.colliders.get(key) else {
                 continue;
-            }
-            if let Some(c) = self.get_correction(my_id, my_data, *velocity) {
+            };
+            if let Some(c) = self.get_correction(my_id, &my_data, *velocity) {
                 if is_x_axis && c.x.abs() > final_correction.x.abs() {
                     final_correction.x = c.x;
                 }
@@ -314,22 +350,43 @@ impl CollisionWorld {
     }
 
     pub fn snap_to_floor(&mut self, my_id: Id, snap_length: f32) -> Option<f32> {
-        let my_colliders: Vec<_> = self
-            .colliders
-            .iter()
-            .filter(|(k, _)| k.id == my_id)
-            .map(|(_, &d)| d)
-            .collect();
+        let my_keys: Vec<ColliderKey> = self
+            .owners
+            .get(&my_id)
+            .map(|keys| keys.clone())
+            .unwrap_or_default();
 
         let mut best_snap = None;
 
-        for my_data in my_colliders.iter().filter(|d| !d.is_sensor) {
+        for key in &my_keys {
+            let Some(my_data) = self.colliders.get(key).copied() else {
+                continue;
+            };
+            if my_data.is_sensor {
+                continue;
+            }
+
             let my_left = my_data.aabb.x;
             let my_right = my_data.aabb.x + my_data.aabb.width;
             let my_bottom = my_data.aabb.y + my_data.aabb.height;
 
-            for (key, other) in &self.colliders {
-                if key.id == my_id || other.is_sensor || !my_data.can_collide(other) {
+            let search_aabb = AABB {
+                x: my_data.aabb.x,
+                y: my_data.aabb.y,
+                width: my_data.aabb.width,
+                height: my_data.aabb.height + snap_length,
+            };
+            self.query_nearby(&search_aabb);
+            let candidates = std::mem::take(&mut self.query_result);
+
+            for other_key in &candidates {
+                if other_key.id == my_id {
+                    continue;
+                }
+                let Some(other) = self.colliders.get(other_key) else {
+                    continue;
+                };
+                if other.is_sensor || !my_data.can_collide(other) {
                     continue;
                 }
 
@@ -344,6 +401,8 @@ impl CollisionWorld {
                     }
                 }
             }
+
+            self.query_result = candidates;
         }
         best_snap
     }

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::{platform::Platform, player::Player};
 use alone_engine::{
     GameObject, Scene,
     components::{Collider, PlaybackMode, Sound, TileCollision, Tilemap},
@@ -8,8 +9,6 @@ use alone_engine::{
     math::Vector2,
     runtime::App,
 };
-
-use crate::{platform::Platform, player::Player};
 
 mod platform;
 mod player;
