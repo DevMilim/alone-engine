@@ -47,11 +47,6 @@ struct GameReceiver {
     subscribe: Vec<Subscription>,
     #[darling(default, with = "parse_subscriptions")]
     connect: Vec<Subscription>,
-
-    #[darling(default, with = "parse_subscriptions")]
-    server_subscribe: Vec<Subscription>,
-    #[darling(default, with = "parse_subscriptions")]
-    server_connect: Vec<Subscription>,
 }
 
 #[derive(Debug)]
@@ -124,46 +119,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         });
         quote! {
             if let ::alone_engine::prelude::GlobalEvent::Targeted(id, any_event) = event {
-                if &self.base().id == id {
-                    #(#arms)*
-                    return;
-                }
-            }
-        }
-    });
-
-    let server_subscribe_block = (!receiver.server_subscribe.is_empty()).then(|| {
-        let arms = receiver.server_subscribe.iter().map(|sub| {
-            let event_ty = &sub.event_type;
-            let handler_ident = &sub.handler;
-            quote! {
-                if let Some(payload) = server_event.event.decode::<#event_ty>() {
-                    self.#handler_ident(ctx, payload, server_event.socket);
-                } else {
-                    #[cfg(debug_assertions)]
-                    println!("[RASTREIO 3] Macro tentou ler o Broadcast, mas o bincode rejeitou o tipo!");
-                }
-            }
-        });
-        quote! {
-            if let ::alone_engine::prelude::ServerEvent::Broadcast(_) = server_event.event {
-                #(#arms)*
-            }
-        }
-    });
-
-    let server_connect_block = (!receiver.server_connect.is_empty()).then(|| {
-        let arms = receiver.server_connect.iter().map(|sub| {
-            let event_ty = &sub.event_type;
-            let handler_ident = &sub.handler;
-            quote! {
-                if let Some(payload) = server_event.event.decode::<#event_ty>() {
-                    self.#handler_ident(ctx, payload, server_event.socket);
-                }
-            }
-        });
-        quote! {
-            if let ::alone_engine::prelude::ServerEvent::Targeted(id, _) = &server_event.event {
                 if &self.base().id == id {
                     #(#arms)*
                     return;
@@ -287,12 +242,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #connect_block
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
-            fn dispatch_server_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, server_event: &::alone_engine::prelude::NetworkMessage) {
-                
-                #server_subscribe_block
-                #server_connect_block
-                #(self.#object_fields.dispatch_server_event(ctx, server_event);)*
-            }
 
             fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
                 #apply_transform
@@ -353,16 +302,19 @@ fn type_is_base(ty: &Type) -> bool {
     false
 }
 
-
-fn derive_object_dispatch_enum(input: &syn::DeriveInput) -> Result<proc_macro2::TokenStream, TokenStream> {
+fn derive_object_dispatch_enum(
+    input: &syn::DeriveInput,
+) -> Result<proc_macro2::TokenStream, TokenStream> {
     let name = &input.ident;
 
     let data = match &input.data {
         syn::Data::Enum(d) => d,
         _ => {
-            return Err(syn::Error::new_spanned(name, "Só pode ser utilizado em enums")
-                .into_compile_error()
-                .into());
+            return Err(
+                syn::Error::new_spanned(name, "Só pode ser utilizado em enums")
+                    .into_compile_error()
+                    .into(),
+            );
         }
     };
 
@@ -387,7 +339,7 @@ fn derive_object_dispatch_enum(input: &syn::DeriveInput) -> Result<proc_macro2::
     let mut from_impls = Vec::new();
 
     for (ident, ty) in variant_idents.iter().zip(variant_types.iter()) {
-        let ty_string = quote!{#ty}.to_string();
+        let ty_string = quote! {#ty}.to_string();
         if seen_types.insert(ty_string) {
             from_impls.push(quote! {
                 impl From<#ty> for #name {
@@ -422,12 +374,6 @@ fn derive_object_dispatch_enum(input: &syn::DeriveInput) -> Result<proc_macro2::
             fn dispatch_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, event: &::alone_engine::prelude::GlobalEvent) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_event(ctx, event),)*
-                }
-            }
-
-            fn dispatch_server_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, server_event: &::alone_engine::prelude::NetworkMessage) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_server_event(ctx, server_event),)*
                 }
             }
 

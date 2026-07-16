@@ -1,4 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
+use macros::GameObject;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::{io, sync::Arc};
@@ -9,11 +10,14 @@ use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::event::ServerEvent;
-use crate::network::{NetworkError, NetworkEvent};
+use crate::core::{Base, GameObject, GameObjectBase};
+use crate::objects::network::{NetworkError, NetworkEvent, ServerEvent};
 use crate::{deserialize_bytes, serialize_bytes};
 
+#[derive(GameObject)]
 pub struct NetworkServer {
+    #[base]
+    base: Base,
     pub sender: Sender<(SocketAddr, ServerEvent)>,
     pub receiver: Receiver<(SocketAddr, ServerEvent)>,
 }
@@ -115,6 +119,7 @@ impl NetworkServer {
         });
 
         Ok(Self {
+            base: Base::default(),
             sender: tx_to_net,
             receiver: rx_from_net,
         })
@@ -133,4 +138,8 @@ impl NetworkServer {
             tokio::sync::mpsc::error::TrySendError::Closed(_) => NetworkError::Disconnected,
         })
     }
+}
+
+impl GameObject for NetworkServer {
+    type Message = ();
 }

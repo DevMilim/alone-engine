@@ -3,6 +3,7 @@ use std::{any::Any, net::SocketAddr};
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 use rodio::Player;
+use tokio::runtime::Handle;
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
@@ -10,13 +11,13 @@ use crate::{
     collision::{ColliderData, ColliderKey, CollisionFlag},
     core::{GameObject, Handler, Id},
     math::{Color, Rect, Vector2},
-    network::NetworkError,
+    objects::network::NetworkError,
     render::{Anchor, DrawCommand, ImageAsset},
     runtime::{AsyncContext, Scene},
 };
 
 pub trait EngineApi:
-    CoreApi + WorldApi + InputApi + AssetApi + EventApi + AudioApi + CollisionApi + ServerApi + SceneApi
+    CoreApi + WorldApi + InputApi + AssetApi + EventApi + AudioApi + CollisionApi + SceneApi
 {
 }
 
@@ -28,6 +29,9 @@ pub trait CoreApi {
     where
         F: Future<Output = ()> + Send + 'static;
     fn abort_tasks_of(&mut self, id: Id);
+    fn register_service<T: 'static>(&mut self, id: Id);
+    fn service_id<T: 'static>(&self) -> Option<Id>;
+    fn async_handle(&mut self) -> &mut Handle;
 }
 
 pub trait WorldApi {
@@ -88,6 +92,7 @@ pub trait EventApi {
     fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
     fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
     fn mail_box_is_empty(&self) -> bool;
+    fn send_service<T: 'static, E: 'static>(&mut self, event: E);
 }
 pub trait CollisionApi {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);

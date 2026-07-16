@@ -9,14 +9,8 @@ use rustc_hash::FxHashSet;
 
 use crate::collision::ColliderKey;
 use crate::core::{GameObject, Id};
+use crate::objects::network::ServerEvent;
 use crate::runtime::AppCommands;
-
-#[derive(Debug, Encode, Decode, Clone)]
-pub enum ServerEvent {
-    Broadcast(Vec<u8>),
-    Targeted(Id, Vec<u8>),
-    Send(Id, Vec<u8>),
-}
 
 pub struct NetworkMessage {
     pub event: ServerEvent,
@@ -61,9 +55,7 @@ pub enum BackGroundEvent {
 pub struct EventManager {
     pub global_events: VecDeque<GlobalEvent>,
     pub mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
-
-    pub global_server_events: VecDeque<ServerEvent>,
-    pub server_mailbox: IndexMap<Id, Vec<Box<dyn Any>>>,
+    pub bytes_mailbox: IndexMap<Id, Vec<Vec<u8>>>,
 
     pub aplication_commands: VecDeque<AppCommands>,
     pub live_ids: FxHashSet<Id>,
@@ -74,10 +66,9 @@ impl Default for EventManager {
         Self {
             global_events: VecDeque::new(),
             mailbox: IndexMap::new(),
-            global_server_events: VecDeque::new(),
-            server_mailbox: IndexMap::new(),
             aplication_commands: VecDeque::new(),
             live_ids: FxHashSet::default(),
+            bytes_mailbox: IndexMap::new(),
         }
     }
 }
@@ -162,7 +153,7 @@ pub enum TriggerKind {
 /// pub struct MainScene {
 ///     #[base]
 ///     base: Base,
-///     #[component]
+///     #[object]
 ///     bullets: Vec<Bullet>,
 /// }
 /// impl MainScene {

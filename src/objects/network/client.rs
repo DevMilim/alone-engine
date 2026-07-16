@@ -1,3 +1,15 @@
+use bincode::{Decode, Encode};
+use macros::GameObject;
+
+use crate::core::{Base, GameObject, GameObjectBase, Id};
+
+#[derive(Debug, Encode, Decode, Clone)]
+pub enum ServerEvent {
+    Broadcast(Vec<u8>),
+    Targeted(Id, Vec<u8>),
+    Send(Id, Vec<u8>),
+}
+
 use futures_util::{SinkExt, StreamExt};
 use std::io;
 use tokio::{
@@ -8,12 +20,14 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::{
     deserialize_bytes,
-    event::ServerEvent,
-    network::{NetworkError, NetworkEvent},
+    objects::network::{NetworkError, NetworkEvent},
     serialize_bytes,
 };
 
+#[derive(GameObject)]
 pub struct NetworkClient {
+    #[base]
+    base: Base,
     pub sender: Sender<ServerEvent>,
     pub receiver: Receiver<ServerEvent>,
 }
@@ -88,6 +102,7 @@ impl NetworkClient {
             }
         });
         Ok(Self {
+            base: Base::default(),
             sender: tx_to_net,
             receiver: rx_from_net,
         })
@@ -105,4 +120,8 @@ impl NetworkClient {
             tokio::sync::mpsc::error::TrySendError::Closed(_) => NetworkError::Disconnected,
         })
     }
+}
+
+impl GameObject for NetworkClient {
+    type Message = ();
 }

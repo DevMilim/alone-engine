@@ -1,6 +1,6 @@
 use crate::{
     core::{Base, EngineApi, GameObject, RenderApi},
-    event::{GlobalEvent, NetworkMessage},
+    event::GlobalEvent,
 };
 
 pub trait GameObjectDispatch {
@@ -11,7 +11,6 @@ pub trait GameObjectDispatch {
     fn dispatch_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_late_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
-    fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &NetworkMessage);
     fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent);
     fn dispatch_message(&mut self, ctx: &mut impl EngineApi);
     fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32);
@@ -86,12 +85,6 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Vec<T> {
             obj.dispatch_message(ctx);
         }
     }
-
-    fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &NetworkMessage) {
-        for obj in self.iter_mut() {
-            obj.dispatch_server_event(ctx, server_event);
-        }
-    }
 }
 
 impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
@@ -164,12 +157,6 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Option<T> {
             obj.dispatch_message(ctx);
         }
     }
-
-    fn dispatch_server_event(&mut self, ctx: &mut impl EngineApi, server_event: &NetworkMessage) {
-        if let Some(obj) = self.as_mut() {
-            obj.dispatch_server_event(ctx, server_event);
-        }
-    }
 }
 pub struct EmptyGlobals;
 
@@ -181,9 +168,6 @@ impl GameObjectDispatch for EmptyGlobals {
     fn dispatch_late_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
 
     fn dispatch_fixed_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
-
-    fn dispatch_server_event(&mut self, _ctx: &mut impl EngineApi, _server_event: &NetworkMessage) {
-    }
 
     fn dispatch_event(&mut self, _ctx: &mut impl EngineApi, _event: &GlobalEvent) {}
 

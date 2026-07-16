@@ -7,6 +7,7 @@ use alone_engine::{
     core::{Base, Component, EngineApi, GameObject, GameObjectBase},
     event::{TriggerEvent, TriggerKind},
     math::Vector2,
+    objects::network::NetworkClient,
     runtime::App,
 };
 
@@ -53,7 +54,6 @@ impl MainScene {
         }
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
-        println!("{:?}", event);
         match event.kind {
             TriggerKind::Enter => self.coin_sound.as_mut().unwrap().play(ctx),
             TriggerKind::Exit => {}
@@ -92,5 +92,30 @@ pub enum GameScenes {
 }
 
 fn main() {
-    App::<GameScenes>::new(MainScene::new().into()).run();
+    App::<GameScenes, Globals>::new(MainScene::new().into())
+        .with_globals(Globals::new())
+        .run();
+}
+
+#[derive(GameObject)]
+pub struct Globals {
+    #[base]
+    base: Base,
+    #[object]
+    client: Option<NetworkClient>,
+}
+impl Globals {
+    pub fn new() -> Self {
+        Self {
+            base: Base::default(),
+            client: None,
+        }
+    }
+}
+
+impl GameObject for Globals {
+    type Message = ();
+    fn start(&mut self, ctx: &mut impl EngineApi) {
+        self.client = Some(NetworkClient::new("localhost:3000", ctx.async_handle()).unwrap());
+    }
 }

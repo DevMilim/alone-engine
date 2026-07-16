@@ -10,11 +10,10 @@ use winit::{
 };
 
 use crate::{
-    core::{Base, CoreSystems, NetworkType},
-    event::{BackGroundEvent, EventManager, GlobalEvent, NetworkMessage},
+    core::{Base, CoreSystems},
+    event::{BackGroundEvent, EventManager, GlobalEvent},
     input::InputType,
     math::Vector2,
-    network::{NetworkClient, NetworkServer},
     render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
     runtime::{EmptyGlobals, EngineContext, GameObjectDispatch, Scene, WorldState},
 };
@@ -65,14 +64,6 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
     pub fn with_globals(&mut self, global: P) -> &mut Self {
         self.world.global = Some(global);
         self
-    }
-    pub fn start_server(&mut self, addr: &str) {
-        self.systems.network =
-            NetworkType::Server(NetworkServer::new(addr, &self.systems.async_handle).unwrap());
-    }
-    pub fn start_client(&mut self, addr: &str) {
-        self.systems.network =
-            NetworkType::Client(NetworkClient::new(addr, &self.systems.async_handle).unwrap());
     }
 }
 
@@ -151,19 +142,6 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             is_fixed_update: false,
         };
 
-        if let NetworkType::Client(client) = &mut ctx.systems.network {
-            for event in client.drain() {
-                self.world
-                    .last_scene()
-                    .dispatch_server_event(&mut ctx, &NetworkMessage::new(event, None));
-            }
-        } else if let NetworkType::Server(client) = &mut ctx.systems.network {
-            for (socket, event) in client.drain() {
-                self.world
-                    .last_scene()
-                    .dispatch_server_event(&mut ctx, &NetworkMessage::new(event, Some(socket)));
-            }
-        }
         let (is_running, blending) =
             self.world
                 .update(&mut ctx, &self.base, &mut self.fixed_frame_count);
@@ -191,11 +169,16 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             let mut something_processed = false;
             while let Some(event) = ctx.events.global_events.pop_front() {
                 something_processed = true;
+                if let Some(global) = &mut self.world.global {
+                    global.dispatch_event(&mut ctx, &event);
+                }
                 self.world.last_scene().dispatch_event(&mut ctx, &event);
             }
             if !ctx.events.mailbox.is_empty() {
                 something_processed = true;
-
+                if let Some(global) = &mut self.world.global {
+                    global.dispatch_message(&mut ctx);
+                }
                 self.world.last_scene().dispatch_message(&mut ctx);
             }
             if !something_processed {

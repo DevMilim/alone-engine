@@ -1,25 +1,23 @@
 use crate::{
     audio::AudioAsset,
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
-    network::NetworkError,
     runtime::AppCommands,
 };
-use std::{any::Any, net::SocketAddr, sync::mpsc::Sender};
+use std::{
+    any::{Any, TypeId},
+    sync::mpsc::Sender,
+};
 
-use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 use rodio::Player;
 use winit::keyboard::KeyCode;
 
 use crate::{
     collision::{ColliderData, ColliderKey, CollisionFlag},
-    core::{
-        CollisionApi, CoreSystems, EngineApi, EventApi, GameObject, Id, NetworkType, ServerApi,
-    },
-    event::{BackGroundEvent, EventManager, GlobalEvent, ServerEvent, SpawnEvent},
+    core::{CollisionApi, CoreSystems, EngineApi, EventApi, GameObject, Id},
+    event::{BackGroundEvent, EventManager, GlobalEvent, SpawnEvent},
     math::Vector2,
     render::ImageAsset,
-    serialize_bytes,
 };
 
 pub struct EngineContext<'a> {
@@ -61,6 +59,22 @@ impl<'a> CoreApi for EngineContext<'a> {
                 handle.abort();
             }
         };
+    }
+
+    fn register_service<T: 'static>(&mut self, id: Id) {
+        let type_id = TypeId::of::<T>();
+        self.systems.service_register.insert(type_id, id);
+    }
+
+    fn service_id<T: 'static>(&self) -> Option<Id> {
+        self.systems
+            .service_register
+            .get(&TypeId::of::<T>())
+            .copied()
+    }
+
+    fn async_handle(&mut self) -> &mut tokio::runtime::Handle {
+        &mut self.systems.async_handle
     }
 }
 impl<'a> EngineContext<'a> {
@@ -210,6 +224,12 @@ impl<'a> EventApi for EngineContext<'a> {
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
         self.events.insert_mailbox_boxed_any(id, message);
     }
+
+    fn send_service<T: 'static, E: 'static>(&mut self, event: E) {
+        if let Some(id) = self.service_id::<T>() {
+            self.send(id, event);
+        }
+    }
 }
 impl<'a> CollisionApi for EngineContext<'a> {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {
@@ -261,6 +281,7 @@ impl AsyncContext {
             .send(BackGroundEvent::Send(id, Box::new(message)));
     }
 }
+/*
 impl<'a> ServerApi for EngineContext<'a> {
     /// envia um evento para uma entidade especifica do servidor
     fn send_to_server<E: Encode + Decode<()>>(
@@ -320,7 +341,7 @@ impl<'a> ServerApi for EngineContext<'a> {
         }
     }
 }
-
+*/
 impl<'a> SceneApi for EngineContext<'a> {
     fn push_scene<T: crate::prelude::Scene + 'static>(&mut self, scene: T) {
         self.events

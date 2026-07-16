@@ -9,7 +9,9 @@ pub use base::*;
 pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
+use rustc_hash::FxHashMap;
 use std::{
+    any::TypeId,
     collections::HashMap,
     sync::mpsc::{Receiver, Sender, channel},
 };
@@ -23,15 +25,8 @@ use crate::{
     collision::{ColliderKey, CollisionWorld},
     event::{BackGroundEvent, GlobalEvent, TriggerEvent, TriggerKind},
     input::InputState,
-    network::{NetworkClient, NetworkServer},
     resources::Resources,
 };
-
-pub enum NetworkType {
-    None,
-    Server(NetworkServer),
-    Client(NetworkClient),
-}
 
 pub struct CoreSystems {
     pub audio: AudioSys,
@@ -39,11 +34,11 @@ pub struct CoreSystems {
     pub collision: CollisionWorld,
     pub input: InputState,
     pub async_handle: Handle,
-    pub network: NetworkType,
 
     pub bg_event_sender: Sender<BackGroundEvent>,
     pub bg_event_receiver: Receiver<BackGroundEvent>,
     pub task_handles: HashMap<Id, Vec<JoinHandle<()>>>,
+    pub service_register: FxHashMap<TypeId, Id>,
 }
 
 impl Default for CoreSystems {
@@ -64,11 +59,11 @@ impl Default for CoreSystems {
             resources: Resources::default(),
             collision: CollisionWorld::default(),
             input: InputState::default(),
-            network: NetworkType::None,
             async_handle,
             bg_event_sender: bg_tx,
             bg_event_receiver: bg_rx,
             task_handles: HashMap::new(),
+            service_register: FxHashMap::default(),
         }
     }
 }
