@@ -560,6 +560,8 @@ impl CollisionWorld {
         platform_top: i32,
         velocity_y: i32,
     ) -> bool {
-        velocity_y >= 0 && my_old_bottom <= platform_top && my_new_bottom >= platform_top
+        let margin = 4;
+
+        velocity_y >= 0 && my_old_bottom <= platform_top + margin && my_new_bottom >= platform_top
     }
 }

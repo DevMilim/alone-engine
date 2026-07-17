@@ -88,16 +88,17 @@ impl GameObject for Player {
     }
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         let gravity = 9.7;
-        let speed = 90.0;
+        let speed = 200.0;
         let jump_speed = -200.0;
 
-        if !self.body.is_on_floor() {
-            self.body.velocity.y += gravity;
-        } else {
-            self.body.velocity.y = 0.0
-        }
+        self.body.velocity.y += gravity;
+
         if ctx.is_key_just_pressed(KeyCode::Space) && self.body.is_on_floor() {
             self.body.velocity.y = jump_speed;
+        }
+        if ctx.is_key_just_pressed(KeyCode::KeyC) && self.body.is_on_floor() {
+            self.base.transform.position.y += 5.0;
+            ctx.translate_my_colliders(self.base.id, Vector2i::new(0, 5));
         }
         let direction = ctx.get_key_axis(KeyCode::KeyA, KeyCode::KeyD);
         if direction < 0.0 {
@@ -105,7 +106,8 @@ impl GameObject for Player {
         } else if direction > 0.0 {
             self.sprite_animation.as_mut().unwrap().flip_h = false
         }
-        self.body.velocity.x = speed * direction * delta;
+        self.body.velocity.x = speed * direction;
+        self.body.move_and_slide(ctx, &mut self.base, delta);
     }
     fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
         println!("Mensagem recebida")

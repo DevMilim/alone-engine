@@ -116,6 +116,13 @@ pub trait CollisionApi {
     fn snap_to_floor(&mut self, my_id: Id, snap_length: i32) -> Option<i32>;
     fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2i);
     fn check_collisions(&mut self, my_id: Id) -> bool;
+    fn resolve_axis(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2i,
+        velocity: &mut Vector2i,
+        is_x_axis: bool,
+    ) -> Vector2i;
 }
 
 pub trait RenderApi {

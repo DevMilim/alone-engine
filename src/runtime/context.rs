@@ -297,6 +297,18 @@ impl<'a> CollisionApi for EngineContext<'a> {
     fn check_collisions(&mut self, my_id: Id) -> bool {
         self.systems.collision.check_collisions(my_id)
     }
+
+    fn resolve_axis(
+        &mut self,
+        my_id: Id,
+        position: &mut Vector2i,
+        velocity: &mut Vector2i,
+        is_x_axis: bool,
+    ) -> Vector2i {
+        self.systems
+            .collision
+            .resolve_axis(my_id, position, velocity, is_x_axis)
+    }
 }
 
 pub struct AsyncContext {

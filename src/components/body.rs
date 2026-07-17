@@ -1,5 +1,4 @@
 use crate::{
-    collision::CollisionFlag,
     core::{Base, Component, EngineApi},
     math::{Vector2, Vector2i},
 };
@@ -16,8 +15,10 @@ pub struct Body {
     pub on_ceiling: bool,
     pub body_type: BodyType,
     pub floor_snap_length: i32,
+    pub remainder: Vector2,
 }
 impl Component for Body {
+    /*
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         match self.body_type {
             BodyType::Character => {
@@ -45,6 +46,7 @@ impl Component for Body {
             BodyType::Static => {}
         }
     }
+    */
 }
 
 impl Body {
@@ -62,23 +64,92 @@ impl Body {
     }
 
     pub fn move_and_slide(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
-        let movement = self.velocity * delta;
+        if matches!(self.body_type, BodyType::Static) {
+            return;
+        }
 
-        let max_step_size = 8.0;
+        self.on_floor = false;
+        self.on_wall = false;
+        self.on_ceiling = false;
 
-        let distance = movement.length();
-
-        let steps = (distance / max_step_size).ceil() as i32;
+        let frame_movement = self.velocity * delta;
+        let max_step = 4.0;
+        let distance = frame_movement.length();
+        let steps = (distance / max_step).ceil() as i32;
 
         if steps > 0 {
-            let step_vector = movement / (steps as f32);
+            let mut step_movement = frame_movement / (steps as f32);
 
             for _ in 0..steps {
-                base.transform.position += step_vector;
+                self.remainder += step_movement;
 
-                let collide = ctx.check_collisions(base.id);
-                if collide {
-                    break;
+                let step_x = self.remainder.x.trunc();
+                let mut step_y = self.remainder.y.trunc();
+
+                self.remainder.x -= step_x as f32;
+                self.remainder.y -= step_y as f32;
+
+                // --- A MÁGICA DA SONDA DE CHÃO ---
+                let mut fake_floor_check = false;
+                // Se estamos parados/caindo mas não acumulamos 1 pixel inteiro ainda...
+                if step_y == 0.0 && self.velocity.y >= 0.0 {
+                    step_y = 1.0; // Forçamos um movimento de 1 pixel pra baixo pra sondar
+                    fake_floor_check = true;
+                }
+
+                if step_x == 0.0 && step_y == 0.0 {
+                    continue;
+                }
+
+                // Prepara os inteiros para a engine
+                let mut pos_i = base.transform.position;
+                let mut vel_i = Vector2::new(step_x, step_y);
+                let old_pos_i = pos_i;
+
+                // Chama a API de colisão
+                let flags = ctx.move_and_slide(base.id, &mut pos_i, &mut vel_i);
+
+                // Aplica a diferença na posição visual
+                base.transform.position.x += (pos_i.x - old_pos_i.x) as f32;
+                base.transform.position.y += (pos_i.y - old_pos_i.y) as f32;
+
+                if flags.on_wall {
+                    self.on_wall = true;
+                    self.velocity.x = 0.0;
+                    step_movement.x = 0.0;
+                    self.remainder.x = 0.0;
+                }
+
+                if flags.on_floor {
+                    self.on_floor = true;
+                    self.velocity.y = 0.0;
+                    step_movement.y = 0.0;
+                    self.remainder.y = 0.0;
+                } else if fake_floor_check {
+                    // Se forçamos a descida de 1 pixel mas não achamos o chão,
+                    // estamos no ar! Desfazemos a descida falsa imediatamente.
+                    base.transform.position.y -= 1.0;
+                    ctx.translate_my_colliders(base.id, Vector2i::new(0, -1));
+                }
+
+                if flags.on_ceiling {
+                    self.on_ceiling = true;
+                    self.velocity.y = 0.0;
+                    step_movement.y = 0.0;
+                    self.remainder.y = 0.0;
+                }
+            }
+        }
+
+        // Lógica de Snapping (Rampas)
+        if self.on_floor && self.velocity.y >= 0.0 {
+            if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
+                base.transform.position.y += snap as f32;
+                ctx.translate_my_colliders(base.id, Vector2i::new(0, snap));
+                self.on_floor = true;
+
+                if self.velocity.y > 0.0 {
+                    self.velocity.y = 0.0;
                 }
             }
         }
@@ -94,6 +165,7 @@ impl Default for Body {
             on_ceiling: false,
             body_type: BodyType::Static,
             floor_snap_length: 4,
+            remainder: Vector2::ZERO,
         }
     }
 }
