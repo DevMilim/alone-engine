@@ -115,6 +115,7 @@ pub trait CollisionApi {
     ) -> CollisionFlag;
     fn snap_to_floor(&mut self, my_id: Id, snap_length: i32) -> Option<i32>;
     fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2i);
+    fn check_collisions(&mut self, my_id: Id) -> bool;
 }
 
 pub trait RenderApi {

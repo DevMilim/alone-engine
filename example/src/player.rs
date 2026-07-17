@@ -92,7 +92,7 @@ impl GameObject for Player {
         let jump_speed = -200.0;
 
         if !self.body.is_on_floor() {
-            self.body.velocity.y = gravity;
+            self.body.velocity.y += gravity;
         } else {
             self.body.velocity.y = 0.0
         }

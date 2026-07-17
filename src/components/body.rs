@@ -1,4 +1,5 @@
 use crate::{
+    collision::CollisionFlag,
     core::{Base, Component, EngineApi},
     math::{Vector2, Vector2i},
 };
@@ -60,11 +61,27 @@ impl Body {
         self.on_ceiling
     }
 
-    pub fn move_and_slide(&mut self, ctx: &mut impl EngineApi, base: &mut Base) {
-        let flags = ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
-        self.on_floor = flags.on_floor;
-        self.on_wall = flags.on_wall;
-        self.on_ceiling = flags.on_ceiling;
+    pub fn move_and_slide(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
+        let movement = self.velocity * delta;
+
+        let max_step_size = 8.0;
+
+        let distance = movement.length();
+
+        let steps = (distance / max_step_size).ceil() as i32;
+
+        if steps > 0 {
+            let step_vector = movement / (steps as f32);
+
+            for _ in 0..steps {
+                base.transform.position += step_vector;
+
+                let collide = ctx.check_collisions(base.id);
+                if collide {
+                    break;
+                }
+            }
+        }
     }
 }
 

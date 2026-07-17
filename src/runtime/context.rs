@@ -293,6 +293,10 @@ impl<'a> CollisionApi for EngineContext<'a> {
             fallback_pos,
         );
     }
+
+    fn check_collisions(&mut self, my_id: Id) -> bool {
+        self.systems.collision.check_collisions(my_id)
+    }
 }
 
 pub struct AsyncContext {

@@ -304,6 +304,40 @@ impl CollisionWorld {
         self.filter_pairs(self.get_exited_pairs().into_iter(), my_id)
     }
 
+    pub fn check_collisions(&mut self, my_id: Id) -> bool {
+        let my_keys: Vec<ColliderKey> = self.owners.get(&my_id).cloned().unwrap_or_default();
+
+        for key in &my_keys {
+            let Some(&idx) = self.key_to_index.get(key) else {
+                continue;
+            };
+            let my_data = self.data[idx as usize];
+            if my_data.is_sensor {
+                continue;
+            }
+
+            self.query_nearby(&my_data.aabb);
+
+            for i in 0..self.query_result.len() {
+                let other_idx = self.query_result[i];
+
+                if self.keys[other_idx as usize].id == my_id {
+                    continue;
+                }
+
+                let other = self.data[other_idx as usize];
+
+                if other.is_sensor || !my_data.can_collide(&other) {
+                    continue;
+                }
+                if my_data.aabb.intersects(&other.aabb) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub fn get_correction(
         &mut self,
         my_id: Id,
