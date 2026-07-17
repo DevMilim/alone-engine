@@ -84,7 +84,7 @@ impl Body {
                 self.remainder += step_movement;
 
                 let step_x = self.remainder.x.trunc();
-                let mut step_y = self.remainder.y.trunc();
+                let step_y = self.remainder.y.trunc();
 
                 self.remainder.x -= step_x as f32;
                 self.remainder.y -= step_y as f32;

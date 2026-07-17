@@ -9,6 +9,7 @@ struct GameField {
     ty: syn::Type,
     base: bool,
     component: bool,
+    component_trait: Option<syn::Path>,
     object: bool,
 }
 
@@ -16,6 +17,7 @@ impl FromField for GameField {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
         let mut base = false;
         let mut component = false;
+        let mut component_trait = None;
         let mut object = false;
 
         for attr in &field.attrs {
@@ -23,6 +25,12 @@ impl FromField for GameField {
                 base = true;
             } else if attr.path().is_ident("component") {
                 component = true;
+
+                if let syn::Meta::List(meta_list) = &attr.meta {
+                    if let Ok(path) = meta_list.parse_args::<syn::Path>() {
+                        component_trait = Some(path);
+                    }
+                }
             } else if attr.path().is_ident("object") {
                 object = true
             }
@@ -33,6 +41,7 @@ impl FromField for GameField {
             base,
             component,
             object,
+            component_trait,
         })
     }
 }
@@ -134,6 +143,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let mut component_fields = Vec::new();
     let mut object_fields = Vec::new();
     let mut bounds = Vec::new();
+    let mut injected_methods = Vec::new();
 
     for field in fields.fields {
         let ident = field.ident.as_ref().unwrap();
@@ -158,6 +168,16 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         } else if field.component {
             component_fields.push(ident.clone());
             bounds.push(quote! { #ty: ::alone_engine::prelude::Component });
+
+            if let Some(trait_path) = &field.component_trait {
+                injected_methods.push(quote! {
+                    impl #trait_path for #struct_name {
+                        pub fn get_mut_base(&mut self) -> &mut ::alone_engine::prelude::Base{
+                            &mut self.#base_field
+                        }
+                    }
+                });
+            }
         } else if field.object {
             object_fields.push(ident.clone());
             bounds.push(
@@ -188,6 +208,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     };
 
     quote! {
+        #(#injected_methods)*
         impl #impl_generics ::alone_engine::prelude::GameObjectBase for #struct_name #ty_generics {
             fn base(&self) -> &::alone_engine::prelude::Base {
                 &self.#base_field
