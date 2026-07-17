@@ -191,7 +191,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
 
         ctx.events
             .mailbox
-            .retain(|id, _| ctx.events.live_ids.contains(id));
+            .retain(|id, _| ctx.systems.live_ids.contains(id));
 
         while let Some(cmd) = ctx.events.aplication_commands.pop_front() {
             match cmd {

@@ -9,7 +9,7 @@ pub use base::*;
 pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     any::TypeId,
     sync::mpsc::{Receiver, Sender, channel},
@@ -38,6 +38,7 @@ pub struct CoreSystems {
     pub bg_event_receiver: Receiver<BackGroundEvent>,
     pub task_handles: FxHashMap<Id, Vec<JoinHandle<()>>>,
     pub service_register: FxHashMap<TypeId, Id>,
+    pub live_ids: FxHashSet<Id>,
 }
 
 impl Default for CoreSystems {
@@ -63,6 +64,7 @@ impl Default for CoreSystems {
             bg_event_receiver: bg_rx,
             task_handles: FxHashMap::default(),
             service_register: FxHashMap::default(),
+            live_ids: FxHashSet::default(),
         }
     }
 }

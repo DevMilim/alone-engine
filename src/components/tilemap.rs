@@ -207,6 +207,7 @@ impl Tilemap {
     /// json_path e onde o json exportado pelo ltdk esta
     /// level_key e o nome do level escolhido no ltdk
     pub fn from_ldtk_file<A: AssetApi, P: AsRef<Path>>(
+        owner: Id,
         api: &mut A,
         json_path: P,
         level_key: &str,
@@ -269,7 +270,7 @@ impl Tilemap {
                 *existing
             } else {
                 let tileset_path = base_dir.join(&tileset_def.rel_path);
-                let texture = api.load_texture(&tileset_path.to_string_lossy());
+                let texture = api.load_texture(owner, &tileset_path.to_string_lossy());
                 tileset_cache.insert(tileset_uid, texture);
                 texture
             };

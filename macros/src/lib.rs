@@ -351,6 +351,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
                 ctx.unregister_alive(self.base().id);
                 ctx.abort_tasks_of(self.base().id);
+                ctx.destroy(self.base().id);
                 self.destroy(ctx);
                 #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 #(self.#object_fields.dispatch_destroy(ctx);)*

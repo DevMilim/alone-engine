@@ -7,6 +7,7 @@ use rodio::{
 
 use crate::{core::Handler, resources::Resources};
 
+#[derive(Debug)]
 pub struct AudioAsset {
     pub bytes: Vec<u8>,
 }

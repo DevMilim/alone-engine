@@ -38,6 +38,7 @@ pub trait WorldApi {
     fn spawn<T: GameObject + 'static>(&mut self, obj: T);
     fn register_alive(&mut self, id: Id);
     fn unregister_alive(&mut self, id: Id);
+    fn destroy(&mut self, id: Id);
 }
 
 pub trait ServerApi {
@@ -141,14 +142,23 @@ pub trait RenderApi {
     fn camera_mut(&mut self) -> &mut Vector2;
 }
 pub trait AssetApi {
-    fn load_texture(&mut self, path: &str) -> Handler<ImageAsset>;
+    fn load_texture(&mut self, owner: Id, path: &str) -> Handler<ImageAsset>;
+
     fn load_texture_and_resize(
         &mut self,
+        owner: Id,
         path: &str,
         width: u32,
         height: u32,
     ) -> Handler<ImageAsset>;
-    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset>;
+
+    fn load_audio(&mut self, owner: Id, path: &str) -> Handler<AudioAsset>;
+
+    fn unload_texture(&mut self, owner: Id, texture: Handler<ImageAsset>);
+
+    fn unload_audio(&mut self, owner: Id, audio: Handler<AudioAsset>);
+
+    fn clear_assets(&mut self);
 }
 pub trait AudioApi {
     fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player;

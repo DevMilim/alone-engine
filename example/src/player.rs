@@ -68,7 +68,7 @@ impl GameObject for Player {
         let mut animation = SpriteAnimation::new();
 
         let mut texture = SpriteSrc::new(
-            ctx.load_texture("assets/sprites/knight.png"),
+            ctx.load_texture(self.base.id, "assets/sprites/knight.png"),
             Some(Vector2i::new(32, 32)),
         );
         let iddle_frames = self.create_idle_animation(&mut texture);
@@ -96,16 +96,20 @@ impl GameObject for Player {
         if ctx.is_key_just_pressed(KeyCode::Space) && self.is_on_floor() {
             self.velocity_mut().y = jump_speed;
         }
+
         if ctx.is_key_just_pressed(KeyCode::KeyC) && self.is_on_floor() {
             self.base.transform.position.y += 5.0;
             ctx.translate_my_colliders(self.base.id, Vector2i::new(0, 5));
         }
+
         let direction = ctx.get_key_axis(KeyCode::KeyA, KeyCode::KeyD);
+
         if direction < 0.0 {
             self.sprite_animation.as_mut().unwrap().flip_h = true;
         } else if direction > 0.0 {
             self.sprite_animation.as_mut().unwrap().flip_h = false
         }
+
         self.velocity_mut().x = speed * direction;
         self.move_and_slide(ctx, delta);
     }

@@ -94,17 +94,21 @@ impl<'a> AudioApi for EngineContext<'a> {
     }
 }
 impl<'a> AssetApi for EngineContext<'a> {
-    fn load_texture(&mut self, path: &str) -> Handler<ImageAsset> {
+    fn load_texture(&mut self, owner: Id, path: &str) -> Handler<ImageAsset> {
         if let Some(id) = self.systems.resources.textures.get_id(path) {
             return Handler::new(id);
         }
 
         let texture_asset = ImageAsset::load_from_file(path);
-        self.systems.resources.textures.insert(path, texture_asset)
+        self.systems
+            .resources
+            .textures
+            .insert(owner, path, texture_asset)
     }
 
     fn load_texture_and_resize(
         &mut self,
+        owner: Id,
         path: &str,
         width: u32,
         height: u32,
@@ -118,14 +122,31 @@ impl<'a> AssetApi for EngineContext<'a> {
         self.systems
             .resources
             .textures
-            .insert(&path_key, texture_asset)
+            .insert(owner, &path_key, texture_asset)
     }
-    fn load_audio(&mut self, path: &str) -> Handler<AudioAsset> {
+
+    fn load_audio(&mut self, owner: Id, path: &str) -> Handler<AudioAsset> {
         if let Some(id) = self.systems.resources.sounds.get_id(path) {
             return Handler::new(id);
         }
         let sound_asset = AudioAsset::load_audio(path);
-        self.systems.resources.sounds.insert(path, sound_asset)
+        self.systems
+            .resources
+            .sounds
+            .insert(owner, path, sound_asset)
+    }
+
+    fn unload_texture(&mut self, owner: Id, texture: Handler<ImageAsset>) {
+        self.systems.resources.textures.remove(owner, texture);
+    }
+
+    fn unload_audio(&mut self, owner: Id, audio: Handler<AudioAsset>) {
+        self.systems.resources.sounds.remove(owner, audio);
+    }
+
+    fn clear_assets(&mut self) {
+        let assets = &mut self.systems.resources;
+        assets.clear();
     }
 }
 impl<'a> InputApi for EngineContext<'a> {
@@ -424,9 +445,15 @@ impl<'a> WorldApi for EngineContext<'a> {
         self.emit(SpawnEvent::new(obj));
     }
     fn register_alive(&mut self, id: Id) {
-        self.events.live_ids.insert(id);
+        self.systems.live_ids.insert(id);
     }
     fn unregister_alive(&mut self, id: Id) {
-        self.events.live_ids.remove(&id);
+        self.systems.live_ids.remove(&id);
+    }
+    fn destroy(&mut self, id: Id) {
+        self.systems.live_ids.remove(&id);
+
+        self.systems.resources.textures.remove_game_object(id);
+        self.systems.resources.sounds.remove_game_object(id);
     }
 }

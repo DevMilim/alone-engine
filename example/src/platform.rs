@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use alone_engine::{
     GameObject,
-    components::{Collider, Sprite},
+    components::{Collider, Sprite, Timer},
     core::{Base, Component, EngineApi, GameObject, GameObjectBase},
     math::{Vector2, Vector2i},
     render::SpriteSrc,
@@ -14,6 +14,8 @@ pub struct Platform {
     base: Base,
     #[component]
     sprite: Option<Sprite>,
+    #[component]
+    timer: Timer,
     #[component]
     collision: Collider,
     start_point: Vector2,
@@ -39,6 +41,7 @@ impl Platform {
             duration: time.as_secs_f32(),
             current_time: 0.0,
             direction: 1.0,
+            timer: Timer::new(),
         }
     }
 }
@@ -47,7 +50,7 @@ impl GameObject for Platform {
     type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
         let mut sprite = SpriteSrc::new(
-            ctx.load_texture("assets/sprites/platforms.png"),
+            ctx.load_texture(self.base.id, "assets/sprites/platforms.png"),
             Some(Vector2i::new(16, 10)),
         );
         sprite.set_src(1, 0);
@@ -57,6 +60,11 @@ impl GameObject for Platform {
             ..Default::default()
         });
         self.base.set_position(self.start_point);
+        self.timer.set_event(());
+        self.timer.start_timer(Duration::from_secs(2), false);
+    }
+    fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
+        self.queue_free();
     }
     fn fixed_update(&mut self, _ctx: &mut impl EngineApi, delta: f32) {
         self.current_time += delta * self.direction;

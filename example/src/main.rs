@@ -22,7 +22,7 @@ pub struct MainScene {
     #[object]
     player: Player,
     #[object]
-    platform: Platform,
+    platform: Option<Platform>,
     #[component]
     tilemap: Option<Tilemap>,
     #[component]
@@ -46,11 +46,11 @@ impl MainScene {
             music: None,
             coin_sound: None,
             player: Player::new(),
-            platform: Platform::new(
+            platform: Some(Platform::new(
                 Vector2::new(10.0, 117.0),
                 Vector2::new(50.0, 117.0),
                 Duration::from_secs_f32(1.5),
-            ),
+            )),
         }
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
@@ -65,15 +65,16 @@ impl GameObject for MainScene {
     type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
         self.coin_sound = Some(Sound::new(
-            ctx.load_audio("assets/sounds/coin.wav"),
+            ctx.load_audio(self.base.id, "assets/sounds/coin.wav"),
             PlaybackMode::OneShot,
         ));
         self.music = Some(Sound::new(
-            ctx.load_audio("assets/music/time_for_adventure.mp3"),
+            ctx.load_audio(self.base.id, "assets/music/time_for_adventure.mp3"),
             PlaybackMode::Loop,
         ));
         self.tilemap = Some(
             Tilemap::from_ldtk_file(
+                self.base.id,
                 ctx,
                 "assets/tilemap/ldtk_tilemap.ldtk",
                 "Level_0",

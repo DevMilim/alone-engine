@@ -43,7 +43,7 @@ impl Timer {
         self.instant = Some(Instant::now())
     }
     pub fn stop(&mut self) {
-        self.instant = None
+        self.instant = None;
     }
 }
 
