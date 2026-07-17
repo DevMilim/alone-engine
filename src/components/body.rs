@@ -89,11 +89,8 @@ impl Body {
                 self.remainder.x -= step_x as f32;
                 self.remainder.y -= step_y as f32;
 
-                // --- A MÁGICA DA SONDA DE CHÃO ---
                 let mut fake_floor_check = false;
-                // Se estamos parados/caindo mas não acumulamos 1 pixel inteiro ainda...
                 if step_y == 0.0 && self.velocity.y >= 0.0 {
-                    step_y = 1.0; // Forçamos um movimento de 1 pixel pra baixo pra sondar
                     fake_floor_check = true;
                 }
 
@@ -101,15 +98,12 @@ impl Body {
                     continue;
                 }
 
-                // Prepara os inteiros para a engine
                 let mut pos_i = base.transform.position;
                 let mut vel_i = Vector2::new(step_x, step_y);
                 let old_pos_i = pos_i;
 
-                // Chama a API de colisão
                 let flags = ctx.move_and_slide(base.id, &mut pos_i, &mut vel_i);
 
-                // Aplica a diferença na posição visual
                 base.transform.position.x += (pos_i.x - old_pos_i.x) as f32;
                 base.transform.position.y += (pos_i.y - old_pos_i.y) as f32;
 
@@ -126,8 +120,6 @@ impl Body {
                     step_movement.y = 0.0;
                     self.remainder.y = 0.0;
                 } else if fake_floor_check {
-                    // Se forçamos a descida de 1 pixel mas não achamos o chão,
-                    // estamos no ar! Desfazemos a descida falsa imediatamente.
                     base.transform.position.y -= 1.0;
                     ctx.translate_my_colliders(base.id, Vector2i::new(0, -1));
                 }
@@ -141,7 +133,6 @@ impl Body {
             }
         }
 
-        // Lógica de Snapping (Rampas)
         if self.on_floor && self.velocity.y >= 0.0 {
             if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
                 base.transform.position.y += snap as f32;
