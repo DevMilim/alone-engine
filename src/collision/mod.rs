@@ -543,7 +543,7 @@ impl CollisionWorld {
                 if my_left < other_right && my_right > other_left && my_bottom <= other_top {
                     let gap = other_top - my_bottom;
 
-                    if gap > 0 && gap <= snap_length {
+                    if gap >= 0 && gap <= snap_length {
                         best_snap = Some(best_snap.map_or(gap, |curr: i32| gap.min(curr)));
                     }
                 }

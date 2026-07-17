@@ -17,41 +17,12 @@ pub struct Body {
     pub floor_snap_length: i32,
     pub remainder: Vector2,
 }
-impl Component for Body {
-    /*
-    fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
-        match self.body_type {
-            BodyType::Character => {
-                let mut snapped = false;
 
-                let flags =
-                    ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
-
-                if flags.on_floor && self.velocity.y >= 0.0 {
-                    if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
-                        base.transform.position.y += snap as f32;
-                        ctx.translate_my_colliders(base.id, Vector2i::new(0, snap));
-                        snapped = true;
-
-                        if self.velocity.y > 0.0 {
-                            self.velocity.y = 0.0;
-                        }
-                    }
-                }
-
-                self.on_floor = snapped || flags.on_floor;
-                self.on_wall = flags.on_wall;
-                self.on_ceiling = flags.on_ceiling;
-            }
-            BodyType::Static => {}
-        }
-    }
-    */
-}
+impl Component for Body {}
 
 impl Body {
     pub fn set_velocity(&mut self, velocity: Vector2) {
-        self.velocity = velocity
+        self.velocity = velocity;
     }
     pub fn is_on_floor(&self) -> bool {
         self.on_floor
@@ -61,6 +32,20 @@ impl Body {
     }
     pub fn is_on_ceiling(&self) -> bool {
         self.on_ceiling
+    }
+
+    fn try_snap_to_floor(&mut self, ctx: &mut impl EngineApi, base: &mut Base) -> bool {
+        if self.velocity.y < 0.0 {
+            return false;
+        }
+        let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) else {
+            return false;
+        };
+
+        base.transform.position.y += snap as f32;
+        ctx.translate_my_colliders(base.id, Vector2i::new(0, snap));
+        self.velocity.y = self.velocity.y.min(0.0);
+        true
     }
 
     pub fn move_and_slide(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
@@ -73,39 +58,31 @@ impl Body {
         self.on_ceiling = false;
 
         let frame_movement = self.velocity * delta;
-        let max_step = 4.0;
         let distance = frame_movement.length();
+        let max_step = 4.0;
         let steps = (distance / max_step).ceil() as i32;
 
         if steps > 0 {
-            let mut step_movement = frame_movement / (steps as f32);
+            let mut step_movement = frame_movement / steps as f32;
 
             for _ in 0..steps {
                 self.remainder += step_movement;
 
                 let step_x = self.remainder.x.trunc();
                 let step_y = self.remainder.y.trunc();
-
-                self.remainder.x -= step_x as f32;
-                self.remainder.y -= step_y as f32;
-
-                let mut fake_floor_check = false;
-                if step_y == 0.0 && self.velocity.y >= 0.0 {
-                    fake_floor_check = true;
-                }
+                self.remainder.x -= step_x;
+                self.remainder.y -= step_y;
 
                 if step_x == 0.0 && step_y == 0.0 {
                     continue;
                 }
 
-                let mut pos_i = base.transform.position;
-                let mut vel_i = Vector2::new(step_x, step_y);
-                let old_pos_i = pos_i;
+                let old_pos = base.transform.position;
+                let mut pos = old_pos;
+                let mut vel = Vector2::new(step_x, step_y);
 
-                let flags = ctx.move_and_slide(base.id, &mut pos_i, &mut vel_i);
-
-                base.transform.position.x += (pos_i.x - old_pos_i.x) as f32;
-                base.transform.position.y += (pos_i.y - old_pos_i.y) as f32;
+                let flags = ctx.move_and_slide(base.id, &mut pos, &mut vel);
+                base.transform.position = old_pos + (pos - old_pos);
 
                 if flags.on_wall {
                     self.on_wall = true;
@@ -119,9 +96,6 @@ impl Body {
                     self.velocity.y = 0.0;
                     step_movement.y = 0.0;
                     self.remainder.y = 0.0;
-                } else if fake_floor_check {
-                    base.transform.position.y -= 1.0;
-                    ctx.translate_my_colliders(base.id, Vector2i::new(0, -1));
                 }
 
                 if flags.on_ceiling {
@@ -133,17 +107,7 @@ impl Body {
             }
         }
 
-        if self.on_floor && self.velocity.y >= 0.0 {
-            if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
-                base.transform.position.y += snap as f32;
-                ctx.translate_my_colliders(base.id, Vector2i::new(0, snap));
-                self.on_floor = true;
-
-                if self.velocity.y > 0.0 {
-                    self.velocity.y = 0.0;
-                }
-            }
-        }
+        self.on_floor |= self.try_snap_to_floor(ctx, base);
     }
 }
 
@@ -165,7 +129,6 @@ pub trait IBody: GameObjectBase + IComponent<Body> {
     fn velocity(&self) -> Vector2 {
         self.get_self().velocity
     }
-
     fn velocity_mut(&mut self) -> &mut Vector2 {
         &mut self.get_self_mut().velocity
     }
