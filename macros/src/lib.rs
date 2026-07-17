@@ -9,7 +9,7 @@ struct GameField {
     ty: syn::Type,
     base: bool,
     component: bool,
-    component_trait: Option<syn::Path>,
+    interface: Option<syn::Path>,
     object: bool,
 }
 
@@ -27,8 +27,8 @@ impl FromField for GameField {
                 component = true;
 
                 if let syn::Meta::List(meta_list) = &attr.meta {
-                    if let Ok(path) = meta_list.parse_args::<syn::Path>() {
-                        component_trait = Some(path);
+                    if let Ok(args) = meta_list.parse_args::<ComponentArgs>() {
+                        component_trait = args.interface;
                     }
                 }
             } else if attr.path().is_ident("object") {
@@ -41,7 +41,7 @@ impl FromField for GameField {
             base,
             component,
             object,
-            component_trait,
+            interface: component_trait,
         })
     }
 }
@@ -58,6 +58,29 @@ struct GameReceiver {
     connect: Vec<Subscription>,
 }
 
+#[derive(Debug)]
+struct ComponentArgs {
+    interface: Option<Path>,
+}
+impl Parse for ComponentArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut interface = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.parse()?;
+
+            let _: Token![=] = input.parse()?;
+
+            let value: Path = input.parse()?;
+
+            if ident == "interface" {
+                interface = Some(value);
+            }
+        }
+
+        Ok(Self { interface })
+    }
+}
 #[derive(Debug)]
 struct Subscription {
     handler: Ident,
@@ -143,11 +166,12 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let mut component_fields = Vec::new();
     let mut object_fields = Vec::new();
     let mut bounds = Vec::new();
-    let mut injected_methods = Vec::new();
+    let mut pending_component_impls = Vec::new();
 
     for field in fields.fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
+        let mut component_traits = Vec::new();
 
         if field.base {
             if base_field.is_some() {
@@ -169,14 +193,20 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             component_fields.push(ident.clone());
             bounds.push(quote! { #ty: ::alone_engine::prelude::Component });
 
-            if let Some(trait_path) = &field.component_trait {
-                injected_methods.push(quote! {
-                    impl #trait_path for #struct_name {
-                        pub fn get_mut_base(&mut self) -> &mut ::alone_engine::prelude::Base{
-                            &mut self.#base_field
-                        }
-                    }
-                });
+            if let Some(trait_path) = &field.interface {
+                let trait_name = quote! {#trait_path}.to_string();
+
+                if component_traits.contains(&trait_name) {
+                    return syn::Error::new_spanned(
+                        ident,
+                        "A mesma interface de componente só pode ser utilizada uma vez",
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                component_traits.push(trait_name);
+
+                pending_component_impls.push((ident.clone(), ty.clone(), trait_path.clone()));
             }
         } else if field.object {
             object_fields.push(ident.clone());
@@ -206,6 +236,23 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     } else {
         quote! { where Self: ::alone_engine::prelude::GameObject, #(#bounds),* }
     };
+
+    let injected_methods = pending_component_impls.iter().map(|(ident, ty, trait_path)| {
+        quote! {
+            impl ::alone_engine::prelude::IComponent<#ty> for #struct_name {
+                fn get_self(&self) -> & #ty {
+                    &self.#ident
+                }
+                fn get_self_mut(&mut self) -> &mut #ty {
+                    &mut self.#ident
+                }
+                fn get_self_and_base_mut(&mut self) -> (&mut #ty, &mut ::alone_engine::prelude::Base) {
+                    (&mut self.#ident, &mut self.#base_field)
+                }
+            }
+            impl #trait_path for #struct_name {}
+        }
+    });
 
     quote! {
         #(#injected_methods)*

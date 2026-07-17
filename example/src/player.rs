@@ -1,6 +1,6 @@
 use alone_engine::{
     GameObject,
-    components::{AnimationData, Body, BodyType, Camera, Collider, SpriteAnimation},
+    components::{AnimationData, Body, BodyType, Camera, Collider, IBody, SpriteAnimation},
     core::{Base, Component, EngineApi, GameObject, GameObjectBase},
     input::KeyCode,
     math::{Vector2, Vector2i},
@@ -14,7 +14,7 @@ pub struct Player {
     base: Base,
     #[component]
     sprite_animation: Option<SpriteAnimation>,
-    #[component]
+    #[component(interface = IBody)]
     body: Body,
     #[component]
     collision: Collider,
@@ -91,12 +91,12 @@ impl GameObject for Player {
         let speed = 200.0;
         let jump_speed = -200.0;
 
-        self.body.velocity.y += gravity;
+        self.velocity_mut().y += gravity;
 
-        if ctx.is_key_just_pressed(KeyCode::Space) && self.body.is_on_floor() {
-            self.body.velocity.y = jump_speed;
+        if ctx.is_key_just_pressed(KeyCode::Space) && self.is_on_floor() {
+            self.velocity_mut().y = jump_speed;
         }
-        if ctx.is_key_just_pressed(KeyCode::KeyC) && self.body.is_on_floor() {
+        if ctx.is_key_just_pressed(KeyCode::KeyC) && self.is_on_floor() {
             self.base.transform.position.y += 5.0;
             ctx.translate_my_colliders(self.base.id, Vector2i::new(0, 5));
         }
@@ -106,8 +106,8 @@ impl GameObject for Player {
         } else if direction > 0.0 {
             self.sprite_animation.as_mut().unwrap().flip_h = false
         }
-        self.body.velocity.x = speed * direction;
-        self.body.move_and_slide(ctx, &mut self.base, delta);
+        self.velocity_mut().x = speed * direction;
+        self.move_and_slide(ctx, delta);
     }
     fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
         println!("Mensagem recebida")

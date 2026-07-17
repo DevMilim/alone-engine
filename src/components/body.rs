@@ -1,5 +1,5 @@
 use crate::{
-    core::{Base, Component, EngineApi},
+    core::{Base, Component, EngineApi, GameObjectBase, IComponent},
     math::{Vector2, Vector2i},
 };
 
@@ -158,5 +158,28 @@ impl Default for Body {
             floor_snap_length: 4,
             remainder: Vector2::ZERO,
         }
+    }
+}
+
+pub trait IBody: GameObjectBase + IComponent<Body> {
+    fn velocity(&self) -> Vector2 {
+        self.get_self().velocity
+    }
+
+    fn velocity_mut(&mut self) -> &mut Vector2 {
+        &mut self.get_self_mut().velocity
+    }
+    fn is_on_floor(&self) -> bool {
+        self.get_self().on_floor
+    }
+    fn is_on_wall(&self) -> bool {
+        self.get_self().on_wall
+    }
+    fn is_on_ceiling(&self) -> bool {
+        self.get_self().on_ceiling
+    }
+    fn move_and_slide(&mut self, ctx: &mut impl EngineApi, delta: f32) {
+        let (body, base) = self.get_self_and_base_mut();
+        body.move_and_slide(ctx, base, delta);
     }
 }

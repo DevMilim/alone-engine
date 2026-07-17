@@ -53,6 +53,13 @@ pub trait Component {
     fn destroy(&mut self, _ctx: &mut impl EngineApi, _base: &Base) {}
 }
 
+pub trait IComponent<T: Component> {
+    fn get_self(&self) -> &T;
+
+    fn get_self_mut(&mut self) -> &mut T;
+    fn get_self_and_base_mut(&mut self) -> (&mut T, &mut Base);
+}
+
 static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
 impl<T: GameObject> GameObject for Vec<T> {
     type Message = ();
