@@ -3,7 +3,7 @@ use std::any::Any;
 use crate::{
     collision::{AABB, ColliderData, ColliderKey},
     core::{Base, Component, EngineApi, Id, RenderApi},
-    math::{Color, Rect, Vector2},
+    math::{Color, Rect, Vector2i},
 };
 
 pub enum ColliderType {
@@ -13,10 +13,10 @@ pub enum ColliderType {
 
 pub struct Collider {
     pub key: Id,
-    pub width: f32,
-    pub height: f32,
-    pub offset_x: f32,
-    pub offset_y: f32,
+    pub width: i32,
+    pub height: i32,
+    pub offset_x: i32,
+    pub offset_y: i32,
     pub layer: u32,
     pub mask: u32,
     pub debug: bool,
@@ -36,10 +36,10 @@ impl Default for Collider {
     fn default() -> Self {
         Self {
             key: Id::new(),
-            width: 16.0,
-            height: 16.0,
-            offset_x: 0.0,
-            offset_y: 0.0,
+            width: 16,
+            height: 16,
+            offset_x: 0,
+            offset_y: 0,
             layer: 1,
             mask: 1,
             debug: false,
@@ -52,10 +52,11 @@ impl Default for Collider {
 }
 
 impl Component for Collider {
-    fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+        let iglobal_position: Vector2i = base.transform.global_position.into();
         let aabb = AABB {
-            x: base.transform.global_position.x - (self.width / 2.0) + self.offset_x,
-            y: base.transform.global_position.y - (self.height / 2.0) + self.offset_y,
+            x: iglobal_position.x - (self.width / 2) + self.offset_x,
+            y: iglobal_position.y - (self.height / 2) + self.offset_y,
             width: self.width,
             height: self.height,
         };
@@ -83,17 +84,13 @@ impl Component for Collider {
             } else {
                 Color::rgba(255, 0, 0, 255 / 2)
             };
-            let draw_pos = Vector2::new(
-                base.transform.global_position.x - (self.width / 2.0) + self.offset_x,
-                base.transform.global_position.y - (self.height / 2.0) + self.offset_y,
+            let iglobal_position: Vector2i = base.transform.global_position.into();
+            let draw_pos = Vector2i::new(
+                iglobal_position.x - (self.width / 2) + self.offset_x,
+                iglobal_position.y - (self.height / 2) + self.offset_y,
             );
             ctx.draw_rect(
-                Rect::new(
-                    draw_pos.x,
-                    draw_pos.y,
-                    self.width as u32,
-                    self.height as u32,
-                ),
+                Rect::new(draw_pos.x, draw_pos.y, self.width, self.height),
                 color,
                 1,
             );

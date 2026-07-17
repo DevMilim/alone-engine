@@ -8,7 +8,7 @@ use crate::{
         AssetApi, Base, Component, EngineApi, GameObjectBase, Handler, Id, LdtkError, LdtkProject,
         LdtkTile, RenderApi, TilesetDef,
     },
-    math::{Rect, Vector2},
+    math::{Rect, Vector2, Vector2i},
     render::{Anchor, ImageAsset},
 };
 
@@ -65,7 +65,7 @@ impl Component for Tilemap {
         }
     }
     fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
-        let origin = base.position() + self.position;
+        let origin = Vector2i::from(base.position() + self.position);
         for (key, collision_type, aabb) in &self.colliders {
             let is_on_way = *collision_type == TileCollision::OnWay;
             let data = ColliderData {
@@ -126,9 +126,9 @@ impl Tilemap {
         &mut self,
         int_grid_csv: &[i32],
         c_wid: u32,
-        grid_size: f32,
-        px_offset_x: f32,
-        px_offset_y: f32,
+        grid_size: i32,
+        px_offset_x: i32,
+        px_offset_y: i32,
         int_grid_rules: &[(i32, TileCollision)],
     ) {
         self.set_int_grid_rules(int_grid_rules);
@@ -159,9 +159,8 @@ impl Tilemap {
                     continue;
                 }
 
-                let world_x = px_offset_x + (x as f32 * grid_size);
-                let world_y = px_offset_y + (y as f32 * grid_size);
-
+                let world_x = px_offset_x + x as i32 * grid_size;
+                let world_y = px_offset_y + y as i32 * grid_size;
                 if let TileCollision::Custom(custom) = collision {
                     visited[index] = true;
 
@@ -169,8 +168,8 @@ impl Tilemap {
                         AABB {
                             x: world_x + custom.x,
                             y: world_y + custom.y,
-                            width: custom.width as f32,
-                            height: custom.height as f32,
+                            width: custom.width,
+                            height: custom.height,
                         },
                         collision,
                     ));
@@ -191,7 +190,7 @@ impl Tilemap {
                     AABB {
                         x: world_x,
                         y: world_y,
-                        width: merge_w as f32 * grid_size,
+                        width: merge_w as i32 * grid_size,
                         height: grid_size,
                     },
                     collision,
@@ -246,9 +245,9 @@ impl Tilemap {
                         map.create_colliders(
                             &layer.int_grid_csv,
                             layer.c_wid,
-                            layer.grid_size as f32,
-                            layer.px_offset_x as f32,
-                            layer.px_offset_y as f32,
+                            layer.grid_size as i32,
+                            layer.px_offset_x,
+                            layer.px_offset_y,
                             int_grid_rules,
                         );
                     }
@@ -285,10 +284,10 @@ impl Tilemap {
 
             for tile in layer_tiles {
                 let source = Rect {
-                    x: tile.src[0] as f32,
-                    y: tile.src[1] as f32,
-                    width: tileset_def.tile_grid_size,
-                    height: tileset_def.tile_grid_size,
+                    x: tile.src[0],
+                    y: tile.src[1],
+                    width: tileset_def.tile_grid_size as i32,
+                    height: tileset_def.tile_grid_size as i32,
                 };
 
                 let position = Vector2 {

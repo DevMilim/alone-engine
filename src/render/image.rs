@@ -4,18 +4,18 @@ use image::imageops::FilterType;
 
 use crate::{
     core::Handler,
-    math::{Rect, Vector2},
+    math::{Rect, Vector2, Vector2i},
 };
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SpriteSrc {
     pub texture: Handler<ImageAsset>,
     pub src: Option<Rect>,
-    pub grid_size: Option<Vector2>,
+    pub grid_size: Option<Vector2i>,
 }
 
 impl SpriteSrc {
-    pub fn new(texture: Handler<ImageAsset>, grid_size: Option<Vector2>) -> Self {
+    pub fn new(texture: Handler<ImageAsset>, grid_size: Option<Vector2i>) -> Self {
         Self {
             texture,
             src: None,
@@ -43,10 +43,10 @@ impl SpriteSrc {
             return None;
         };
 
-        let x = grid_size.x * x as f32;
-        let y = grid_size.y * y as f32;
+        let x = grid_size.x * x as i32;
+        let y = grid_size.y * y as i32;
 
-        let src = Rect::new(x, y, grid_size.x.abs() as u32, grid_size.y.abs() as u32);
+        let src = Rect::new(x, y, grid_size.x.abs(), grid_size.y.abs());
         Some(src)
     }
 }

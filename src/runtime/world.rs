@@ -116,6 +116,7 @@ impl<S: Scene, P: GameObjectDispatch> WorldState<S, P> {
             ctx.set_fixed_update(true);
             *fixed_update_count += 1;
             ctx.systems.input.current_fixed_frame = *fixed_update_count;
+            ctx.systems.collision.rebuild_grid();
 
             if let Some(global) = &mut self.global {
                 global.dispatch_fixed_update(ctx, base, FIXED_DT);
@@ -126,7 +127,6 @@ impl<S: Scene, P: GameObjectDispatch> WorldState<S, P> {
             for event in global_events {
                 ctx.events.global_events.push_back(event);
             }
-            ctx.systems.collision.rebuild_grid();
 
             self.accumulator -= FIXED_DT;
             ctx.set_fixed_update(false);

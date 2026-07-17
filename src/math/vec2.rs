@@ -155,3 +155,107 @@ impl MulAssign<f32> for Vector2 {
         self.y *= rhs;
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct Vector2i {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Vector2i {
+    pub const ZERO: Self = Self { x: 0, y: 0 };
+    pub const ONE: Self = Self { x: 1, y: 1 };
+    pub const UP: Self = Self { x: 0, y: -1 };
+    pub const DOWN: Self = Self { x: 0, y: 1 };
+    pub const LEFT: Self = Self { x: -1, y: 0 };
+    pub const RIGHT: Self = Self { x: 1, y: 0 };
+    pub fn new(x: i32, y: i32) -> Self {
+        Self { x, y }
+    }
+    pub fn round_i(self) -> Vector2i {
+        self.into()
+    }
+
+    pub fn as_vec2(self) -> Vector2 {
+        self.into()
+    }
+}
+
+impl From<Vector2i> for Vector2 {
+    fn from(v: Vector2i) -> Self {
+        Self {
+            x: v.x as f32,
+            y: v.y as f32,
+        }
+    }
+}
+
+impl From<Vector2> for Vector2i {
+    fn from(v: Vector2) -> Self {
+        Self {
+            x: v.x.round() as i32,
+            y: v.y.round() as i32,
+        }
+    }
+}
+
+impl Add for Vector2i {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.x + rhs.x, self.y + rhs.y)
+    }
+}
+impl Sub for Vector2i {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.x - rhs.x, self.y - rhs.y)
+    }
+}
+impl Neg for Vector2i {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self::new(-self.x, -self.y)
+    }
+}
+impl Mul<i32> for Vector2i {
+    type Output = Self;
+    fn mul(self, rhs: i32) -> Self::Output {
+        Self::new(self.x * rhs, self.y * rhs)
+    }
+}
+impl Mul<Vector2i> for Vector2i {
+    type Output = Self;
+    fn mul(self, rhs: Vector2i) -> Self::Output {
+        Self::new(self.x * rhs.x, self.y * rhs.y)
+    }
+}
+impl Div<i32> for Vector2i {
+    type Output = Self;
+    fn div(self, rhs: i32) -> Self::Output {
+        Self::new(self.x / rhs, self.y / rhs)
+    }
+}
+impl AddAssign<Vector2i> for Vector2i {
+    fn add_assign(&mut self, rhs: Vector2i) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+impl SubAssign<Vector2i> for Vector2i {
+    fn sub_assign(&mut self, rhs: Vector2i) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+impl MulAssign<Vector2i> for Vector2i {
+    fn mul_assign(&mut self, rhs: Vector2i) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+    }
+}
+impl MulAssign<i32> for Vector2i {
+    fn mul_assign(&mut self, rhs: i32) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}

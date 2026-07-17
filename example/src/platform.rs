@@ -4,7 +4,7 @@ use alone_engine::{
     GameObject,
     components::{Collider, Sprite},
     core::{Base, Component, EngineApi, GameObject, GameObjectBase},
-    math::Vector2,
+    math::{Vector2, Vector2i},
     render::SpriteSrc,
 };
 
@@ -30,8 +30,8 @@ impl Platform {
             sprite: None,
             collision: Collider {
                 one_way_collision: true,
-                width: 32.0,
-                height: 8.0,
+                width: 32,
+                height: 8,
                 ..Default::default()
             },
             start_point,
@@ -48,7 +48,7 @@ impl GameObject for Platform {
     fn start(&mut self, ctx: &mut impl EngineApi) {
         let mut sprite = SpriteSrc::new(
             ctx.load_texture("assets/sprites/platforms.png"),
-            Some(Vector2::new(16.0, 10.0)),
+            Some(Vector2i::new(16, 10)),
         );
         sprite.set_src(1, 0);
         sprite.add_tile(2, 0);

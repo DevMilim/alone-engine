@@ -36,16 +36,10 @@ impl Component for Camera {
     fn start(&mut self, _ctx: &mut impl EngineApi, _base: &mut Base) {
         self.last_position = self.position;
     }
-    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
-        {
-            let camera = ctx.camera_mut();
-            camera.x = self.position.x;
-            camera.y = self.position.y;
-        }
+    fn late_update(&mut self, _ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
         if !self.active {
             return;
         }
-
         self.last_position = self.position;
 
         let mut target_pos = self.position;

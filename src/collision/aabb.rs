@@ -1,46 +1,82 @@
-use crate::math::Vector2;
+use crate::math::Vector2i;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct AABB {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
 }
 
 impl AABB {
-    pub fn intersects(&self, other: &AABB) -> bool {
-        self.x < other.x + other.width
-            && self.x + self.width > other.x
-            && self.y < other.y + other.height
-            && self.y + self.height > other.y
+    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
-    pub fn get_overlap(&self, other: &AABB) -> Option<Vector2> {
-        let left = other.x - (self.x + self.width);
-        let right = (other.x + other.width) - self.x;
-        let top = other.y - (self.y + self.height);
-        let bottom = (other.y + other.height) - self.y;
+    pub fn min_x(&self) -> i32 {
+        self.x
+    }
 
-        if left >= 0.0 || right <= 0.0 || top >= 0.0 || bottom <= 0.0 {
+    pub fn max_x(&self) -> i32 {
+        self.x + self.width
+    }
+
+    pub fn min_y(&self) -> i32 {
+        self.y
+    }
+
+    pub fn max_y(&self) -> i32 {
+        self.y + self.height
+    }
+
+    pub fn center(&self) -> Vector2i {
+        Vector2i::new(self.x + self.width / 2, self.y + self.height / 2)
+    }
+
+    pub fn position(&self) -> Vector2i {
+        Vector2i::new(self.x, self.y)
+    }
+
+    pub fn intersects(&self, other: &AABB) -> bool {
+        self.min_x() < other.max_x()
+            && self.max_x() > other.min_x()
+            && self.min_y() < other.max_y()
+            && self.max_y() > other.min_y()
+    }
+
+    pub fn get_overlap(&self, other: &AABB) -> Option<Vector2i> {
+        if !self.intersects(other) {
             return None;
         }
 
-        let overlap_x = if left.abs() < right.abs() {
-            left
+        let overlap_x = if (self.min_x() + self.max_x()) < (other.min_x() + other.max_x()) {
+            other.min_x() - self.max_x()
         } else {
-            right
+            other.max_x() - self.min_x()
         };
-        let overlap_y = if top.abs() < bottom.abs() {
-            top
+
+        let overlap_y = if (self.min_y() + self.max_y()) < (other.min_y() + other.max_y()) {
+            other.min_y() - self.max_y()
         } else {
-            bottom
+            other.max_y() - self.min_y()
         };
 
         Some(if overlap_x.abs() < overlap_y.abs() {
-            Vector2::new(overlap_x, 0.0)
+            Vector2i::new(overlap_x, 0)
         } else {
-            Vector2::new(0.0, overlap_y)
+            Vector2i::new(0, overlap_y)
         })
+    }
+
+    pub fn contains_point(&self, point: Vector2i) -> bool {
+        point.x >= self.min_x()
+            && point.x <= self.max_x()
+            && point.y >= self.min_y()
+            && point.y <= self.max_y()
     }
 }

@@ -90,10 +90,7 @@ impl CoreSystems {
             if a.id == b.id {
                 continue;
             }
-            let (Some(da), Some(db)) = (
-                self.collision.colliders.get(&a),
-                self.collision.colliders.get(&b),
-            ) else {
+            let (Some(da), Some(db)) = (self.collision.get(&a), self.collision.get(&b)) else {
                 continue;
             };
 

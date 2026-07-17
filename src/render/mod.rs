@@ -68,8 +68,8 @@ impl<'a> Render<'a> {
         let frame_width = self.window_size.0 as usize;
         let frame_height = self.window_size.1 as usize;
 
-        let cam_x = camera_position.x.round();
-        let cam_y = camera_position.y.round();
+        let cam_x = camera_position.x;
+        let cam_y = camera_position.y;
 
         let frame_pixels: &mut [[u8; 4]] = unsafe {
             std::slice::from_raw_parts_mut(frame.as_mut_ptr() as *mut [u8; 4], frame.len() / 4)
@@ -197,8 +197,8 @@ impl<'a> Render<'a> {
                             continue;
                         }
 
-                        let screen_x = (rect.x - cam_x).round();
-                        let screen_y = (rect.y - cam_y).round();
+                        let screen_x = rect.x as f32 - cam_x;
+                        let screen_y = rect.y as f32 - cam_y;
 
                         let start_x = (screen_x as i32).max(0).min(frame_width as i32) as usize;
                         let start_y = (screen_y as i32).max(0).min(frame_height as i32) as usize;

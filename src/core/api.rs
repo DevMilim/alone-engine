@@ -10,7 +10,7 @@ use crate::{
     audio::AudioAsset,
     collision::{ColliderData, ColliderKey, CollisionFlag},
     core::{GameObject, Handler, Id},
-    math::{Color, Rect, Vector2},
+    math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,
     render::{Anchor, DrawCommand, ImageAsset},
     runtime::{AsyncContext, Scene},
@@ -103,8 +103,8 @@ pub trait CollisionApi {
         position: &mut Vector2,
         velocity: &mut Vector2,
     ) -> CollisionFlag;
-    fn snap_to_floor(&mut self, my_id: Id, snap_length: f32) -> Option<f32>;
-    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2);
+    fn snap_to_floor(&mut self, my_id: Id, snap_length: i32) -> Option<i32>;
+    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2i);
 }
 
 pub trait RenderApi {

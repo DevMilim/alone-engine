@@ -1,6 +1,7 @@
 use crate::{
     audio::AudioAsset,
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
+    math::Vector2i,
     runtime::AppCommands,
 };
 use std::{
@@ -246,17 +247,28 @@ impl<'a> CollisionApi for EngineContext<'a> {
         position: &mut Vector2,
         velocity: &mut Vector2,
     ) -> CollisionFlag {
-        self.systems
+        let mut pos = Vector2i::from(*position);
+        let mut vel = Vector2i::from(*velocity);
+
+        let flags = self
+            .systems
             .collision
-            .move_and_slide(my_id, position, velocity)
+            .move_and_slide(my_id, &mut pos, &mut vel);
+
+        *position = pos.into();
+        *velocity = vel.into();
+
+        flags
     }
 
-    fn snap_to_floor(&mut self, my_id: Id, snap_length: f32) -> Option<f32> {
+    fn snap_to_floor(&mut self, my_id: Id, snap_length: i32) -> Option<i32> {
         self.systems.collision.snap_to_floor(my_id, snap_length)
     }
 
-    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2) {
-        self.systems.collision.translate_my_colliders(my_id, offset);
+    fn translate_my_colliders(&mut self, my_id: Id, offset: Vector2i) {
+        self.systems
+            .collision
+            .translate_my_colliders(my_id, offset.into());
     }
 }
 

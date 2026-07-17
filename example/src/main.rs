@@ -38,8 +38,8 @@ impl MainScene {
             base: Base::default(),
             sensor: Collider {
                 is_sensor: true,
-                offset_x: 40.0,
-                offset_y: 100.0,
+                offset_x: 40,
+                offset_y: 100,
                 ..Default::default()
             },
             tilemap: None,

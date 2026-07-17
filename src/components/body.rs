@@ -1,6 +1,6 @@
 use crate::{
     core::{Base, Component, EngineApi},
-    math::Vector2,
+    math::{Vector2, Vector2i},
 };
 
 pub enum BodyType {
@@ -14,18 +14,23 @@ pub struct Body {
     pub on_wall: bool,
     pub on_ceiling: bool,
     pub body_type: BodyType,
-    pub floor_snap_length: f32,
+    pub floor_snap_length: i32,
 }
 impl Component for Body {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+        println!(
+            "ANTES pos={:?} vel={:?}",
+            base.transform.position, self.velocity
+        );
         match self.body_type {
             BodyType::Character => {
+                let was_on_floor = self.on_floor;
                 let mut snapped = false;
 
-                if self.velocity.y >= 0.0 {
+                if was_on_floor && self.velocity.y >= 0.0 {
                     if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
-                        base.transform.position.y += snap;
-                        ctx.translate_my_colliders(base.id, Vector2::new(0.0, snap));
+                        base.transform.position.y += snap as f32;
+                        ctx.translate_my_colliders(base.id, Vector2i::new(0, snap));
                         snapped = true;
 
                         if self.velocity.y > 0.0 {
@@ -33,7 +38,6 @@ impl Component for Body {
                         }
                     }
                 }
-
                 let flags =
                     ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
 
@@ -76,7 +80,7 @@ impl Default for Body {
             on_wall: false,
             on_ceiling: false,
             body_type: BodyType::Static,
-            floor_snap_length: 4.0,
+            floor_snap_length: 4,
         }
     }
 }
