@@ -18,16 +18,14 @@ pub struct Body {
 }
 impl Component for Body {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
-        println!(
-            "ANTES pos={:?} vel={:?}",
-            base.transform.position, self.velocity
-        );
         match self.body_type {
             BodyType::Character => {
-                let was_on_floor = self.on_floor;
                 let mut snapped = false;
 
-                if was_on_floor && self.velocity.y >= 0.0 {
+                let flags =
+                    ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
+
+                if flags.on_floor && self.velocity.y >= 0.0 {
                     if let Some(snap) = ctx.snap_to_floor(base.id, self.floor_snap_length) {
                         base.transform.position.y += snap as f32;
                         ctx.translate_my_colliders(base.id, Vector2i::new(0, snap));
@@ -38,8 +36,6 @@ impl Component for Body {
                         }
                     }
                 }
-                let flags =
-                    ctx.move_and_slide(base.id, &mut base.transform.position, &mut self.velocity);
 
                 self.on_floor = snapped || flags.on_floor;
                 self.on_wall = flags.on_wall;

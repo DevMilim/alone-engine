@@ -25,13 +25,14 @@ pub struct Player {
 impl Player {
     pub fn new() -> Self {
         Self {
-            base: Base::new(Vector2::new(20.0, 10.0)),
+            base: Base::new(Vector2::new(20.0 - 14.0, 10.0)),
             sprite_animation: None,
             collision: Collider {
                 debug: true,
                 offset_y: 6,
                 height: 12,
                 width: 12,
+                follow_transform: false,
                 ..Default::default()
             },
             body: Body {
@@ -88,10 +89,12 @@ impl GameObject for Player {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         let gravity = 9.7;
         let speed = 90.0;
-        let jump_speed = -200.0 * delta;
+        let jump_speed = -200.0;
 
         if !self.body.is_on_floor() {
-            self.body.velocity.y += gravity;
+            self.body.velocity.y = gravity;
+        } else {
+            self.body.velocity.y = 0.0
         }
         if ctx.is_key_just_pressed(KeyCode::Space) && self.body.is_on_floor() {
             self.body.velocity.y = jump_speed;
@@ -103,12 +106,6 @@ impl GameObject for Player {
             self.sprite_animation.as_mut().unwrap().flip_h = false
         }
         self.body.velocity.x = speed * direction * delta;
-        println!("position: {:?}", self.base.position());
-        println!(
-            "{:?} {:?} {:?}",
-            self.body.on_floor, self.body.on_wall, self.body.velocity,
-        );
-        println!("DEPOIS GRAVIDADE vel={:?}", self.body.velocity);
     }
     fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
         println!("Mensagem recebida")

@@ -12,7 +12,6 @@ pub use ldtk_api::*;
 use rustc_hash::FxHashMap;
 use std::{
     any::TypeId,
-    collections::HashMap,
     sync::mpsc::{Receiver, Sender, channel},
 };
 use tokio::{
@@ -37,7 +36,7 @@ pub struct CoreSystems {
 
     pub bg_event_sender: Sender<BackGroundEvent>,
     pub bg_event_receiver: Receiver<BackGroundEvent>,
-    pub task_handles: HashMap<Id, Vec<JoinHandle<()>>>,
+    pub task_handles: FxHashMap<Id, Vec<JoinHandle<()>>>,
     pub service_register: FxHashMap<TypeId, Id>,
 }
 
@@ -62,7 +61,7 @@ impl Default for CoreSystems {
             async_handle,
             bg_event_sender: bg_tx,
             bg_event_receiver: bg_rx,
-            task_handles: HashMap::new(),
+            task_handles: FxHashMap::default(),
             service_register: FxHashMap::default(),
         }
     }

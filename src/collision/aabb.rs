@@ -66,11 +66,7 @@ impl AABB {
             other.max_y() - self.min_y()
         };
 
-        Some(if overlap_x.abs() < overlap_y.abs() {
-            Vector2i::new(overlap_x, 0)
-        } else {
-            Vector2i::new(0, overlap_y)
-        })
+        Some(Vector2i::new(overlap_x, overlap_y))
     }
 
     pub fn contains_point(&self, point: Vector2i) -> bool {

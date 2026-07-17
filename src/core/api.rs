@@ -95,6 +95,16 @@ pub trait EventApi {
     fn send_service<T: 'static, E: 'static>(&mut self, event: E);
 }
 pub trait CollisionApi {
+    fn update_collider_geometry(
+        &mut self,
+        key: ColliderKey,
+        layer: u32,
+        mask: u32,
+        is_sensor: bool,
+        on_way_collision: bool,
+        size: (i32, i32),
+        fallback_pos: (i32, i32),
+    );
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData);
     fn remove_collider(&mut self, key: ColliderKey);
     fn move_and_slide(

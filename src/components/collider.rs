@@ -24,6 +24,8 @@ pub struct Collider {
     pub collider_type: ColliderType,
     pub one_way_collision: bool,
     pub event: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+
+    pub follow_transform: bool,
 }
 
 impl Collider {
@@ -47,35 +49,46 @@ impl Default for Collider {
             collider_type: ColliderType::Box,
             event: None,
             one_way_collision: false,
+            follow_transform: true,
         }
     }
 }
 
 impl Component for Collider {
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
+        let key = ColliderKey {
+            key: self.key,
+            id: base.id,
+        };
         let iglobal_position: Vector2i = base.transform.global_position.into();
-        let aabb = AABB {
-            x: iglobal_position.x - (self.width / 2) + self.offset_x,
-            y: iglobal_position.y - (self.height / 2) + self.offset_y,
-            width: self.width,
-            height: self.height,
-        };
+        let pos_x = iglobal_position.x - (self.width / 2) + self.offset_x;
+        let pos_y = iglobal_position.y - (self.height / 2) + self.offset_y;
+        if self.follow_transform {
+            let data = ColliderData {
+                aabb: AABB {
+                    x: pos_x,
+                    y: pos_y,
+                    width: self.width,
+                    height: self.height,
+                },
+                layer: self.layer,
+                mask: self.mask,
+                is_sensor: self.is_sensor,
+                on_way_collision: self.one_way_collision,
+            };
 
-        let data = ColliderData {
-            aabb,
-            layer: self.layer,
-            mask: self.mask,
-            is_sensor: self.is_sensor,
-            on_way_collision: self.one_way_collision,
-        };
-
-        ctx.update_collider(
-            ColliderKey {
-                key: self.key,
-                id: base.id,
-            },
-            data,
-        );
+            ctx.update_collider(key, data);
+        } else {
+            ctx.update_collider_geometry(
+                key,
+                self.layer,
+                self.mask,
+                self.is_sensor,
+                self.one_way_collision,
+                (self.width, self.height),
+                (pos_x, pos_y),
+            );
+        }
     }
     fn draw(&mut self, ctx: &mut impl RenderApi, base: &Base, _blending: f32) {
         if self.debug {

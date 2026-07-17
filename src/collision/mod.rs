@@ -79,6 +79,41 @@ impl CollisionWorld {
         Self::default()
     }
 
+    pub fn update_collider_geometry(
+        &mut self,
+        key: ColliderKey,
+        layer: u32,
+        mask: u32,
+        is_sensor: bool,
+        on_way_collision: bool,
+        size: (i32, i32),
+        fallback_pos: (i32, i32),
+    ) {
+        if let Some(&idx) = self.key_to_index.get(&key) {
+            let d = &mut self.data[idx as usize];
+            d.layer = layer;
+            d.mask = mask;
+            d.is_sensor = is_sensor;
+            d.on_way_collision = on_way_collision;
+            d.aabb.width = size.0;
+            d.aabb.height = size.1;
+            return;
+        }
+        let data = ColliderData {
+            aabb: AABB {
+                x: fallback_pos.0,
+                y: fallback_pos.1,
+                width: size.0,
+                height: size.1,
+            },
+            layer,
+            mask,
+            is_sensor,
+            on_way_collision,
+        };
+        self.update_collider(key, data);
+    }
+
     pub fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {
         if let Some(&idx) = self.key_to_index.get(&key) {
             self.data[idx as usize] = data;
@@ -276,7 +311,6 @@ impl CollisionWorld {
         velocity: Vector2i,
     ) -> Option<Vector2i> {
         self.query_nearby(&my_data.aabb);
-
         for i in 0..self.query_result.len() {
             let idx = self.query_result[i];
 
@@ -302,7 +336,27 @@ impl CollisionWorld {
                     continue;
                 }
             }
-            if let Some(overlap) = my_data.aabb.get_overlap(&other.aabb) {
+            if my_data.aabb.intersects(&other.aabb) {
+                let mut overlap = Vector2i::ZERO;
+
+                if velocity.x != 0 {
+                    overlap.x = if velocity.x > 0 {
+                        other.aabb.min_x() - my_data.aabb.max_x()
+                    } else {
+                        other.aabb.max_x() - my_data.aabb.min_x()
+                    };
+                } else if velocity.y != 0 {
+                    overlap.y = if velocity.y > 0 {
+                        other.aabb.min_y() - my_data.aabb.max_y()
+                    } else {
+                        other.aabb.max_y() - my_data.aabb.min_y()
+                    };
+                } else {
+                    if let Some(o) = my_data.aabb.get_overlap(&other.aabb) {
+                        overlap = o;
+                    }
+                }
+
                 return Some(overlap);
             }
         }
@@ -316,15 +370,12 @@ impl CollisionWorld {
         velocity: &mut Vector2i,
     ) -> CollisionFlag {
         let mut flags = CollisionFlag::default();
-        println!("ENTRADA1 pos={:?} vel={:?}", position, velocity);
         position.x += velocity.x;
         self.translate_my_colliders(my_id, Vector2i::new(velocity.x, 0));
         flags.on_wall = self.resolve_axis(my_id, position, velocity, true).x != 0;
-        println!("ENTRADA2 pos={:?} vel={:?}", position, velocity);
         position.y += velocity.y;
         self.translate_my_colliders(my_id, Vector2i::new(0, velocity.y));
         let corr_y = self.resolve_axis(my_id, position, velocity, false).y;
-        println!("ENTRADA3 pos={:?} vel={:?}", position, velocity);
         flags.on_floor = corr_y < 0;
         flags.on_ceiling = corr_y > 0;
 

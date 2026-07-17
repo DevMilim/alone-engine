@@ -56,9 +56,11 @@ impl<'a> CoreApi for EngineContext<'a> {
     }
     fn abort_tasks_of(&mut self, id: Id) {
         if let Some(handles) = self.systems.task_handles.remove(&id) {
-            for handle in handles {
-                handle.abort();
-            }
+            tokio::spawn(async move {
+                for handle in handles {
+                    handle.abort();
+                }
+            });
         };
     }
 
@@ -269,6 +271,27 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.systems
             .collision
             .translate_my_colliders(my_id, offset.into());
+    }
+
+    fn update_collider_geometry(
+        &mut self,
+        key: ColliderKey,
+        layer: u32,
+        mask: u32,
+        is_sensor: bool,
+        on_way_collision: bool,
+        size: (i32, i32),
+        fallback_pos: (i32, i32),
+    ) {
+        self.systems.collision.update_collider_geometry(
+            key,
+            layer,
+            mask,
+            is_sensor,
+            on_way_collision,
+            size,
+            fallback_pos,
+        );
     }
 }
 

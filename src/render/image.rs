@@ -4,7 +4,7 @@ use image::imageops::FilterType;
 
 use crate::{
     core::Handler,
-    math::{Rect, Vector2, Vector2i},
+    math::{Rect, Vector2i},
 };
 
 #[derive(Debug, Clone, Copy, Default)]

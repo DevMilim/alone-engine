@@ -12,8 +12,8 @@ use pixels::{Pixels, SurfaceTexture};
 
 use crate::{math::Vector2, resources::Resources};
 
-pub const LOGICAL_WIDTH: u32 = 340;
-pub const LOGICAL_HEIGHT: u32 = 180;
+pub const LOGICAL_WIDTH: u32 = 480;
+pub const LOGICAL_HEIGHT: u32 = 270;
 
 pub struct Render<'a> {
     pub pixels: Pixels<'a>,
