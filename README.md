@@ -147,10 +147,8 @@ example/         # Runnable example project
 - No built-in UI or text rendering yet — draw text using a bitmap-font spritesheet in the meantime.
 - No particle system yet.
 - No line-of-sight/raycast query API yet.
-- Sprite rendering does not yet apply rotation/scale in the default draw path, even though `Transform2D` computes them.
-
 Contributions and issues are welcome.
 
 ## License
 
-Alone Engine is licensed under the [MIT License](./LICENSE).
+Alone Engine is licensed under the [MIT License]("./LICENSE").
