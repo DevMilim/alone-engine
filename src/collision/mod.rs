@@ -41,11 +41,11 @@ const CELL_SIZE: i32 = 64;
 
 #[inline]
 pub fn cell_of(aabb: &AABB, cell_size: i32) -> impl Iterator<Item = Cell> {
-    let min_x = aabb.x / cell_size;
-    let min_y = aabb.y / cell_size;
+    let min_x = aabb.x.div_euclid(cell_size);
+    let min_y = aabb.y.div_euclid(cell_size);
 
-    let max_x = (aabb.x + aabb.width) / cell_size;
-    let max_y = (aabb.y + aabb.height) / cell_size;
+    let max_x = (aabb.x + aabb.width - 1).div_euclid(cell_size);
+    let max_y = (aabb.y + aabb.height).div_euclid(cell_size);
 
     (min_x..=max_x).flat_map(move |x| (min_y..=max_y).map(move |y| (x, y)))
 }

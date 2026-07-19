@@ -91,7 +91,7 @@ pub trait EventApi {
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>);
     fn emit<T: 'static>(&mut self, event: T);
     fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
-    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>>;
+    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>, rustc_hash::FxBuildHasher>;
     fn mail_box_is_empty(&self) -> bool;
     fn send_service<T: 'static, E: 'static>(&mut self, event: E);
 }

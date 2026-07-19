@@ -89,7 +89,7 @@ impl GameObject for MainScene {
 #[derive(Scene)]
 pub enum GameScenes {
     MainScene(MainScene),
-    PayerScene(Player),
+    PlayerScene(Player),
 }
 
 fn main() {

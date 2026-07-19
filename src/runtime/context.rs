@@ -56,11 +56,9 @@ impl<'a> CoreApi for EngineContext<'a> {
     }
     fn abort_tasks_of(&mut self, id: Id) {
         if let Some(handles) = self.systems.task_handles.remove(&id) {
-            tokio::spawn(async move {
-                for handle in handles {
-                    handle.abort();
-                }
-            });
+            for handle in handles {
+                handle.abort();
+            }
         };
     }
 
@@ -237,7 +235,7 @@ impl<'a> EventApi for EngineContext<'a> {
         self.events.insert_global_event(event);
     }
 
-    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>> {
+    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>, rustc_hash::FxBuildHasher> {
         &mut self.events.mailbox
     }
 
@@ -353,67 +351,6 @@ impl AsyncContext {
             .send(BackGroundEvent::Send(id, Box::new(message)));
     }
 }
-/*
-impl<'a> ServerApi for EngineContext<'a> {
-    /// envia um evento para uma entidade especifica do servidor
-    fn send_to_server<E: Encode + Decode<()>>(
-        &mut self,
-        id: Id,
-        event: E,
-    ) -> Result<(), NetworkError> {
-        match &mut self.systems.network {
-            NetworkType::Client(client) => {
-                client.send(ServerEvent::Targeted(id, serialize_bytes(&event)))?;
-                Ok(())
-            }
-            _ => Err(NetworkError::NotAClient),
-        }
-    }
-
-    /// envia um evento para uma entidade especifica do cliente
-    fn send_to_client<E: Encode + Decode<()>>(
-        &mut self,
-        id: Id,
-        target: std::net::SocketAddr,
-        event: E,
-    ) -> Result<(), NetworkError> {
-        match &mut self.systems.network {
-            NetworkType::Server(server) => {
-                server.send(target, ServerEvent::Targeted(id, serialize_bytes(&event)))?;
-                Ok(())
-            }
-            _ => Err(NetworkError::NotAServer),
-        }
-    }
-
-    /// emite um evento para o servidor
-    fn emit_to_server<E: Encode + Decode<()>>(&mut self, event: E) -> Result<(), NetworkError> {
-        match &mut self.systems.network {
-            NetworkType::Client(client) => {
-                client.send(ServerEvent::Broadcast(serialize_bytes(&event)))?;
-
-                Ok(())
-            }
-            _ => Err(NetworkError::NotAClient),
-        }
-    }
-
-    /// emite um evento para o cliente
-    fn emit_to_client<E: Encode + Decode<()>>(
-        &mut self,
-        target: SocketAddr,
-        event: E,
-    ) -> Result<(), NetworkError> {
-        match &mut self.systems.network {
-            NetworkType::Server(client) => {
-                client.send(target, ServerEvent::Broadcast(serialize_bytes(&event)))?;
-                Ok(())
-            }
-            _ => Err(NetworkError::NotAServer),
-        }
-    }
-}
-*/
 impl<'a> SceneApi for EngineContext<'a> {
     fn push_scene<T: crate::prelude::Scene + 'static>(&mut self, scene: T) {
         self.events
