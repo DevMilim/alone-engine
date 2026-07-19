@@ -111,6 +111,9 @@ impl SpriteAnimation {
     pub fn new_animation(&mut self, animation: AnimationData, animation_name: &str) {
         self.animations.insert(animation_name.to_owned(), animation);
     }
+    pub fn anchor_center(&mut self) {
+        self.anchor = Anchor::Center;
+    }
 }
 
 impl Component for SpriteAnimation {
@@ -170,6 +173,7 @@ impl Component for SpriteAnimation {
             self.flip_v,
             self.flip_h,
             base.z_index,
+            base.transform.rotation,
         );
     }
 }

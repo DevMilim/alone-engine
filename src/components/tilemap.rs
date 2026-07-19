@@ -61,6 +61,7 @@ impl Component for Tilemap {
                 tile.flip_v,
                 tile.flip_h,
                 self.z_index,
+                base.transform.rotation,
             );
         }
     }

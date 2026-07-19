@@ -138,6 +138,7 @@ pub trait RenderApi {
         flip_v: bool,
         flip_h: bool,
         z_index: u8,
+        rotation: f32,
     );
     fn camera_mut(&mut self) -> &mut Vector2;
 }

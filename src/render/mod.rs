@@ -45,7 +45,7 @@ impl<'a> Render<'a> {
     }
     pub fn sort(&mut self) {
         for queue in &mut self.queue {
-            queue.sort_by_key(|cmd| match cmd {
+            queue.sort_unstable_by_key(|cmd| match cmd {
                 DrawCommand::Sprite { image, .. } => (1, image.id),
                 DrawCommand::Rect { .. } => (0, 0),
             });
@@ -86,6 +86,7 @@ impl<'a> Render<'a> {
                         source,
                         flip_v,
                         flip_h,
+                        rotation,
                     } => {
                         let texture_id = image.id;
                         if Some(texture_id) != last_texture_id {
@@ -144,48 +145,70 @@ impl<'a> Render<'a> {
                                     texture.pixels.len() / 4,
                                 )
                             };
+                            if rotation.abs() < 0.001 {
+                                for dst_y in screen_min_y..screen_max_y {
+                                    let base_tex_y = (dst_y as isize - start_y) as usize;
+                                    let tex_y = if *flip_v {
+                                        sprite_h - 1 - base_tex_y
+                                    } else {
+                                        base_tex_y
+                                    };
 
-                            for dst_y in screen_min_y..screen_max_y {
-                                let base_tex_y = (dst_y as isize - start_y) as usize;
-                                let tex_y = if *flip_v {
-                                    sprite_h - 1 - base_tex_y
-                                } else {
-                                    base_tex_y
-                                };
+                                    let dst_row_start = dst_y * frame_width;
+                                    let tex_row_start = (src_y + tex_y) * tex_width;
 
-                                let dst_row_start = dst_y * frame_width;
-                                let tex_row_start = (src_y + tex_y) * tex_width;
+                                    let tex_min_x = (screen_min_x as isize - start_x) as usize;
 
-                                let tex_min_x = (screen_min_x as isize - start_x) as usize;
+                                    let lenght = screen_max_x - screen_min_x;
 
-                                let lenght = screen_max_x - screen_min_x;
+                                    let (actual_tex_x_start, actual_tex_x_end) = if *flip_h {
+                                        (
+                                            src_x + sprite_w - tex_min_x - lenght,
+                                            src_x + sprite_w - tex_min_x,
+                                        )
+                                    } else {
+                                        (src_x + tex_min_x, src_x + tex_min_x + lenght)
+                                    };
 
-                                let (actual_tex_x_start, actual_tex_x_end) = if *flip_h {
-                                    (
-                                        src_x + sprite_w - tex_min_x - lenght,
-                                        src_x + sprite_w - tex_min_x,
-                                    )
-                                } else {
-                                    (src_x + tex_min_x, src_x + tex_min_x + lenght)
-                                };
+                                    let dst_row = &mut frame_pixels[dst_row_start + screen_min_x
+                                        ..dst_row_start + screen_max_x];
 
-                                let dst_row = &mut frame_pixels
-                                    [dst_row_start + screen_min_x..dst_row_start + screen_max_x];
+                                    let tex_row = &tex_pixels[tex_row_start + actual_tex_x_start
+                                        ..tex_row_start + actual_tex_x_end];
 
-                                let tex_row = &tex_pixels[tex_row_start + actual_tex_x_start
-                                    ..tex_row_start + actual_tex_x_end];
-
-                                if *flip_h {
-                                    for (dst_px, src_px) in
-                                        dst_row.iter_mut().zip(tex_row.iter().rev())
-                                    {
-                                        Self::blending_pixel(dst_px, src_px);
-                                    }
-                                } else {
-                                    for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
-                                        Self::blending_pixel(dst_px, src_px);
+                                    if *flip_h {
+                                        for (dst_px, src_px) in
+                                            dst_row.iter_mut().zip(tex_row.iter().rev())
+                                        {
+                                            Self::blending_pixel(dst_px, src_px);
+                                        }
+                                    } else {
+                                        for (dst_px, src_px) in
+                                            dst_row.iter_mut().zip(tex_row.iter())
+                                        {
+                                            Self::blending_pixel(dst_px, src_px);
+                                        }
                                     }
                                 }
+                            } else {
+                                Self::blit_rotated(
+                                    frame_pixels,
+                                    frame_width,
+                                    frame_height,
+                                    tex_pixels,
+                                    tex_width,
+                                    src_x,
+                                    src_y,
+                                    sprite_w,
+                                    sprite_h,
+                                    anchor,
+                                    *position,
+                                    cam_x,
+                                    cam_y,
+                                    *rotation,
+                                    *flip_h,
+                                    *flip_v,
+                                );
                             }
                         }
                     }
@@ -251,6 +274,7 @@ impl<'a> Render<'a> {
         let _ = self.pixels.render();
         self.clear();
     }
+    #[inline(always)]
     pub fn blending_pixel(dst_px: &mut [u8; 4], src_px: &[u8; 4]) {
         let sa = src_px[3] as u32;
 
@@ -277,6 +301,82 @@ impl<'a> Render<'a> {
                 (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
                 255,
             ]
+        }
+    }
+    fn blit_rotated(
+        frame_pixels: &mut [[u8; 4]],
+        frame_width: usize,
+        frame_height: usize,
+        tex_pixels: &[[u8; 4]],
+        tex_width: usize,
+        src_x: usize,
+        src_y: usize,
+        sprite_w: usize,
+        sprite_h: usize,
+        anchor: &Anchor,
+        position: Vector2,
+        cam_x: f32,
+        cam_y: f32,
+        rotation: f32,
+        flip_h: bool,
+        flip_v: bool,
+    ) {
+        let (cx, cy): (f32, f32) = match anchor {
+            Anchor::Center => (position.x - cam_x, position.y - cam_y),
+            Anchor::TopLeft => (
+                position.x - cam_x + sprite_w as f32 / 2.0,
+                position.y - cam_y + sprite_h as f32 / 2.0,
+            ),
+        };
+
+        let hw = sprite_w as f32 / 2.0;
+        let hh = sprite_h as f32 / 2.0;
+
+        let (sin, cos) = rotation.sin_cos();
+        let bbox_hw = hw * cos.abs() + hh * sin.abs();
+        let bbox_hh = hw * sin.abs() + hh * cos.abs();
+
+        let min_x = ((cx - bbox_hw) as isize).max(0) as usize;
+        let max_x = ((cx + bbox_hw) as isize).min(frame_width as isize).max(0) as usize;
+        let min_y = ((cy - bbox_hh) as isize).max(0) as usize;
+        let max_y = ((cy + bbox_hh) as isize).min(frame_height as isize).max(0) as usize;
+        let fixed_scale = 65536.0;
+
+        let inv_cos = cos;
+        let inv_sin = -sin;
+
+        let step_x_u = (inv_cos * fixed_scale) as i32;
+        let step_x_v = (inv_sin * fixed_scale) as i32;
+
+        let u_max = (sprite_w as i32) << 16;
+        let v_max = (sprite_h as i32) << 16;
+
+        for dst_y in min_y..max_y {
+            let dy = dst_y as f32 - cy;
+            let dx0 = min_x as f32 - cx;
+
+            let start_u = dx0 * inv_cos - dy * inv_sin + hw;
+            let start_v = dx0 * inv_sin + dy * inv_cos + hh;
+
+            let mut u_fixed = (start_u * fixed_scale) as i32;
+            let mut v_fixed = (start_v * fixed_scale) as i32;
+
+            for dst_x in min_x..max_x {
+                if u_fixed >= 0 && u_fixed < u_max && v_fixed >= 0 && v_fixed < v_max {
+                    let tex_x = (u_fixed >> 16) as usize;
+                    let tex_y = (v_fixed >> 16) as usize;
+
+                    let tx = if flip_h { sprite_w - 1 - tex_x } else { tex_x };
+                    let ty = if flip_v { sprite_h - 1 - tex_y } else { tex_y };
+
+                    let src_px = &tex_pixels[(src_y + ty) * tex_width + (src_x + tx)];
+
+                    Self::blending_pixel(&mut frame_pixels[dst_y * frame_width + dst_x], src_px);
+                }
+
+                u_fixed += step_x_u;
+                v_fixed += step_x_v;
+            }
         }
     }
 }

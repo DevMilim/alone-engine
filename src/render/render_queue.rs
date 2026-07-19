@@ -19,6 +19,7 @@ pub enum DrawCommand {
         source: Option<Rect>,
         flip_v: bool,
         flip_h: bool,
+        rotation: f32,
     },
     Rect {
         color: Color,
@@ -49,6 +50,7 @@ impl<'a> RenderApi for RenderQueue<'a> {
         flip_v: bool,
         flip_h: bool,
         z_index: u8,
+        rotation: f32,
     ) {
         self.queue[z_index as usize].push(DrawCommand::Sprite {
             position,
@@ -57,6 +59,7 @@ impl<'a> RenderApi for RenderQueue<'a> {
             source,
             flip_v,
             flip_h,
+            rotation,
         })
     }
 

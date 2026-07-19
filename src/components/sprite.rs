@@ -35,6 +35,7 @@ impl Component for Sprite {
             self.flip_v,
             self.flip_h,
             base.z_index,
+            base.transform.rotation,
         );
     }
 }
