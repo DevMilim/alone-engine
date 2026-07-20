@@ -66,7 +66,7 @@ impl GameScenes {
 }
 
 fn main() {
-    App::new(GameScenes::new()).run();
+    App::<GameScenes>::new(GameScenes::new()).run();
 }
 ```
 
