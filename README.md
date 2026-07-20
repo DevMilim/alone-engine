@@ -151,4 +151,4 @@ Contributions and issues are welcome.
 
 ## License
 
-Alone Engine is licensed under the [MIT License]("./LICENSE").
+Alone Engine is licensed under the [MIT License](./LICENSE).
