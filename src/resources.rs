@@ -15,6 +15,7 @@ pub struct AssetCache<T: Debug> {
     path_map: FxHashMap<String, usize>,
     next_id: usize,
     asset_users: FxHashMap<usize, FxHashSet<Id>>,
+    id_to_path: FxHashMap<usize, String>,
 
     object_assets: FxHashMap<Id, FxHashSet<usize>>,
 }
@@ -26,6 +27,7 @@ impl<T: Debug> AssetCache<T> {
             path_map: FxHashMap::default(),
             next_id: 0,
             asset_users: FxHashMap::default(),
+            id_to_path: FxHashMap::default(),
             object_assets: FxHashMap::default(),
         }
     }
@@ -62,8 +64,11 @@ impl<T: Debug> AssetCache<T> {
             return Handler::new(asset_id);
         }
         let asset_id = self.current_id();
+
         self.assets.insert(asset_id, asset);
         self.path_map.insert(path.to_string(), asset_id);
+        self.id_to_path.insert(asset_id, path.to_string());
+
         self.asset_users
             .entry(asset_id)
             .or_default()
@@ -80,6 +85,7 @@ impl<T: Debug> AssetCache<T> {
         self.path_map.clear();
         self.object_assets.clear();
         self.asset_users.clear();
+        self.id_to_path.clear();
     }
     pub fn remove(&mut self, game_object_id: Id, asset_id: Handler<T>) {
         let id = asset_id.id;
@@ -103,7 +109,9 @@ impl<T: Debug> AssetCache<T> {
         if should_remove {
             self.asset_users.remove(&id);
             self.assets.remove(&id);
-            self.path_map.retain(|_, v| *v != id);
+            if let Some(path) = self.id_to_path.remove(&id) {
+                self.path_map.remove(&path);
+            }
         }
     }
     pub fn remove_game_object(&mut self, game_object: Id) {
@@ -119,7 +127,9 @@ impl<T: Debug> AssetCache<T> {
                 if should_remove {
                     self.asset_users.remove(&asset_id);
                     self.assets.remove(&asset_id);
-                    self.path_map.retain(|_, id| *id != asset_id);
+                    if let Some(path) = self.id_to_path.remove(&asset_id) {
+                        self.path_map.remove(&path);
+                    }
                 }
             }
         }
