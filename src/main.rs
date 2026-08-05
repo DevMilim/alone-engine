@@ -49,7 +49,7 @@ pub fn create_project(name: &str) -> std::io::Result<()> {
 
     let files = [
         ("Cargo.toml", cargo_toml(name)),
-        ("src/main.rs", main_rs()),
+        ("src/main.rs", include_str!("template/main.rs").to_string()),
         (
             ".gitignore",
             include_str!("template/.gitignore").to_string(),
@@ -73,9 +73,4 @@ fn cargo_toml(name: &str) -> String {
     }
     let cargo_toml_template = include_str!("template/Cargo.toml");
     cargo_toml_template.replace("{{name}}", name)
-}
-
-fn main_rs() -> String {
-    let str = include_str!("template/main.rs");
-    str.to_owned()
 }
