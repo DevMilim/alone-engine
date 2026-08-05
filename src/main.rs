@@ -1,4 +1,7 @@
-use std::{fs, process};
+use std::{
+    fs,
+    process::{self, Command},
+};
 
 use clap::{Parser, Subcommand};
 
@@ -14,15 +17,14 @@ enum Commands {
     New { name: String },
     Build,
     Package,
+    Update,
 }
 
 fn main() -> std::io::Result<()> {
     let args: Args = Args::parse();
 
     match args.command {
-        Commands::New { name } => {
-            create_project(&name)?;
-        }
+        Commands::New { name } => create_project(&name)?,
 
         Commands::Build => {
             println!("Compilando...");
@@ -31,7 +33,25 @@ fn main() -> std::io::Result<()> {
         Commands::Package => {
             println!("Empacotando...");
         }
+        Commands::Update => update()?,
     }
+    Ok(())
+}
+pub fn update() -> std::io::Result<()> {
+    let status = Command::new("cargo")
+        .args([
+            "install",
+            "--git",
+            "https://github.com/DevMilim/alone-engine",
+            "milim",
+            "--force",
+        ])
+        .status()?;
+
+    if !status.success() {
+        eprintln!("Falha ao atualizar");
+    }
+
     Ok(())
 }
 pub fn create_project(name: &str) -> std::io::Result<()> {
