@@ -418,7 +418,6 @@ impl<'a> Render<'a> {
         self.clear();
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn blit_sprite(
         pixels: &mut [[u8; 4]],
         pixels_width: usize,
@@ -531,9 +530,6 @@ impl<'a> Render<'a> {
         }
     }
 
-    /// Blita um sprite rotacionado por amostragem inversa em ponto fixo.
-    /// Mesma convenção de `row_offset` / `clip_y0..clip_y1` de [`Self::blit_sprite`].
-    #[allow(clippy::too_many_arguments)]
     fn blit_rotated(
         pixels: &mut [[u8; 4]],
         pixels_width: usize,
@@ -617,7 +613,6 @@ impl<'a> Render<'a> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn blit_rect(
         pixels: &mut [[u8; 4]],
         pixels_width: usize,
