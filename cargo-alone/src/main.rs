@@ -44,8 +44,8 @@ pub fn update() -> std::io::Result<()> {
             "--git",
             "https://github.com/DevMilim/alone-engine",
             "--bin",
-            "cargo-alone-engine",
-            "cargo-alone-engine",
+            "cargo-alone",
+            "cargo-alone",
         ])
         .status()?;
 
