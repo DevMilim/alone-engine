@@ -217,7 +217,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
         self.world
             .render(&mut render.queue, &mut ctx, &self.base, blending);
 
-        render.render(self.camera_position, &self.systems.resources);
+        render.render_auto(self.camera_position, &self.systems.resources);
 
         if !is_running {
             event_loop.exit();

@@ -4,16 +4,20 @@ mod render_queue;
 pub use image::*;
 pub use render_queue::*;
 
-use winit::window::Window;
-
-use std::{sync::Arc, time::Instant};
-
 use pixels::{Pixels, SurfaceTexture};
+use rayon::prelude::*;
+use std::{sync::Arc, time::Instant};
+use winit::window::Window;
 
 use crate::{math::Vector2, resources::Resources};
 
 pub const LOGICAL_WIDTH: u32 = 480;
 pub const LOGICAL_HEIGHT: u32 = 270;
+
+const PARALLEL_COMMAND_THRESHOLD: usize = 1500;
+const SWITCH_UP_MS: f32 = 3.0;
+const SWITCH_DOWN_MS: f32 = 1.5;
+const RASTER_TIME_EMA_ALPHA: f32 = 0.1;
 
 pub struct Render<'a> {
     pub pixels: Pixels<'a>,
@@ -22,6 +26,8 @@ pub struct Render<'a> {
     pub last_frame: Instant,
     pub frame_count: u32,
     pub fps_timer: Instant,
+    bands: Vec<[Vec<u32>; 6]>,
+    avg_raster_time: f32,
 }
 
 impl<'a> Render<'a> {
@@ -41,8 +47,11 @@ impl<'a> Render<'a> {
             last_frame: Instant::now(),
             frame_count: 0,
             fps_timer: Instant::now(),
+            bands: Vec::new(),
+            avg_raster_time: 0.001,
         }
     }
+
     pub fn sort(&mut self) {
         for queue in &mut self.queue {
             queue.sort_unstable_by_key(|cmd| match cmd {
@@ -51,18 +60,93 @@ impl<'a> Render<'a> {
             });
         }
     }
+
     pub fn clear(&mut self) {
         for queue in &mut self.queue {
             queue.clear();
         }
     }
+
     pub fn set_window_size(&mut self, size: (u32, u32)) {
         self.window_size = size;
     }
-    pub fn render(&mut self, camera_position: Vector2, resources: &Resources) {
-        self.sort();
 
+    fn command_y_bounds(
+        cmd: &DrawCommand,
+        cam_y: f32,
+        resources: &Resources,
+    ) -> Option<(isize, isize)> {
+        match cmd {
+            DrawCommand::Rect { rect, .. } => {
+                let top = rect.y as f32 - cam_y;
+                let bottom = top + rect.height as f32;
+                Some((top.floor() as isize, bottom.ceil() as isize))
+            }
+            DrawCommand::Sprite {
+                position,
+                image,
+                anchor,
+                source,
+                rotation,
+                ..
+            } => {
+                let texture = resources.textures.get(*image)?;
+
+                let (sprite_w, sprite_h) = match source {
+                    Some(rect) => (rect.width as f32, rect.height as f32),
+                    None => (texture.width as f32, texture.height as f32),
+                };
+
+                let hw = sprite_w / 2.0;
+                let hh = sprite_h / 2.0;
+
+                let cy = match anchor {
+                    Anchor::Center => position.y - cam_y,
+                    Anchor::TopLeft => position.y - cam_y + hh,
+                };
+
+                let bbox_hh = if rotation.abs() < 0.001 {
+                    hh
+                } else {
+                    let (_, cos) = rotation.sin_cos();
+                    hw * rotation.sin().abs() + hh * cos.abs()
+                };
+
+                Some((
+                    (cy - bbox_hh).floor() as isize,
+                    (cy + bbox_hh).ceil() as isize,
+                ))
+            }
+        }
+    }
+
+    pub fn render_auto(&mut self, camera_position: Vector2, resources: &Resources) {
+        let total_commands: usize = self.queue.iter().map(|layer| layer.len()).sum();
+        let avg_ms = self.avg_raster_time * 1000.0;
+
+        let use_parallel = if avg_ms > SWITCH_UP_MS {
+            true
+        } else if avg_ms < SWITCH_DOWN_MS {
+            false
+        } else {
+            total_commands > PARALLEL_COMMAND_THRESHOLD
+        };
+
+        if use_parallel {
+            println!("Paralel");
+            self.render_paralel(camera_position, resources);
+        } else {
+            println!("Single");
+            self.render_sequential(camera_position, resources);
+        }
+    }
+
+    pub fn render_sequential(&mut self, camera_position: Vector2, resources: &Resources) {
+        let t0 = Instant::now();
+
+        self.sort();
         self.pixels.frame_mut().fill(255);
+
         let frame = self.pixels.frame_mut();
 
         let frame_width = self.window_size.0 as usize;
@@ -74,6 +158,7 @@ impl<'a> Render<'a> {
         let frame_pixels: &mut [[u8; 4]] = unsafe {
             std::slice::from_raw_parts_mut(frame.as_mut_ptr() as *mut [u8; 4], frame.len() / 4)
         };
+
         for layer in self.queue.iter() {
             let mut last_texture_id = None;
             let mut current_texture = None;
@@ -93,108 +178,202 @@ impl<'a> Render<'a> {
                             last_texture_id = Some(texture_id);
                             current_texture = resources.textures.get(*image);
                         }
-                        if let Some(texture) = current_texture {
-                            let tex_width = texture.width as usize;
-                            let tex_height = texture.height as usize;
+                        let Some(texture) = current_texture else {
+                            continue;
+                        };
 
-                            let (src_x, src_y, sprite_w, sprite_h) = match source {
-                                Some(rect) => (
-                                    rect.x as usize,
-                                    rect.y as usize,
-                                    rect.width as usize,
-                                    rect.height as usize,
-                                ),
-                                None => (0, 0, tex_width, tex_height),
-                            };
+                        let tex_width = texture.width as usize;
+                        let tex_height = texture.height as usize;
 
-                            if src_x + sprite_w > tex_width || src_y + sprite_h > tex_height {
-                                continue;
-                            }
+                        let (src_x, src_y, sprite_w, sprite_h) = match source {
+                            Some(rect) => (
+                                rect.x as usize,
+                                rect.y as usize,
+                                rect.width as usize,
+                                rect.height as usize,
+                            ),
+                            None => (0, 0, tex_width, tex_height),
+                        };
 
-                            let (start_x, start_y) = match anchor {
-                                Anchor::Center => {
-                                    let center_x = position.x - (sprite_w as f32 / 2.0);
-                                    let center_y = position.y - (sprite_h as f32 / 2.0);
-                                    (
-                                        (center_x - cam_x).round() as isize,
-                                        (center_y - cam_y).round() as isize,
+                        if src_x + sprite_w > tex_width || src_y + sprite_h > tex_height {
+                            continue;
+                        }
+
+                        let tex_pixels: &[[u8; 4]] = unsafe {
+                            std::slice::from_raw_parts(
+                                texture.pixels.as_ptr() as *const [u8; 4],
+                                texture.pixels.len() / 4,
+                            )
+                        };
+
+                        Self::blit_sprite(
+                            frame_pixels,
+                            frame_width,
+                            0,
+                            0,
+                            frame_height,
+                            tex_pixels,
+                            tex_width,
+                            src_x,
+                            src_y,
+                            sprite_w,
+                            sprite_h,
+                            anchor,
+                            *position,
+                            cam_x,
+                            cam_y,
+                            *rotation,
+                            *flip_h,
+                            *flip_v,
+                        );
+                    }
+                    DrawCommand::Rect { color, rect } => {
+                        Self::blit_rect(
+                            frame_pixels,
+                            frame_width,
+                            0,
+                            0,
+                            frame_height,
+                            color.bytes(),
+                            rect.x as f32,
+                            rect.y as f32,
+                            rect.width as f32,
+                            rect.height as f32,
+                            cam_x,
+                            cam_y,
+                        );
+                    }
+                }
+            }
+        }
+
+        let raster_time = t0.elapsed().as_secs_f32();
+        self.avg_raster_time = self.avg_raster_time * (1.0 - RASTER_TIME_EMA_ALPHA)
+            + raster_time * RASTER_TIME_EMA_ALPHA;
+
+        let _ = self.pixels.render();
+        self.clear();
+    }
+
+    pub fn render_paralel(&mut self, camera_position: Vector2, resources: &Resources) {
+        let t0 = Instant::now();
+
+        self.sort();
+
+        self.pixels.frame_mut().fill(255);
+
+        let frame_width = self.window_size.0 as usize;
+        let frame_height = self.window_size.1 as usize;
+
+        let cam_x = camera_position.x;
+        let cam_y = camera_position.y;
+
+        let num_bands = rayon::current_num_threads().min(frame_height).max(1);
+        let rows_per_band = frame_height.div_ceil(num_bands);
+
+        if self.bands.len() != num_bands {
+            self.bands = (0..num_bands).map(|_| [const { Vec::new() }; 6]).collect();
+        } else {
+            for band in &mut self.bands {
+                for layer in band {
+                    layer.clear();
+                }
+            }
+        }
+
+        for (layer_idx, layer) in self.queue.iter().enumerate() {
+            for (cmd_idx, cmd) in layer.iter().enumerate() {
+                let Some((min_y, max_y)) = Self::command_y_bounds(cmd, cam_y, resources) else {
+                    continue;
+                };
+
+                let clipped_min = min_y.max(0) as usize;
+                let clipped_max = (max_y.max(0) as usize).min(frame_height);
+                if clipped_min >= clipped_max {
+                    continue;
+                }
+
+                let band_start = (clipped_min / rows_per_band).min(num_bands - 1);
+                let band_end = ((clipped_max - 1) / rows_per_band).min(num_bands - 1);
+
+                for band in &mut self.bands[band_start..=band_end] {
+                    band[layer_idx].push(cmd_idx as u32);
+                }
+            }
+        }
+
+        let queue = &self.queue;
+        let bands = &self.bands;
+
+        let frame = self.pixels.frame_mut();
+        let frame_pixels: &mut [[u8; 4]] = unsafe {
+            std::slice::from_raw_parts_mut(frame.as_mut_ptr() as *mut [u8; 4], frame.len() / 4)
+        };
+
+        frame_pixels
+            .par_chunks_mut(frame_width * rows_per_band)
+            .zip(bands.par_iter())
+            .enumerate()
+            .for_each(|(band_idx, (band_pixels, band))| {
+                let y0 = band_idx * rows_per_band;
+                let y1 = (y0 + rows_per_band).min(frame_height);
+
+                for (layer_idx, indices) in band.iter().enumerate() {
+                    let layer = &queue[layer_idx];
+                    let mut last_texture_id = None;
+                    let mut current_texture = None;
+
+                    for &cmd_idx in indices {
+                        let cmd = &layer[cmd_idx as usize];
+                        match cmd {
+                            DrawCommand::Sprite {
+                                position,
+                                image,
+                                anchor,
+                                source,
+                                flip_v,
+                                flip_h,
+                                rotation,
+                            } => {
+                                let texture_id = image.id;
+                                if Some(texture_id) != last_texture_id {
+                                    last_texture_id = Some(texture_id);
+                                    current_texture = resources.textures.get(*image);
+                                }
+                                let Some(texture) = current_texture else {
+                                    continue;
+                                };
+
+                                let tex_width = texture.width as usize;
+                                let tex_height = texture.height as usize;
+
+                                let (src_x, src_y, sprite_w, sprite_h) = match source {
+                                    Some(rect) => (
+                                        rect.x as usize,
+                                        rect.y as usize,
+                                        rect.width as usize,
+                                        rect.height as usize,
+                                    ),
+                                    None => (0, 0, tex_width, tex_height),
+                                };
+
+                                if src_x + sprite_w > tex_width || src_y + sprite_h > tex_height {
+                                    continue;
+                                }
+
+                                let tex_pixels: &[[u8; 4]] = unsafe {
+                                    std::slice::from_raw_parts(
+                                        texture.pixels.as_ptr() as *const [u8; 4],
+                                        texture.pixels.len() / 4,
                                     )
-                                }
-                                Anchor::TopLeft => (
-                                    (position.x - cam_x).round() as isize,
-                                    (position.y - cam_y).round() as isize,
-                                ),
-                            };
-                            let screen_min_x = start_x.max(0) as usize;
-                            let screen_min_y = start_y.max(0) as usize;
+                                };
 
-                            let screen_max_x = (start_x + sprite_w as isize)
-                                .min(frame_width as isize)
-                                .max(0) as usize;
-                            let screen_max_y = (start_y + sprite_h as isize)
-                                .min(frame_height as isize)
-                                .max(0) as usize;
-
-                            if screen_min_x >= screen_max_x || screen_min_y >= screen_max_y {
-                                continue;
-                            }
-
-                            let tex_pixels: &[[u8; 4]] = unsafe {
-                                std::slice::from_raw_parts(
-                                    texture.pixels.as_ptr() as *const [u8; 4],
-                                    texture.pixels.len() / 4,
-                                )
-                            };
-                            if rotation.abs() < 0.001 {
-                                for dst_y in screen_min_y..screen_max_y {
-                                    let base_tex_y = (dst_y as isize - start_y) as usize;
-                                    let tex_y = if *flip_v {
-                                        sprite_h - 1 - base_tex_y
-                                    } else {
-                                        base_tex_y
-                                    };
-
-                                    let dst_row_start = dst_y * frame_width;
-                                    let tex_row_start = (src_y + tex_y) * tex_width;
-
-                                    let tex_min_x = (screen_min_x as isize - start_x) as usize;
-
-                                    let lenght = screen_max_x - screen_min_x;
-
-                                    let (actual_tex_x_start, actual_tex_x_end) = if *flip_h {
-                                        (
-                                            src_x + sprite_w - tex_min_x - lenght,
-                                            src_x + sprite_w - tex_min_x,
-                                        )
-                                    } else {
-                                        (src_x + tex_min_x, src_x + tex_min_x + lenght)
-                                    };
-
-                                    let dst_row = &mut frame_pixels[dst_row_start + screen_min_x
-                                        ..dst_row_start + screen_max_x];
-
-                                    let tex_row = &tex_pixels[tex_row_start + actual_tex_x_start
-                                        ..tex_row_start + actual_tex_x_end];
-
-                                    if *flip_h {
-                                        for (dst_px, src_px) in
-                                            dst_row.iter_mut().zip(tex_row.iter().rev())
-                                        {
-                                            Self::blending_pixel(dst_px, src_px);
-                                        }
-                                    } else {
-                                        for (dst_px, src_px) in
-                                            dst_row.iter_mut().zip(tex_row.iter())
-                                        {
-                                            Self::blending_pixel(dst_px, src_px);
-                                        }
-                                    }
-                                }
-                            } else {
-                                Self::blit_rotated(
-                                    frame_pixels,
+                                Self::blit_sprite(
+                                    band_pixels,
                                     frame_width,
-                                    frame_height,
+                                    y0,
+                                    y0,
+                                    y1,
                                     tex_pixels,
                                     tex_width,
                                     src_x,
@@ -210,103 +389,157 @@ impl<'a> Render<'a> {
                                     *flip_v,
                                 );
                             }
-                        }
-                    }
-                    DrawCommand::Rect { color, rect } => {
-                        let color_bytes = color.bytes();
-                        let sa = color_bytes[3] as u32;
-
-                        if sa == 0 {
-                            continue;
-                        }
-
-                        let screen_x = rect.x as f32 - cam_x;
-                        let screen_y = rect.y as f32 - cam_y;
-
-                        let start_x = (screen_x as i32).max(0).min(frame_width as i32) as usize;
-                        let start_y = (screen_y as i32).max(0).min(frame_height as i32) as usize;
-                        let end_x = ((screen_x + rect.width as f32) as i32)
-                            .max(0)
-                            .min(frame_width as i32) as usize;
-                        let end_y = ((screen_y + rect.height as f32) as i32)
-                            .max(0)
-                            .min(frame_height as i32) as usize;
-
-                        if start_x >= end_x || start_y >= end_y {
-                            continue;
-                        }
-
-                        if sa == 255 {
-                            for y in start_y..end_y {
-                                let row_start = y * frame_width + start_x;
-                                let row_end = y * frame_width + end_x;
-
-                                frame_pixels[row_start..row_end].fill(color_bytes);
-                            }
-                        } else {
-                            let inv = 255u32 - sa;
-                            let sr = color_bytes[0] as u32;
-                            let sg = color_bytes[1] as u32;
-                            let sb = color_bytes[2] as u32;
-
-                            for y in start_y..end_y {
-                                let row_start = y * frame_width + start_x;
-                                let row_end = y * frame_width + end_x;
-
-                                for dst_px in &mut frame_pixels[row_start..row_end] {
-                                    let dr = dst_px[0] as u32;
-                                    let dg = dst_px[1] as u32;
-                                    let db = dst_px[2] as u32;
-
-                                    *dst_px = [
-                                        (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
-                                        (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
-                                        (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
-                                        255,
-                                    ];
-                                }
+                            DrawCommand::Rect { color, rect } => {
+                                Self::blit_rect(
+                                    band_pixels,
+                                    frame_width,
+                                    y0,
+                                    y0,
+                                    y1,
+                                    color.bytes(),
+                                    rect.x as f32,
+                                    rect.y as f32,
+                                    rect.width as f32,
+                                    rect.height as f32,
+                                    cam_x,
+                                    cam_y,
+                                );
                             }
                         }
                     }
                 }
-            }
-        }
+            });
+
+        let raster_time = t0.elapsed().as_secs_f32();
+        self.avg_raster_time = self.avg_raster_time * (1.0 - RASTER_TIME_EMA_ALPHA)
+            + raster_time * RASTER_TIME_EMA_ALPHA;
+
         let _ = self.pixels.render();
         self.clear();
     }
-    #[inline(always)]
-    pub fn blending_pixel(dst_px: &mut [u8; 4], src_px: &[u8; 4]) {
-        let sa = src_px[3] as u32;
 
-        if sa == 0 {
+    #[allow(clippy::too_many_arguments)]
+    fn blit_sprite(
+        pixels: &mut [[u8; 4]],
+        pixels_width: usize,
+        row_offset: usize,
+        clip_y0: usize,
+        clip_y1: usize,
+        tex_pixels: &[[u8; 4]],
+        tex_width: usize,
+        src_x: usize,
+        src_y: usize,
+        sprite_w: usize,
+        sprite_h: usize,
+        anchor: &Anchor,
+        position: Vector2,
+        cam_x: f32,
+        cam_y: f32,
+        rotation: f32,
+        flip_h: bool,
+        flip_v: bool,
+    ) {
+        let (start_x, start_y) = match anchor {
+            Anchor::Center => {
+                let center_x = position.x - (sprite_w as f32 / 2.0);
+                let center_y = position.y - (sprite_h as f32 / 2.0);
+                (
+                    (center_x - cam_x).round() as isize,
+                    (center_y - cam_y).round() as isize,
+                )
+            }
+            Anchor::TopLeft => (
+                (position.x - cam_x).round() as isize,
+                (position.y - cam_y).round() as isize,
+            ),
+        };
+
+        let screen_min_x = start_x.max(0) as usize;
+        let screen_min_y = start_y.max(clip_y0 as isize) as usize;
+
+        let screen_max_x = (start_x + sprite_w as isize)
+            .min(pixels_width as isize)
+            .max(0) as usize;
+        let screen_max_y = (start_y + sprite_h as isize)
+            .min(clip_y1 as isize)
+            .max(clip_y0 as isize) as usize;
+
+        if screen_min_x >= screen_max_x || screen_min_y >= screen_max_y {
             return;
         }
 
-        if sa == 255 {
-            *dst_px = *src_px;
-        } else {
-            let inv = 255u32 - sa;
+        if rotation.abs() >= 0.001 {
+            Self::blit_rotated(
+                pixels,
+                pixels_width,
+                row_offset,
+                clip_y0,
+                clip_y1,
+                tex_pixels,
+                tex_width,
+                src_x,
+                src_y,
+                sprite_w,
+                sprite_h,
+                anchor,
+                position,
+                cam_x,
+                cam_y,
+                rotation,
+                flip_h,
+                flip_v,
+            );
+            return;
+        }
 
-            let sr = src_px[0] as u32;
-            let sg = src_px[1] as u32;
-            let sb = src_px[2] as u32;
+        for dst_y in screen_min_y..screen_max_y {
+            let base_tex_y = (dst_y as isize - start_y) as usize;
+            let tex_y = if flip_v {
+                sprite_h - 1 - base_tex_y
+            } else {
+                base_tex_y
+            };
 
-            let dr = dst_px[0] as u32;
-            let dg = dst_px[1] as u32;
-            let db = dst_px[2] as u32;
+            let dst_row_start = (dst_y - row_offset) * pixels_width;
+            let tex_row_start = (src_y + tex_y) * tex_width;
 
-            *dst_px = [
-                (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
-                (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
-                (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
-                255,
-            ]
+            let tex_min_x = (screen_min_x as isize - start_x) as usize;
+            let lenght = screen_max_x - screen_min_x;
+
+            let (actual_tex_x_start, actual_tex_x_end) = if flip_h {
+                (
+                    src_x + sprite_w - tex_min_x - lenght,
+                    src_x + sprite_w - tex_min_x,
+                )
+            } else {
+                (src_x + tex_min_x, src_x + tex_min_x + lenght)
+            };
+
+            let dst_row = &mut pixels[dst_row_start + screen_min_x..dst_row_start + screen_max_x];
+            let tex_row =
+                &tex_pixels[tex_row_start + actual_tex_x_start..tex_row_start + actual_tex_x_end];
+
+            if flip_h {
+                for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter().rev()) {
+                    Self::blending_pixel(dst_px, src_px);
+                }
+            } else {
+                for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
+                    Self::blending_pixel(dst_px, src_px);
+                }
+            }
         }
     }
+
+    /// Blita um sprite rotacionado por amostragem inversa em ponto fixo.
+    /// Mesma convenção de `row_offset` / `clip_y0..clip_y1` de [`Self::blit_sprite`].
+    #[allow(clippy::too_many_arguments)]
     fn blit_rotated(
-        frame_pixels: &mut [[u8; 4]],
-        frame_width: usize,
-        frame_height: usize,
+        pixels: &mut [[u8; 4]],
+        pixels_width: usize,
+        row_offset: usize,
+        clip_y0: usize,
+        clip_y1: usize,
         tex_pixels: &[[u8; 4]],
         tex_width: usize,
         src_x: usize,
@@ -337,9 +570,11 @@ impl<'a> Render<'a> {
         let bbox_hh = hw * sin.abs() + hh * cos.abs();
 
         let min_x = ((cx - bbox_hw) as isize).max(0) as usize;
-        let max_x = ((cx + bbox_hw) as isize).min(frame_width as isize).max(0) as usize;
-        let min_y = ((cy - bbox_hh) as isize).max(0) as usize;
-        let max_y = ((cy + bbox_hh) as isize).min(frame_height as isize).max(0) as usize;
+        let max_x = ((cx + bbox_hw) as isize).min(pixels_width as isize).max(0) as usize;
+        let min_y = ((cy - bbox_hh) as isize).max(clip_y0 as isize) as usize;
+        let max_y = ((cy + bbox_hh) as isize)
+            .min(clip_y1 as isize)
+            .max(clip_y0 as isize) as usize;
         let fixed_scale = 65536.0;
 
         let inv_cos = cos;
@@ -361,6 +596,8 @@ impl<'a> Render<'a> {
             let mut u_fixed = (start_u * fixed_scale) as i32;
             let mut v_fixed = (start_v * fixed_scale) as i32;
 
+            let row_start = (dst_y - row_offset) * pixels_width;
+
             for dst_x in min_x..max_x {
                 if u_fixed >= 0 && u_fixed < u_max && v_fixed >= 0 && v_fixed < v_max {
                     let tex_x = (u_fixed >> 16) as usize;
@@ -371,12 +608,111 @@ impl<'a> Render<'a> {
 
                     let src_px = &tex_pixels[(src_y + ty) * tex_width + (src_x + tx)];
 
-                    Self::blending_pixel(&mut frame_pixels[dst_y * frame_width + dst_x], src_px);
+                    Self::blending_pixel(&mut pixels[row_start + dst_x], src_px);
                 }
 
                 u_fixed += step_x_u;
                 v_fixed += step_x_v;
             }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn blit_rect(
+        pixels: &mut [[u8; 4]],
+        pixels_width: usize,
+        row_offset: usize,
+        clip_y0: usize,
+        clip_y1: usize,
+        color_bytes: [u8; 4],
+        rect_x: f32,
+        rect_y: f32,
+        rect_width: f32,
+        rect_height: f32,
+        cam_x: f32,
+        cam_y: f32,
+    ) {
+        let sa = color_bytes[3] as u32;
+        if sa == 0 {
+            return;
+        }
+
+        let screen_x = rect_x - cam_x;
+        let screen_y = rect_y - cam_y;
+
+        let start_x = (screen_x as i32).max(0).min(pixels_width as i32) as usize;
+        let start_y = (screen_y as i32).max(clip_y0 as i32).min(clip_y1 as i32) as usize;
+        let end_x = ((screen_x + rect_width) as i32)
+            .max(0)
+            .min(pixels_width as i32) as usize;
+        let end_y = ((screen_y + rect_height) as i32)
+            .max(clip_y0 as i32)
+            .min(clip_y1 as i32) as usize;
+
+        if start_x >= end_x || start_y >= end_y {
+            return;
+        }
+
+        if sa == 255 {
+            for y in start_y..end_y {
+                let row_start = (y - row_offset) * pixels_width + start_x;
+                let row_end = (y - row_offset) * pixels_width + end_x;
+
+                pixels[row_start..row_end].fill(color_bytes);
+            }
+        } else {
+            let inv = 255u32 - sa;
+            let sr = color_bytes[0] as u32;
+            let sg = color_bytes[1] as u32;
+            let sb = color_bytes[2] as u32;
+
+            for y in start_y..end_y {
+                let row_start = (y - row_offset) * pixels_width + start_x;
+                let row_end = (y - row_offset) * pixels_width + end_x;
+
+                for dst_px in &mut pixels[row_start..row_end] {
+                    let dr = dst_px[0] as u32;
+                    let dg = dst_px[1] as u32;
+                    let db = dst_px[2] as u32;
+
+                    *dst_px = [
+                        (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
+                        (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
+                        (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
+                        255,
+                    ];
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub fn blending_pixel(dst_px: &mut [u8; 4], src_px: &[u8; 4]) {
+        let sa = src_px[3] as u32;
+
+        if sa == 0 {
+            return;
+        }
+
+        if sa == 255 {
+            *dst_px = *src_px;
+        } else {
+            let inv = 255u32 - sa;
+
+            let sr = src_px[0] as u32;
+            let sg = src_px[1] as u32;
+            let sb = src_px[2] as u32;
+
+            let dr = dst_px[0] as u32;
+            let dg = dst_px[1] as u32;
+            let db = dst_px[2] as u32;
+
+            *dst_px = [
+                (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
+                (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
+                (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
+                255,
+            ]
         }
     }
 }
