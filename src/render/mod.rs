@@ -133,10 +133,8 @@ impl<'a> Render<'a> {
         };
 
         if use_parallel {
-            println!("Paralel");
             self.render_paralel(camera_position, resources);
         } else {
-            println!("Single");
             self.render_sequential(camera_position, resources);
         }
     }

@@ -44,7 +44,6 @@ pub fn update() -> std::io::Result<()> {
             "--git",
             "https://github.com/DevMilim/alone-engine",
             "alone-engine",
-            "--force",
         ])
         .status()?;
 

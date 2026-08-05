@@ -1,11 +1,11 @@
 [package]
 name = "alone-engine"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [workspace]
 resolver = "3"
-members = ["macros", "example"]
+members = ["macros"]
 
 [dependencies]
 image = "0.25.10"
