@@ -91,6 +91,6 @@ fn cargo_toml(name: &str) -> String {
         eprintln!("Nome de projeto inválido");
         process::exit(1);
     }
-    let cargo_toml_template = include_str!("template/Cargo.toml");
+    let cargo_toml_template = include_str!("template/Cargo");
     cargo_toml_template.replace("{{name}}", name)
 }
