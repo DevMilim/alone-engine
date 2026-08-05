@@ -42,8 +42,10 @@ pub fn update() -> std::io::Result<()> {
         .args([
             "install",
             "--git",
-            "https://github.com/DevMilim/alone-engine/cargo-alone-engine",
-            "alone-engine",
+            "https://github.com/DevMilim/alone-engine",
+            "--bin",
+            "cargo-alone-engine",
+            "cargo-alone-engine",
         ])
         .status()?;
 
