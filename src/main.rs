@@ -43,7 +43,7 @@ pub fn update() -> std::io::Result<()> {
             "install",
             "--git",
             "https://github.com/DevMilim/alone-engine",
-            "milim",
+            "alone-engine",
             "--force",
         ])
         .status()?;
@@ -69,13 +69,10 @@ pub fn create_project(name: &str) -> std::io::Result<()> {
 
     let files = [
         ("Cargo.toml", cargo_toml(name)),
-        (
-            "src/main.rs",
-            include_str!("../template/main.rs").to_string(),
-        ),
+        ("src/main.rs", include_str!("template/main.rs").to_string()),
         (
             ".gitignore",
-            include_str!("../template/.gitignore").to_string(),
+            include_str!("template/.gitignore").to_string(),
         ),
     ];
 
@@ -94,6 +91,6 @@ fn cargo_toml(name: &str) -> String {
         eprintln!("Nome de projeto inválido");
         process::exit(1);
     }
-    let cargo_toml_template = include_str!("../template/Cargo");
+    let cargo_toml_template = include_str!("template/Cargo");
     cargo_toml_template.replace("{{name}}", name)
 }
