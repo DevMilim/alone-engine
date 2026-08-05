@@ -42,7 +42,7 @@ pub fn update() -> std::io::Result<()> {
         .args([
             "install",
             "--git",
-            "https://github.com/DevMilim/alone-engine",
+            "https://github.com/DevMilim/alone-engine/cargo-alone-engine",
             "alone-engine",
         ])
         .status()?;
