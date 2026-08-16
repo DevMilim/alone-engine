@@ -54,6 +54,15 @@ impl<'a> CoreApi for EngineContext<'a> {
         handles.retain(|h| !h.is_finished());
         handles.push(handle);
     }
+    fn blocking_task<F>(&mut self, owner_id: Id, task: F)
+    where
+        F: FnOnce() -> () + Send + 'static,
+    {
+        let handle = self.systems.async_handle.spawn_blocking(task);
+        let handles = self.systems.task_handles.entry(owner_id).or_default();
+        handles.retain(|h| !h.is_finished());
+        handles.push(handle);
+    }
     fn abort_tasks_of(&mut self, id: Id) {
         if let Some(handles) = self.systems.task_handles.remove(&id) {
             for handle in handles {

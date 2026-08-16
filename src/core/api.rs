@@ -28,6 +28,9 @@ pub trait CoreApi {
     fn async_task<F>(&mut self, owner_id: Id, future: F)
     where
         F: Future<Output = ()> + Send + 'static;
+    fn blocking_task<F>(&mut self, owner_id: Id, future: F)
+    where
+        F: FnOnce() -> () + Send + 'static;
     fn abort_tasks_of(&mut self, id: Id);
     fn register_service<T: 'static>(&mut self, id: Id);
     fn service_id<T: 'static>(&self) -> Option<Id>;
