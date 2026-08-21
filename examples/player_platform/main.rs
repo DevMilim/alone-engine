@@ -7,7 +7,6 @@ use alone_engine::{
     core::{Base, Component, EngineApi, GameObject, GameObjectBase, Slot},
     event::{TriggerEvent, TriggerKind},
     math::Vector2,
-    objects::network::NetworkClient,
     runtime::App,
 };
 
@@ -97,32 +96,5 @@ pub enum GameScenes {
 }
 
 fn main() {
-    App::<GameScenes, Globals>::new(MainScene::new().into())
-        .with_globals(Globals::new())
-        .run();
-}
-
-#[derive(GameObject)]
-pub struct Globals {
-    #[base]
-    base: Base,
-    #[object]
-    client: Slot<NetworkClient>,
-}
-impl Globals {
-    pub fn new() -> Self {
-        Self {
-            base: Base::default(),
-            client: Slot::default(),
-        }
-    }
-}
-
-impl GameObject for Globals {
-    type Message = ();
-    fn start(&mut self, ctx: &mut impl EngineApi) {
-        ctx.register_service::<Globals>(self.base.id);
-
-        self.client = Slot::new(NetworkClient::new("localhost:3000", ctx.async_handle()).unwrap());
-    }
+    App::<GameScenes>::new(MainScene::new().into()).run();
 }

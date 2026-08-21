@@ -70,7 +70,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
 impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attrs = Window::default_attributes()
-            .with_title("winit + pixels")
+            .with_title("Alone Engine")
             .with_inner_size(LogicalSize::new(800, 600));
 
         let window = Arc::new(event_loop.create_window(attrs).unwrap());
