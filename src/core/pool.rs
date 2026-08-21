@@ -3,17 +3,17 @@ use crate::{
     runtime::GameObjectDispatch,
 };
 
-pub struct Pool<T: GameObject> {
+pub struct Pool<T: GameObject + GameObjectDispatch> {
     pub(crate) items: Vec<T>,
 }
 
-impl<T: GameObject> Default for Pool<T> {
+impl<T: GameObject + GameObjectDispatch> Default for Pool<T> {
     fn default() -> Self {
         Self { items: Vec::new() }
     }
 }
 
-impl<T: GameObject> Pool<T> {
+impl<T: GameObject + GameObjectDispatch> Pool<T> {
     pub fn spawn(&mut self, object: T) {
         self.items.push(object);
     }
@@ -23,7 +23,7 @@ impl<T: GameObject> Pool<T> {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.items.iter_mut()
     }
-    pub fn clear(&mut self) {
+    pub fn queue_free_all(&mut self) {
         for item in &mut self.items {
             item.base_mut().queue_free();
         }
@@ -33,7 +33,7 @@ impl<T: GameObject> Pool<T> {
 impl<T: GameObject + GameObjectDispatch> GameObject for Pool<T> {
     type Message = ();
 }
-impl<T: GameObjectBase + GameObject> GameObjectBase for Pool<T> {
+impl<T: GameObjectBase + GameObject + GameObjectDispatch> GameObjectBase for Pool<T> {
     fn base(&self) -> &Base {
         &EMPTY_BASE
     }

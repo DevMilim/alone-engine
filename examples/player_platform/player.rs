@@ -104,9 +104,9 @@ impl GameObject for Player {
         let direction = ctx.get_key_axis(KeyCode::KeyA, KeyCode::KeyD);
 
         if direction < 0.0 {
-            self.sprite_animation.unwrap().flip_h = true;
+            self.sprite_animation.get_mut().unwrap().flip_h = true;
         } else if direction > 0.0 {
-            self.sprite_animation.unwrap().flip_h = false
+            self.sprite_animation.get_mut().unwrap().flip_h = false
         }
 
         self.velocity_mut().x = speed * direction;

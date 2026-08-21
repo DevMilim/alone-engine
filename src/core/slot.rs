@@ -14,13 +14,22 @@ impl<T> Slot<T> {
     pub fn new(inner: T) -> Self {
         Self { inner: Some(inner) }
     }
-    pub fn unwrap(&mut self) -> &mut T {
-        self.inner.as_mut().unwrap()
+    pub fn get(&self) -> Option<&T> {
+        self.inner.as_ref()
+    }
+    pub fn get_mut(&mut self) -> Option<&mut T> {
+        self.inner.as_mut()
+    }
+    pub fn is_some(&self) -> bool {
+        self.inner.is_some()
+    }
+    pub fn is_none(&self) -> bool {
+        self.inner.is_none()
     }
 }
 
 impl<T: GameObject> Slot<T> {
-    pub fn remove(&mut self) {
+    pub fn queue_free(&mut self) {
         if let Some(inner) = &mut self.inner {
             inner.base_mut().queue_free();
         }

@@ -58,7 +58,7 @@ impl MainScene {
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
         match event.kind {
-            TriggerKind::Enter => self.coin_sound.unwrap().play(ctx),
+            TriggerKind::Enter => self.coin_sound.get_mut().unwrap().play(ctx),
             TriggerKind::Exit => {}
         }
     }
@@ -86,7 +86,7 @@ impl GameObject for MainScene {
             )
             .unwrap(),
         );
-        self.music.unwrap().play(ctx);
+        self.music.get_mut().unwrap().play(ctx);
         println!("{:?}", self.base.id)
     }
 }
