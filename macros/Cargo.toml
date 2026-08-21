@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-darling = "0.23.0"
-proc-macro2 = "1.0.106"
-quote = "1.0.44"
-syn = { version = "2", features = ["full"] }
+darling = "0.24.1"
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
+syn = { version = "3", features = ["full"] }
 
 [lib]
 proc-macro = true
