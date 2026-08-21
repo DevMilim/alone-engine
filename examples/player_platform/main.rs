@@ -4,7 +4,7 @@ use crate::{platform::Platform, player::Player};
 use alone_engine::{
     GameObject, Scene,
     components::{Collider, PlaybackMode, Sound, TileCollision, Tilemap},
-    core::{Base, Component, EngineApi, GameObject, GameObjectBase},
+    core::{Base, Component, EngineApi, GameObject, GameObjectBase, Slot},
     event::{TriggerEvent, TriggerKind},
     math::Vector2,
     objects::network::NetworkClient,
@@ -14,8 +14,11 @@ use alone_engine::{
 mod platform;
 mod player;
 
+pub enum MainEvent {}
+
 #[derive(GameObject)]
 #[game(connect(collision: TriggerEvent))]
+#[game(subscribe(main_event: MainEvent))]
 pub struct MainScene {
     #[base]
     base: Base,
@@ -24,13 +27,13 @@ pub struct MainScene {
     #[object]
     platform: Platform,
     #[component]
-    tilemap: Option<Tilemap>,
+    tilemap: Slot<Tilemap>,
     #[component]
     sensor: Collider,
     #[component]
-    coin_sound: Option<Sound>,
+    coin_sound: Slot<Sound>,
     #[component]
-    music: Option<Sound>,
+    music: Slot<Sound>,
 }
 impl MainScene {
     pub fn new() -> Self {
@@ -42,9 +45,9 @@ impl MainScene {
                 offset_y: 100,
                 ..Default::default()
             },
-            tilemap: None,
-            music: None,
-            coin_sound: None,
+            tilemap: Slot::default(),
+            music: Slot::default(),
+            coin_sound: Slot::default(),
             player: Player::new(),
             platform: Platform::new(
                 Vector2::new(10.0, 117.0),
@@ -55,24 +58,25 @@ impl MainScene {
     }
     fn collision(&mut self, ctx: &mut impl EngineApi, event: &TriggerEvent) {
         match event.kind {
-            TriggerKind::Enter => self.coin_sound.as_mut().unwrap().play(ctx),
+            TriggerKind::Enter => self.coin_sound.unwrap().play(ctx),
             TriggerKind::Exit => {}
         }
     }
+    fn main_event(&mut self, _ctx: &mut impl EngineApi, _event: &MainEvent) {}
 }
 
 impl GameObject for MainScene {
     type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
-        self.coin_sound = Some(Sound::new(
+        self.coin_sound = Slot::new(Sound::new(
             ctx.load_audio(self.base.id, "assets/sounds/coin.wav"),
             PlaybackMode::OneShot,
         ));
-        self.music = Some(Sound::new(
+        self.music = Slot::new(Sound::new(
             ctx.load_audio(self.base.id, "assets/music/time_for_adventure.mp3"),
             PlaybackMode::Loop,
         ));
-        self.tilemap = Some(
+        self.tilemap = Slot::new(
             Tilemap::from_ldtk_file(
                 self.base.id,
                 ctx,
@@ -82,7 +86,7 @@ impl GameObject for MainScene {
             )
             .unwrap(),
         );
-        self.music.as_mut().unwrap().play(ctx);
+        self.music.unwrap().play(ctx);
         println!("{:?}", self.base.id)
     }
 }
@@ -103,13 +107,13 @@ pub struct Globals {
     #[base]
     base: Base,
     #[object]
-    client: Option<NetworkClient>,
+    client: Slot<NetworkClient>,
 }
 impl Globals {
     pub fn new() -> Self {
         Self {
             base: Base::default(),
-            client: None,
+            client: Slot::default(),
         }
     }
 }
@@ -117,6 +121,8 @@ impl Globals {
 impl GameObject for Globals {
     type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
-        self.client = Some(NetworkClient::new("localhost:3000", ctx.async_handle()).unwrap());
+        ctx.register_service::<Globals>(self.base.id);
+
+        self.client = Slot::new(NetworkClient::new("localhost:3000", ctx.async_handle()).unwrap());
     }
 }

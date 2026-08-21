@@ -3,7 +3,7 @@ use std::time::Duration;
 use alone_engine::{
     GameObject,
     components::{Collider, Sprite},
-    core::{Base, Component, EngineApi, GameObject, GameObjectBase},
+    core::{Base, Component, EngineApi, GameObject, GameObjectBase, Slot},
     math::{Vector2, Vector2i},
     render::SpriteSrc,
 };
@@ -13,7 +13,7 @@ pub struct Platform {
     #[base]
     base: Base,
     #[component]
-    sprite: Option<Sprite>,
+    sprite: Slot<Sprite>,
     #[component]
     collision: Collider,
     start_point: Vector2,
@@ -27,7 +27,7 @@ impl Platform {
     pub fn new(start_point: Vector2, end_point: Vector2, time: Duration) -> Self {
         Self {
             base: Base::default(),
-            sprite: None,
+            sprite: Slot::default(),
             collision: Collider {
                 one_way_collision: true,
                 width: 32,
@@ -52,7 +52,7 @@ impl GameObject for Platform {
         );
         sprite.set_src(1, 0);
         sprite.add_tile(2, 0);
-        self.sprite = Some(Sprite {
+        self.sprite = Slot::new(Sprite {
             texture: sprite,
             ..Default::default()
         });

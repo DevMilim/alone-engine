@@ -1,7 +1,7 @@
 use alone_engine::{
     GameObject,
     components::{AnimationData, Body, BodyType, Camera, Collider, IBody, SpriteAnimation},
-    core::{Base, Component, EngineApi, GameObject, GameObjectBase},
+    core::{Base, Component, EngineApi, GameObject, GameObjectBase, Slot},
     input::KeyCode,
     math::{Vector2, Vector2i},
     render::SpriteSrc,
@@ -13,7 +13,7 @@ pub struct Player {
     #[base]
     base: Base,
     #[component]
-    sprite_animation: Option<SpriteAnimation>,
+    sprite_animation: Slot<SpriteAnimation>,
     #[component(interface = IBody)]
     body: Body,
     #[component]
@@ -26,7 +26,7 @@ impl Player {
     pub fn new() -> Self {
         Self {
             base: Base::new(Vector2::new(20.0 - 14.0, 10.0)),
-            sprite_animation: None,
+            sprite_animation: Slot::default(),
             collision: Collider {
                 offset_y: 6,
                 height: 12,
@@ -74,7 +74,7 @@ impl GameObject for Player {
 
         animation.new_animation(iddle_frames, "idle");
         animation.play("idle");
-        self.sprite_animation = Some(animation);
+        self.sprite_animation = Slot::new(animation);
         let async_ctx = ctx.async_ctx();
 
         let id = self.base.id.clone();
@@ -104,9 +104,9 @@ impl GameObject for Player {
         let direction = ctx.get_key_axis(KeyCode::KeyA, KeyCode::KeyD);
 
         if direction < 0.0 {
-            self.sprite_animation.as_mut().unwrap().flip_h = true;
+            self.sprite_animation.unwrap().flip_h = true;
         } else if direction > 0.0 {
-            self.sprite_animation.as_mut().unwrap().flip_h = false
+            self.sprite_animation.unwrap().flip_h = false
         }
 
         self.velocity_mut().x = speed * direction;

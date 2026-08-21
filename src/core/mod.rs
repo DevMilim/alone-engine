@@ -3,16 +3,24 @@ mod base;
 mod core;
 mod handler;
 mod ldtk_api;
+mod pool;
+mod slot;
 
 pub use api::*;
 pub use base::*;
 pub use core::*;
 pub use handler::*;
 pub use ldtk_api::*;
+pub use pool::*;
+pub use slot::*;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     any::TypeId,
-    sync::mpsc::{Receiver, Sender, channel},
+    sync::{
+        LazyLock,
+        mpsc::{Receiver, Sender, channel},
+    },
 };
 use tokio::{
     runtime::{Handle, Runtime},
@@ -26,6 +34,8 @@ use crate::{
     input::InputState,
     resources::Resources,
 };
+
+pub static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
 
 pub struct CoreSystems {
     pub audio: AudioSys,

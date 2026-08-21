@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use bincode::{Decode, Encode};
 use uuid::Uuid;
 
@@ -58,69 +56,4 @@ pub trait IComponent<T: Component> {
 
     fn get_self_mut(&mut self) -> &mut T;
     fn get_self_and_base_mut(&mut self) -> (&mut T, &mut Base);
-}
-
-static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
-impl<T: GameObject> GameObject for Vec<T> {
-    type Message = ();
-}
-impl<T: GameObjectBase> GameObjectBase for Vec<T> {
-    fn base(&self) -> &Base {
-        &EMPTY_BASE
-    }
-
-    fn base_mut(&mut self) -> &mut Base {
-        panic!("Tentativa invalida de acessar base_mut em um Vec<GameObject>")
-    }
-}
-impl<T: GameObjectBase> GameObjectBase for Option<T> {
-    fn base(&self) -> &Base {
-        match self {
-            Some(obj) => obj.base(),
-            None => &EMPTY_BASE,
-        }
-    }
-
-    fn base_mut(&mut self) -> &mut Base {
-        match self {
-            Some(obj) => obj.base_mut(),
-            None => panic!("Tentativa de acessar base_mut em um Option vazio."),
-        }
-    }
-}
-impl<T: GameObject> GameObject for Option<T> {
-    type Message = ();
-}
-
-impl<T: Component> Component for Option<T> {
-    fn start(&mut self, ctx: &mut impl EngineApi, base: &mut Base) {
-        if let Some(component) = self {
-            component.start(ctx, base);
-        }
-    }
-    fn update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
-        if let Some(component) = self {
-            component.update(ctx, base, delta);
-        }
-    }
-    fn late_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
-        if let Some(component) = self {
-            component.late_update(ctx, base, delta);
-        }
-    }
-    fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, delta: f32) {
-        if let Some(component) = self {
-            component.fixed_update(ctx, base, delta);
-        }
-    }
-    fn draw(&mut self, renderer: &mut impl RenderApi, base: &Base, blending: f32) {
-        if let Some(component) = self {
-            component.draw(renderer, base, blending);
-        }
-    }
-    fn destroy(&mut self, ctx: &mut impl EngineApi, base: &Base) {
-        if let Some(component) = self {
-            component.destroy(ctx, base);
-        }
-    }
 }
