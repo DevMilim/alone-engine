@@ -27,7 +27,7 @@ Add the engine to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-alone-engine = "0.1.0"
+alone-engine = { git = "https://github.com/DevMilim/alone-engine" }
 ```
 
 Minimal example:

@@ -96,11 +96,6 @@ impl GameObject for Player {
             self.velocity_mut().y = jump_speed;
         }
 
-        if ctx.is_key_just_pressed(KeyCode::KeyC) && self.is_on_floor() {
-            self.base.transform.position.y += 5.0;
-            ctx.translate_my_colliders(self.base.id, Vector2i::new(0, 5));
-        }
-
         let direction = ctx.get_key_axis(KeyCode::KeyA, KeyCode::KeyD);
 
         if direction < 0.0 {
