@@ -1,7 +1,7 @@
-use darling::{Error, FromDeriveInput, FromField, ast::Data};
+use darling::{FromDeriveInput, FromField, ast::Data};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Ident, Meta, Path, Token, Type, parse::Parse, punctuated::Punctuated};
+use syn::{Ident, Path, Token, Type, parse::Parse, punctuated::Punctuated};
 
 fn get_crate_name() -> proc_macro2::TokenStream {
     quote!(alone_engine)
@@ -56,10 +56,6 @@ struct GameReceiver {
     ident: syn::Ident,
     generics: syn::Generics,
     data: Data<darling::util::Ignored, GameField>,
-    #[darling(default, with = "parse_subscriptions")]
-    subscribe: Vec<Subscription>,
-    #[darling(default, with = "parse_subscriptions")]
-    connect: Vec<Subscription>,
 }
 
 #[derive(Debug)]
@@ -72,19 +68,23 @@ impl Parse for ComponentArgs {
 
         while !input.is_empty() {
             let ident: Ident = input.parse()?;
-
             let _: Token![=] = input.parse()?;
-
             let value: Path = input.parse()?;
 
             if ident == "interface" {
                 interface = Some(value);
             }
+
+            if input.is_empty() {
+                break;
+            }
+            let _: Token![,] = input.parse()?;
         }
 
         Ok(Self { interface })
     }
 }
+
 #[derive(Debug)]
 struct Subscription {
     handler: Ident,
@@ -103,61 +103,72 @@ impl Parse for Subscription {
     }
 }
 
-fn parse_subscriptions(meta: &Meta) -> Result<Vec<Subscription>, Error> {
-    let list = match meta {
-        Meta::List(list) => list,
-        _ => return Err(Error::custom("Use o formato: subscribe(metodo: Tipo)")),
-    };
+fn parse_event_attributes(
+    attrs: &[syn::Attribute],
+) -> syn::Result<(Vec<Subscription>, Vec<Subscription>)> {
+    let mut subscribe = Vec::new();
+    let mut connect = Vec::new();
 
-    let parser = Punctuated::<Subscription, Token![,]>::parse_terminated;
-    let subs = list
-        .parse_args_with(parser)
-        .map_err(|e| Error::custom(e.to_string()).with_span(meta))?;
+    for attr in attrs {
+        if attr.path().is_ident("subscribe") {
+            let parsed =
+                attr.parse_args_with(Punctuated::<Subscription, Token![,]>::parse_terminated)?;
+            subscribe.extend(parsed);
+        } else if attr.path().is_ident("connect") {
+            let parsed =
+                attr.parse_args_with(Punctuated::<Subscription, Token![,]>::parse_terminated)?;
+            connect.extend(parsed);
+        }
+    }
 
-    Ok(subs.into_iter().collect())
+    Ok((subscribe, connect))
 }
 
-#[proc_macro_derive(GameObject, attributes(base, component, object, game))]
+fn build_downcast_arms(subs: &[Subscription]) -> Vec<proc_macro2::TokenStream> {
+    subs.iter()
+        .map(|sub| {
+            let event_ty = &sub.event_type;
+            let handler_ident = &sub.handler;
+            quote! {
+                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
+                    self.#handler_ident(ctx, payload);
+                }
+            }
+        })
+        .collect()
+}
+
+#[proc_macro_derive(GameObject, attributes(base, component, object, connect, subscribe))]
 pub fn scene_tree(input: TokenStream) -> TokenStream {
     let crate_name = get_crate_name();
+    let p = quote!(::#crate_name::prelude);
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    let (subscribe, connect) = match parse_event_attributes(&input.attrs) {
+        Ok(v) => v,
+        Err(e) => return e.into_compile_error().into(),
+    };
+
     let receiver = match GameReceiver::from_derive_input(&input) {
         Ok(v) => v,
         Err(e) => return e.write_errors().into(),
     };
 
-    // 1. Otimização dos blocos de eventos (gerados condicionalmente para evitar overhead)
-    let subscribe_block = (!receiver.subscribe.is_empty()).then(|| {
-        let arms = receiver.subscribe.iter().map(|sub| {
-            let event_ty = &sub.event_type;
-            let handler_ident = &sub.handler;
-            quote! {
-                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
-                    self.#handler_ident(ctx, payload);
-                }
-            }
-        });
+    let subscribe_arms = build_downcast_arms(&subscribe);
+    let subscribe_block = (!subscribe.is_empty()).then(|| {
         quote! {
-            if let ::#crate_name::prelude::GlobalEvent::Broadcast(any_event) = event {
-                #(#arms)*
+            if let #p::GlobalEvent::Broadcast(any_event) = event {
+                #(#subscribe_arms)*
             }
         }
     });
 
-    let connect_block = (!receiver.connect.is_empty()).then(|| {
-        let arms = receiver.connect.iter().map(|sub| {
-            let event_ty = &sub.event_type;
-            let handler_ident = &sub.handler;
-            quote! {
-                if let Some(payload) = any_event.downcast_ref::<#event_ty>() {
-                    self.#handler_ident(ctx, payload);
-                }
-            }
-        });
+    let connect_arms = build_downcast_arms(&connect);
+    let connect_block = (!connect.is_empty()).then(|| {
         quote! {
-            if let ::#crate_name::prelude::GlobalEvent::Targeted(id, any_event) = event {
+            if let #p::GlobalEvent::Targeted(id, any_event) = event {
                 if &self.base().id == id {
-                    #(#arms)*
+                    #(#connect_arms)*
                     return;
                 }
             }
@@ -172,11 +183,11 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let mut object_fields = Vec::new();
     let mut bounds = Vec::new();
     let mut pending_component_impls = Vec::new();
+    let mut seen_interfaces = std::collections::HashSet::new();
 
     for field in fields.fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
-        let mut component_traits = Vec::new();
 
         if field.base {
             if base_field.is_some() {
@@ -184,40 +195,37 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                     ident,
                     "Apenas um campo pode ser marcado como base",
                 )
-                .to_compile_error()
+                .into_compile_error()
                 .into();
             }
             if type_is_base(ty) {
                 base_field = Some(ident.clone());
             } else {
                 return syn::Error::new_spanned(ty, "O campo base precisa ser do tipo Base")
-                    .to_compile_error()
+                    .into_compile_error()
                     .into();
             }
         } else if field.component {
             component_fields.push(ident.clone());
-            bounds.push(quote! { #ty: ::#crate_name::prelude::Component });
+            bounds.push(quote! { #ty: #p::Component });
 
             if let Some(trait_path) = &field.interface {
                 let trait_name = quote! {#trait_path}.to_string();
 
-                if component_traits.contains(&trait_name) {
+                if !seen_interfaces.insert(trait_name) {
                     return syn::Error::new_spanned(
                         ident,
                         "A mesma interface de componente só pode ser utilizada uma vez",
                     )
-                    .to_compile_error()
+                    .into_compile_error()
                     .into();
                 }
-                component_traits.push(trait_name);
 
                 pending_component_impls.push((ident.clone(), ty.clone(), trait_path.clone()));
             }
         } else if field.object {
             object_fields.push(ident.clone());
-            bounds.push(
-                quote! { #ty: ::#crate_name::prelude::GameObject + ::#crate_name::prelude::GameObjectDispatch },
-            );
+            bounds.push(quote! { #ty: #p::GameObject + #p::GameObjectDispatch });
         }
     }
 
@@ -225,7 +233,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         Some(field) => field,
         None => {
             return syn::Error::new_spanned(struct_name, "Nenhum campo foi marcado com #[base]")
-                .to_compile_error()
+                .into_compile_error()
                 .into();
         }
     };
@@ -234,49 +242,57 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         let inherit = !self.#base_field.top_level;
         self.#base_field.transform.apply_parent(&parent_base.transform, inherit);
     };
+    let ensure_started = quote! {
+        #apply_transform
+        if !self.is_started() {
+            self.dispatch_start(ctx, parent_base);
+        }
+    };
 
     let (impl_generics, ty_generics, where_clause) = receiver.generics.split_for_impl();
     let where_tokens = if let Some(wc) = where_clause {
-        quote! { #wc, Self: ::#crate_name::prelude::GameObject, #(#bounds),* }
+        quote! { #wc, Self: #p::GameObject, #(#bounds),* }
     } else {
-        quote! { where Self: ::#crate_name::prelude::GameObject, #(#bounds),* }
+        quote! { where Self: #p::GameObject, #(#bounds),* }
     };
 
-    let injected_methods = pending_component_impls.iter().map(|(ident, ty, trait_path)| {
-        quote! {
-            impl ::#crate_name::prelude::IComponent<#ty> for #struct_name {
-                fn get_self(&self) -> & #ty {
-                    &self.#ident
+    let injected_methods = pending_component_impls
+        .iter()
+        .map(|(ident, ty, trait_path)| {
+            quote! {
+                impl #p::IComponent<#ty> for #struct_name {
+                    fn get_self(&self) -> & #ty {
+                        &self.#ident
+                    }
+                    fn get_self_mut(&mut self) -> &mut #ty {
+                        &mut self.#ident
+                    }
+                    fn get_self_and_base_mut(&mut self) -> (&mut #ty, &mut #p::Base) {
+                        (&mut self.#ident, &mut self.#base_field)
+                    }
                 }
-                fn get_self_mut(&mut self) -> &mut #ty {
-                    &mut self.#ident
-                }
-                fn get_self_and_base_mut(&mut self) -> (&mut #ty, &mut ::#crate_name::prelude::Base) {
-                    (&mut self.#ident, &mut self.#base_field)
-                }
+                impl #trait_path for #struct_name {}
             }
-            impl #trait_path for #struct_name {}
-        }
-    });
+        });
 
     quote! {
         #(#injected_methods)*
-        impl #impl_generics ::#crate_name::prelude::GameObjectBase for #struct_name #ty_generics {
-            fn base(&self) -> &::#crate_name::prelude::Base {
+        impl #impl_generics #p::GameObjectBase for #struct_name #ty_generics {
+            fn base(&self) -> &#p::Base {
                 &self.#base_field
             }
 
-            fn base_mut(&mut self) -> &mut ::#crate_name::prelude::Base {
+            fn base_mut(&mut self) -> &mut #p::Base {
                 &mut self.#base_field
             }
         }
 
-        impl #impl_generics ::#crate_name::prelude::GameObjectDispatch for #struct_name #ty_generics #where_tokens {
+        impl #impl_generics #p::GameObjectDispatch for #struct_name #ty_generics #where_tokens {
             fn is_pending_removal(&self) -> bool {
                 self.base().pending_removal
             }
 
-            fn dispatch_start(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base) {
+            fn dispatch_start(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base) {
                 if self.is_started() {
                     return;
                 }
@@ -287,7 +303,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 self.mark_as_started();
             }
 
-            fn dispatch_message(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
+            fn dispatch_message(&mut self, ctx: &mut impl #p::EngineApi) {
                 if ctx.mail_box_is_empty() {
                     return;
                 }
@@ -295,7 +311,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 let mailbox = ctx.mailbox();
                 if let Some(msgs) = mailbox.remove(&self.base().id) {
                     for msg in msgs {
-                        if let Some(message) = msg.downcast_ref::<<Self as ::#crate_name::prelude::GameObject>::Message>() {
+                        if let Some(message) = msg.downcast_ref::<<Self as #p::GameObject>::Message>() {
                             self.on_message(ctx, message);
                         } else {
                             #[cfg(debug_assertions)]
@@ -310,50 +326,41 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#object_fields.dispatch_message(ctx);)*
             }
 
-            fn dispatch_event(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, event: &::#crate_name::prelude::GlobalEvent) {
+            fn dispatch_event(&mut self, ctx: &mut impl #p::EngineApi, event: &#p::GlobalEvent) {
                 #subscribe_block
                 #connect_block
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
 
-            fn dispatch_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
-                #apply_transform
-                if !self.is_started() {
-                    self.dispatch_start(ctx, parent_base);
-                }
+            fn dispatch_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
+                #ensure_started
                 self.update(ctx, delta);
                 #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
                 #(self.#object_fields.dispatch_update(ctx, &self.#base_field, delta);)*
             }
 
-            fn dispatch_late_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
-                #apply_transform
-                if !self.is_started() {
-                    self.dispatch_start(ctx, parent_base);
-                }
+            fn dispatch_late_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
+                #ensure_started
                 self.late_update(ctx, delta);
                 #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
                 #(self.#object_fields.dispatch_late_update(ctx, &self.#base_field, delta);)*
             }
 
-            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
-                #apply_transform
-                if !self.is_started() {
-                    self.dispatch_start(ctx, parent_base);
-                }
+            fn dispatch_fixed_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
+                #ensure_started
                 self.fixed_update(ctx, delta);
                 #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*
                 #(self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta);)*
             }
 
-            fn dispatch_draw(&mut self, renderer: &mut impl ::#crate_name::prelude::RenderApi, parent_base: &::#crate_name::prelude::Base, blending: f32) {
+            fn dispatch_draw(&mut self, renderer: &mut impl #p::RenderApi, parent_base: &#p::Base, blending: f32) {
                 #apply_transform
                 self.draw(renderer, blending);
                 #(self.#component_fields.draw(renderer, &self.#base_field, blending);)*
                 #(self.#object_fields.dispatch_draw(renderer, &self.#base_field, blending);)*
             }
 
-            fn dispatch_destroy(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
+            fn dispatch_destroy(&mut self, ctx: &mut impl #p::EngineApi) {
                 ctx.unregister_alive(self.base().id);
                 ctx.abort_tasks_of(self.base().id);
                 ctx.destroy(self.base().id);
@@ -376,10 +383,28 @@ fn type_is_base(ty: &Type) -> bool {
     false
 }
 
+fn gen_dispatch_method(
+    variants: &[&Ident],
+    name: &str,
+    sig: proc_macro2::TokenStream,
+    ret: proc_macro2::TokenStream,
+    call_args: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let method = Ident::new(name, proc_macro2::Span::call_site());
+    quote! {
+        fn #method(#sig) #ret {
+            match self {
+                #(Self::#variants(inner) => inner.#method(#call_args),)*
+            }
+        }
+    }
+}
+
 fn derive_object_dispatch_enum(
     input: &syn::DeriveInput,
 ) -> Result<proc_macro2::TokenStream, TokenStream> {
     let crate_name = get_crate_name();
+    let p = quote!(::#crate_name::prelude);
     let name = &input.ident;
 
     let data = match &input.data {
@@ -410,6 +435,7 @@ fn derive_object_dispatch_enum(
             }
         }
     }
+
     let mut seen_types = std::collections::HashSet::new();
     let mut from_impls = Vec::new();
 
@@ -426,73 +452,82 @@ fn derive_object_dispatch_enum(
         }
     }
 
+    let v = &variant_idents;
+
+    let dispatch_methods: Vec<_> = [
+        (
+            "dispatch_start",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base),
+            quote!(),
+            quote!(ctx, parent_base),
+        ),
+        (
+            "dispatch_message",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi),
+            quote!(),
+            quote!(ctx),
+        ),
+        (
+            "dispatch_event",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi, event: &#p::GlobalEvent),
+            quote!(),
+            quote!(ctx, event),
+        ),
+        (
+            "dispatch_update",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32),
+            quote!(),
+            quote!(ctx, parent_base, delta),
+        ),
+        (
+            "dispatch_late_update",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32),
+            quote!(),
+            quote!(ctx, parent_base, delta),
+        ),
+        (
+            "dispatch_fixed_update",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32),
+            quote!(),
+            quote!(ctx, parent_base, delta),
+        ),
+        (
+            "dispatch_draw",
+            quote!(&mut self, renderer: &mut impl #p::RenderApi, parent_base: &#p::Base, blending: f32),
+            quote!(),
+            quote!(renderer, parent_base, blending),
+        ),
+        (
+            "dispatch_destroy",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi),
+            quote!(),
+            quote!(ctx),
+        ),
+        ("is_pending_removal", quote!(&self), quote!(-> bool), quote!()),
+    ]
+    .into_iter()
+    .map(|(name, sig, ret, args)| gen_dispatch_method(v, name, sig, ret, args))
+    .collect();
+
+    let base_methods: Vec<_> = [
+        ("base", quote!(&self), quote!(-> &#p::Base), quote!()),
+        (
+            "base_mut",
+            quote!(&mut self),
+            quote!(-> &mut #p::Base),
+            quote!(),
+        ),
+    ]
+    .into_iter()
+    .map(|(name, sig, ret, args)| gen_dispatch_method(v, name, sig, ret, args))
+    .collect();
+
     Ok(quote! {
-        impl ::#crate_name::prelude::GameObjectDispatch for #name {
-            fn is_pending_removal(&self) -> bool {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.is_pending_removal(),)*
-                }
-            }
-
-            fn dispatch_start(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_start(ctx, parent_base),)*
-                }
-            }
-
-            fn dispatch_message(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_message(ctx),)*
-                }
-            }
-
-            fn dispatch_event(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, event: &::#crate_name::prelude::GlobalEvent) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_event(ctx, event),)*
-                }
-            }
-
-            fn dispatch_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_update(ctx, parent_base, delta),)*
-                }
-            }
-
-            fn dispatch_late_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_late_update(ctx, parent_base, delta),)*
-                }
-            }
-
-            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_fixed_update(ctx, parent_base, delta),)*
-                }
-            }
-
-            fn dispatch_draw(&mut self, renderer: &mut impl ::#crate_name::prelude::RenderApi, parent_base: &::#crate_name::prelude::Base, blending: f32) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_draw(renderer, parent_base, blending),)*
-                }
-            }
-
-            fn dispatch_destroy(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.dispatch_destroy(ctx),)*
-                }
-            }
+        impl #p::GameObjectDispatch for #name {
+            #(#dispatch_methods)*
         }
-        impl ::#crate_name::prelude::GameObjectBase for #name {
-            fn base(&self) -> &::#crate_name::prelude::Base {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.base(),)*
-                }
-            }
-            fn base_mut(&mut self) -> &mut ::#crate_name::prelude::Base {
-                match self {
-                    #(Self::#variant_idents(inner) => inner.base_mut(),)*
-                }
-            }
+        impl #p::GameObjectBase for #name {
+            #(#base_methods)*
         }
 
         #(#from_impls)*

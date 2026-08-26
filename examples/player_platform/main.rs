@@ -16,8 +16,8 @@ mod player;
 pub enum MainEvent {}
 
 #[derive(GameObject)]
-#[game(connect(collision: TriggerEvent))]
-#[game(subscribe(main_event: MainEvent))]
+#[connect(collision: TriggerEvent)]
+#[subscribe(main_event: MainEvent)]
 pub struct MainScene {
     #[base]
     base: Base,
