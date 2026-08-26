@@ -3,6 +3,10 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Ident, Meta, Path, Token, Type, parse::Parse, punctuated::Punctuated};
 
+fn get_crate_name() -> proc_macro2::TokenStream {
+    quote!(alone_engine)
+}
+
 #[derive(Debug)]
 struct GameField {
     ident: Option<syn::Ident>,
@@ -115,6 +119,7 @@ fn parse_subscriptions(meta: &Meta) -> Result<Vec<Subscription>, Error> {
 
 #[proc_macro_derive(GameObject, attributes(base, component, object, game))]
 pub fn scene_tree(input: TokenStream) -> TokenStream {
+    let crate_name = get_crate_name();
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let receiver = match GameReceiver::from_derive_input(&input) {
         Ok(v) => v,
@@ -133,7 +138,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         });
         quote! {
-            if let ::alone_engine::prelude::GlobalEvent::Broadcast(any_event) = event {
+            if let ::#crate_name::prelude::GlobalEvent::Broadcast(any_event) = event {
                 #(#arms)*
             }
         }
@@ -150,7 +155,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         });
         quote! {
-            if let ::alone_engine::prelude::GlobalEvent::Targeted(id, any_event) = event {
+            if let ::#crate_name::prelude::GlobalEvent::Targeted(id, any_event) = event {
                 if &self.base().id == id {
                     #(#arms)*
                     return;
@@ -191,7 +196,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         } else if field.component {
             component_fields.push(ident.clone());
-            bounds.push(quote! { #ty: ::alone_engine::prelude::Component });
+            bounds.push(quote! { #ty: ::#crate_name::prelude::Component });
 
             if let Some(trait_path) = &field.interface {
                 let trait_name = quote! {#trait_path}.to_string();
@@ -211,7 +216,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         } else if field.object {
             object_fields.push(ident.clone());
             bounds.push(
-                quote! { #ty: ::alone_engine::prelude::GameObject + ::alone_engine::prelude::GameObjectDispatch },
+                quote! { #ty: ::#crate_name::prelude::GameObject + ::#crate_name::prelude::GameObjectDispatch },
             );
         }
     }
@@ -232,21 +237,21 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = receiver.generics.split_for_impl();
     let where_tokens = if let Some(wc) = where_clause {
-        quote! { #wc, Self: ::alone_engine::prelude::GameObject, #(#bounds),* }
+        quote! { #wc, Self: ::#crate_name::prelude::GameObject, #(#bounds),* }
     } else {
-        quote! { where Self: ::alone_engine::prelude::GameObject, #(#bounds),* }
+        quote! { where Self: ::#crate_name::prelude::GameObject, #(#bounds),* }
     };
 
     let injected_methods = pending_component_impls.iter().map(|(ident, ty, trait_path)| {
         quote! {
-            impl ::alone_engine::prelude::IComponent<#ty> for #struct_name {
+            impl ::#crate_name::prelude::IComponent<#ty> for #struct_name {
                 fn get_self(&self) -> & #ty {
                     &self.#ident
                 }
                 fn get_self_mut(&mut self) -> &mut #ty {
                     &mut self.#ident
                 }
-                fn get_self_and_base_mut(&mut self) -> (&mut #ty, &mut ::alone_engine::prelude::Base) {
+                fn get_self_and_base_mut(&mut self) -> (&mut #ty, &mut ::#crate_name::prelude::Base) {
                     (&mut self.#ident, &mut self.#base_field)
                 }
             }
@@ -256,22 +261,22 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
     quote! {
         #(#injected_methods)*
-        impl #impl_generics ::alone_engine::prelude::GameObjectBase for #struct_name #ty_generics {
-            fn base(&self) -> &::alone_engine::prelude::Base {
+        impl #impl_generics ::#crate_name::prelude::GameObjectBase for #struct_name #ty_generics {
+            fn base(&self) -> &::#crate_name::prelude::Base {
                 &self.#base_field
             }
 
-            fn base_mut(&mut self) -> &mut ::alone_engine::prelude::Base {
+            fn base_mut(&mut self) -> &mut ::#crate_name::prelude::Base {
                 &mut self.#base_field
             }
         }
 
-        impl #impl_generics ::alone_engine::prelude::GameObjectDispatch for #struct_name #ty_generics #where_tokens {
+        impl #impl_generics ::#crate_name::prelude::GameObjectDispatch for #struct_name #ty_generics #where_tokens {
             fn is_pending_removal(&self) -> bool {
                 self.base().pending_removal
             }
 
-            fn dispatch_start(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base) {
+            fn dispatch_start(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base) {
                 if self.is_started() {
                     return;
                 }
@@ -282,7 +287,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 self.mark_as_started();
             }
 
-            fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+            fn dispatch_message(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
                 if ctx.mail_box_is_empty() {
                     return;
                 }
@@ -290,7 +295,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 let mailbox = ctx.mailbox();
                 if let Some(msgs) = mailbox.remove(&self.base().id) {
                     for msg in msgs {
-                        if let Some(message) = msg.downcast_ref::<<Self as ::alone_engine::prelude::GameObject>::Message>() {
+                        if let Some(message) = msg.downcast_ref::<<Self as ::#crate_name::prelude::GameObject>::Message>() {
                             self.on_message(ctx, message);
                         } else {
                             #[cfg(debug_assertions)]
@@ -305,13 +310,13 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#object_fields.dispatch_message(ctx);)*
             }
 
-            fn dispatch_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, event: &::alone_engine::prelude::GlobalEvent) {
+            fn dispatch_event(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, event: &::#crate_name::prelude::GlobalEvent) {
                 #subscribe_block
                 #connect_block
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
 
-            fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+            fn dispatch_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
@@ -321,7 +326,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#object_fields.dispatch_update(ctx, &self.#base_field, delta);)*
             }
 
-            fn dispatch_late_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+            fn dispatch_late_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
@@ -331,7 +336,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#object_fields.dispatch_late_update(ctx, &self.#base_field, delta);)*
             }
 
-            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
                 #apply_transform
                 if !self.is_started() {
                     self.dispatch_start(ctx, parent_base);
@@ -341,14 +346,14 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta);)*
             }
 
-            fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::prelude::RenderApi, parent_base: &::alone_engine::prelude::Base, blending: f32) {
+            fn dispatch_draw(&mut self, renderer: &mut impl ::#crate_name::prelude::RenderApi, parent_base: &::#crate_name::prelude::Base, blending: f32) {
                 #apply_transform
                 self.draw(renderer, blending);
                 #(self.#component_fields.draw(renderer, &self.#base_field, blending);)*
                 #(self.#object_fields.dispatch_draw(renderer, &self.#base_field, blending);)*
             }
 
-            fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+            fn dispatch_destroy(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
                 ctx.unregister_alive(self.base().id);
                 ctx.abort_tasks_of(self.base().id);
                 ctx.destroy(self.base().id);
@@ -374,6 +379,7 @@ fn type_is_base(ty: &Type) -> bool {
 fn derive_object_dispatch_enum(
     input: &syn::DeriveInput,
 ) -> Result<proc_macro2::TokenStream, TokenStream> {
+    let crate_name = get_crate_name();
     let name = &input.ident;
 
     let data = match &input.data {
@@ -421,68 +427,68 @@ fn derive_object_dispatch_enum(
     }
 
     Ok(quote! {
-        impl ::alone_engine::prelude::GameObjectDispatch for #name {
+        impl ::#crate_name::prelude::GameObjectDispatch for #name {
             fn is_pending_removal(&self) -> bool {
                 match self {
                     #(Self::#variant_idents(inner) => inner.is_pending_removal(),)*
                 }
             }
 
-            fn dispatch_start(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base) {
+            fn dispatch_start(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_start(ctx, parent_base),)*
                 }
             }
 
-            fn dispatch_message(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+            fn dispatch_message(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_message(ctx),)*
                 }
             }
 
-            fn dispatch_event(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, event: &::alone_engine::prelude::GlobalEvent) {
+            fn dispatch_event(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, event: &::#crate_name::prelude::GlobalEvent) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_event(ctx, event),)*
                 }
             }
 
-            fn dispatch_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+            fn dispatch_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_update(ctx, parent_base, delta),)*
                 }
             }
 
-            fn dispatch_late_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+            fn dispatch_late_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_late_update(ctx, parent_base, delta),)*
                 }
             }
 
-            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi, parent_base: &::alone_engine::prelude::Base, delta: f32) {
+            fn dispatch_fixed_update(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi, parent_base: &::#crate_name::prelude::Base, delta: f32) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_fixed_update(ctx, parent_base, delta),)*
                 }
             }
 
-            fn dispatch_draw(&mut self, renderer: &mut impl ::alone_engine::prelude::RenderApi, parent_base: &::alone_engine::prelude::Base, blending: f32) {
+            fn dispatch_draw(&mut self, renderer: &mut impl ::#crate_name::prelude::RenderApi, parent_base: &::#crate_name::prelude::Base, blending: f32) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_draw(renderer, parent_base, blending),)*
                 }
             }
 
-            fn dispatch_destroy(&mut self, ctx: &mut impl ::alone_engine::prelude::EngineApi) {
+            fn dispatch_destroy(&mut self, ctx: &mut impl ::#crate_name::prelude::EngineApi) {
                 match self {
                     #(Self::#variant_idents(inner) => inner.dispatch_destroy(ctx),)*
                 }
             }
         }
-        impl ::alone_engine::prelude::GameObjectBase for #name {
-            fn base(&self) -> &::alone_engine::prelude::Base {
+        impl ::#crate_name::prelude::GameObjectBase for #name {
+            fn base(&self) -> &::#crate_name::prelude::Base {
                 match self {
                     #(Self::#variant_idents(inner) => inner.base(),)*
                 }
             }
-            fn base_mut(&mut self) -> &mut ::alone_engine::prelude::Base {
+            fn base_mut(&mut self) -> &mut ::#crate_name::prelude::Base {
                 match self {
                     #(Self::#variant_idents(inner) => inner.base_mut(),)*
                 }
@@ -504,6 +510,7 @@ pub fn object_enum_derive(input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(Scene)]
 pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
+    let crate_name = get_crate_name();
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let name = &input.ident;
 
@@ -513,8 +520,8 @@ pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
     };
 
     let scene_impl = quote! {
-        impl ::alone_engine::prelude::Scene for #name {
-            fn get_dispatch(&mut self) -> &mut impl ::alone_engine::prelude::GameObjectDispatch {
+        impl ::#crate_name::prelude::Scene for #name {
+            fn get_dispatch(&mut self) -> &mut impl ::#crate_name::prelude::GameObjectDispatch {
                 self
             }
         }
