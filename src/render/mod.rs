@@ -77,6 +77,7 @@ impl<'a> Render<'a> {
             queue.sort_unstable_by_key(|cmd| match cmd {
                 DrawCommand::Sprite { image, .. } => (1, image.id),
                 DrawCommand::Rect { .. } => (0, 0),
+                DrawCommand::Line { .. } => (0, 0),
             });
         }
     }
@@ -136,6 +137,18 @@ impl<'a> Render<'a> {
                     (cy - bbox_hh).floor() as isize,
                     (cy + bbox_hh).ceil() as isize,
                 ))
+            }
+            DrawCommand::Line {
+                start,
+                end,
+                thickness,
+                ..
+            } => {
+                let y0 = start.y - cam_y;
+                let y1 = end.y - cam_y;
+                let (top, bottom) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
+                let pad = (thickness / 2.0).max(1.0);
+                Some(((top - pad).floor() as isize, (bottom + pad).ceil() as isize))
             }
         }
     }
@@ -243,6 +256,26 @@ impl<'a> Render<'a> {
                             *rotation,
                             *flip_h,
                             *flip_v,
+                        );
+                    }
+                    DrawCommand::Line {
+                        start,
+                        end,
+                        color,
+                        thickness,
+                    } => {
+                        Self::blit_line(
+                            frame_pixels,
+                            frame_width,
+                            0,
+                            0,
+                            frame_height,
+                            color.bytes(),
+                            *start,
+                            *end,
+                            *thickness,
+                            cam_x,
+                            cam_y,
                         );
                     }
                     DrawCommand::Rect { color, rect } => {
@@ -407,6 +440,26 @@ impl<'a> Render<'a> {
                                     *flip_v,
                                 );
                             }
+                            DrawCommand::Line {
+                                start,
+                                end,
+                                color,
+                                thickness,
+                            } => {
+                                Self::blit_line(
+                                    band_pixels,
+                                    frame_width,
+                                    y0,
+                                    y0,
+                                    y1,
+                                    color.bytes(),
+                                    *start,
+                                    *end,
+                                    *thickness,
+                                    cam_x,
+                                    cam_y,
+                                );
+                            }
                             DrawCommand::Rect { color, rect } => {
                                 Self::blit_rect(
                                     band_pixels,
@@ -543,6 +596,80 @@ impl<'a> Render<'a> {
             } else {
                 for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
                     Self::blending_pixel(dst_px, src_px);
+                }
+            }
+        }
+    }
+    fn blit_line(
+        pixels: &mut [[u8; 4]],
+        pixels_width: usize,
+        row_offset: usize,
+        clip_y0: usize,
+        clip_y1: usize,
+        color_bytes: [u8; 4],
+        start: Vector2,
+        end: Vector2,
+        thickness: f32,
+        cam_x: f32,
+        cam_y: f32,
+    ) {
+        let sa = color_bytes[3] as u32;
+        if sa == 0 {
+            return;
+        }
+
+        let x0 = start.x - cam_x;
+        let y0 = start.y - cam_y;
+        let x1 = end.x - cam_x;
+        let y1 = end.y - cam_y;
+
+        let dx = x1 - x0;
+        let dy = y1 - y0;
+        let len_sq = dx * dx + dy * dy;
+
+        if len_sq < 0.0001 {
+            return;
+        }
+
+        let half_thickness = (thickness / 2.0).max(0.5);
+
+        let min_x = ((x0.min(x1) - half_thickness).floor() as isize)
+            .max(0)
+            .min(pixels_width as isize) as usize;
+        let max_x = ((x0.max(x1) + half_thickness).ceil() as isize)
+            .max(0)
+            .min(pixels_width as isize) as usize;
+        let min_y = ((y0.min(y1) - half_thickness).floor() as isize)
+            .max(clip_y0 as isize)
+            .min(clip_y1 as isize) as usize;
+        let max_y = ((y0.max(y1) + half_thickness).ceil() as isize)
+            .max(clip_y0 as isize)
+            .min(clip_y1 as isize) as usize;
+
+        if min_x >= max_x || min_y >= max_y {
+            return;
+        }
+
+        for py in min_y..max_y {
+            let row_start = (py - row_offset) * pixels_width;
+            let fy = py as f32 + 0.5;
+
+            for px in min_x..max_x {
+                let fx = px as f32 + 0.5;
+
+                let pdx = fx - x0;
+                let pdy = fy - y0;
+                let t = ((pdx * dx + pdy * dy) / len_sq).clamp(0.0, 1.0);
+
+                let closest_x = x0 + t * dx;
+                let closest_y = y0 + t * dy;
+
+                let dist_x = fx - closest_x;
+                let dist_y = fy - closest_y;
+                let dist_sq = dist_x * dist_x + dist_y * dist_y;
+
+                if dist_sq <= half_thickness * half_thickness {
+                    Self::blending_pixel(&mut pixels[row_start + px], &color_bytes);
                 }
             }
         }

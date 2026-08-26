@@ -143,6 +143,14 @@ pub trait RenderApi {
         z_index: u8,
         rotation: f32,
     );
+    fn draw_line(
+        &mut self,
+        start: Vector2,
+        end: Vector2,
+        color: Color,
+        thickness: f32,
+        z_index: u8,
+    );
     fn camera_mut(&mut self) -> &mut Vector2;
 }
 pub trait AssetApi {

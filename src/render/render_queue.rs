@@ -25,6 +25,12 @@ pub enum DrawCommand {
         color: Color,
         rect: Rect,
     },
+    Line {
+        start: Vector2,
+        end: Vector2,
+        color: Color,
+        thickness: f32,
+    },
 }
 
 pub struct RenderQueue<'a> {
@@ -62,7 +68,21 @@ impl<'a> RenderApi for RenderQueue<'a> {
             rotation,
         })
     }
-
+    fn draw_line(
+        &mut self,
+        start: Vector2,
+        end: Vector2,
+        color: Color,
+        thickness: f32,
+        z_index: u8,
+    ) {
+        self.queue[z_index as usize].push(DrawCommand::Line {
+            start,
+            end,
+            color,
+            thickness,
+        });
+    }
     fn camera_mut(&mut self) -> &mut Vector2 {
         self.camera
     }
