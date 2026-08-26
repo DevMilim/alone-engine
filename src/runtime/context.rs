@@ -230,8 +230,7 @@ impl<'a> EventApi for EngineContext<'a> {
     /// Utilizado para enviar uma mensagem endereçada para um GameObject especifico
     /// A mensagem tem que ser do mesmo tipo que o definido em type Message = T;
     fn send<T: 'static>(&mut self, id: Id, message: T) {
-        let event = Box::new(message);
-        self.events.insert_mailbox(id, event);
+        self.events.insert_mailbox(id, message);
     }
     /// Utilizado para emitir um evento global que sera recebido por todos os GameObjects que definiram um #[game(subscribe(metodo: Tipo))]
     fn emit<T: 'static>(&mut self, event: T) {
