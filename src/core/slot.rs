@@ -1,4 +1,7 @@
-use crate::core::{Base, Component, EMPTY_BASE, EngineApi, GameObject, GameObjectBase, RenderApi};
+use crate::{
+    core::{Base, Component, EMPTY_BASE, EngineApi, GameObject, GameObjectBase, RenderApi},
+    runtime::GameObjectDispatch,
+};
 
 pub struct Slot<T> {
     pub(crate) inner: Option<T>,
@@ -33,6 +36,16 @@ impl<T: GameObject> Slot<T> {
         if let Some(inner) = &mut self.inner {
             inner.base_mut().queue_free();
         }
+    }
+}
+impl<T: GameObjectDispatch + GameObject> Slot<T> {
+    pub fn replace(&mut self, ctx: &mut impl EngineApi, inner: T) {
+        self.dispatch_destroy(ctx);
+        self.inner = Some(inner);
+    }
+    pub fn clear(&mut self, ctx: &mut impl EngineApi) {
+        self.dispatch_destroy(ctx);
+        self.inner.take();
     }
 }
 
