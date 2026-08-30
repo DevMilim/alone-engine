@@ -88,19 +88,19 @@ impl<'a> CoreApi for EngineContext<'a> {
         &mut self.systems.async_handle
     }
 
-    fn set_state<T: 'static + Send + Sync>(&mut self, value: T) {
+    fn set_state<T: 'static>(&mut self, value: T) {
         self.state.set::<T>(value);
     }
 
-    fn get_state<T: 'static + Send + Sync>(&self) -> Option<&T> {
+    fn get_state<T: 'static>(&self) -> Option<&T> {
         self.state.get::<T>()
     }
 
-    fn get_state_mut<T: 'static + Send + Sync>(&mut self) -> Option<&mut T> {
+    fn get_state_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.state.get_mut::<T>()
     }
 
-    fn remove_state<T: 'static + Send + Sync>(&mut self) {
+    fn remove_state<T: 'static>(&mut self) {
         self.state.remove::<T>();
     }
 }

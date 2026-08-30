@@ -35,10 +35,10 @@ pub trait CoreApi {
     fn register_service<T: 'static>(&mut self, id: Id);
     fn service_id<T: 'static>(&self) -> Option<Id>;
     fn async_handle(&mut self) -> &mut Handle;
-    fn set_state<T: 'static + Send + Sync>(&mut self, value: T);
-    fn get_state<T: 'static + Send + Sync>(&self) -> Option<&T>;
-    fn get_state_mut<T: 'static + Send + Sync>(&mut self) -> Option<&mut T>;
-    fn remove_state<T: 'static + Send + Sync>(&mut self);
+    fn set_state<T: 'static>(&mut self, value: T);
+    fn get_state<T: 'static>(&self) -> Option<&T>;
+    fn get_state_mut<T: 'static>(&mut self) -> Option<&mut T>;
+    fn remove_state<T: 'static>(&mut self);
 }
 
 pub trait WorldApi {

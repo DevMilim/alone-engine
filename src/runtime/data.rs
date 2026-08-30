@@ -13,15 +13,15 @@ impl State {
             data: FxHashMap::default(),
         }
     }
-    pub fn set<T: Send + Sync + 'static>(&mut self, val: T) {
+    pub fn set<T: 'static>(&mut self, val: T) {
         self.data.insert(TypeId::of::<T>(), Box::new(val));
     }
-    pub fn get<T: Send + Sync + 'static>(&self) -> Option<&T> {
+    pub fn get<T: 'static>(&self) -> Option<&T> {
         self.data
             .get(&TypeId::of::<T>())
             .and_then(|boxed| boxed.downcast_ref())
     }
-    pub fn get_mut<T: Send + Sync + 'static>(&mut self) -> Option<&mut T> {
+    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.data
             .get_mut(&TypeId::of::<T>())
             .and_then(|boxed| boxed.downcast_mut())
