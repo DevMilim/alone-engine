@@ -65,8 +65,8 @@ pub struct CollisionWorld {
     cell_entries: Vec<DenseIndex>,
     scratch_cells: Vec<(Cell, DenseIndex)>,
 
-    last_overlaps: Vec<(DenseIndex, DenseIndex)>,
-    current_overlaps: Vec<(DenseIndex, DenseIndex)>,
+    last_overlaps: Vec<(ColliderKey, ColliderKey)>,
+    current_overlaps: Vec<(ColliderKey, ColliderKey)>,
 
     seen_stamp: Vec<u32>,
     current_stamp: u32,
@@ -238,7 +238,10 @@ impl CollisionWorld {
                     let db = &self.data[pair.1 as usize];
 
                     if da.can_collide(db) && da.aabb.intersects(&db.aabb) {
-                        self.current_overlaps.push(pair);
+                        let ka = self.keys[pair.0 as usize];
+                        let kb = self.keys[pair.1 as usize];
+                        let key_pair = if ka < kb { (ka, kb) } else { (kb, ka) };
+                        self.current_overlaps.push(key_pair);
                     }
                 }
             }
@@ -255,8 +258,8 @@ impl CollisionWorld {
 
     fn diff_pairs(
         &self,
-        a: &[(DenseIndex, DenseIndex)],
-        b: &[(DenseIndex, DenseIndex)],
+        a: &[(ColliderKey, ColliderKey)],
+        b: &[(ColliderKey, ColliderKey)],
     ) -> Vec<(ColliderKey, ColliderKey)> {
         let mut result = Vec::new();
         let mut j = 0usize;
@@ -267,7 +270,7 @@ impl CollisionWorld {
             }
             let present_in_b = j < b.len() && b[j] == pair;
             if !present_in_b {
-                result.push((self.keys[pair.0 as usize], self.keys[pair.1 as usize]));
+                result.push(pair);
             }
         }
 

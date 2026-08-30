@@ -15,7 +15,7 @@ use crate::{
     input::InputType,
     math::Vector2,
     render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
-    runtime::{EmptyGlobals, EngineContext, GameObjectDispatch, Scene, WorldState},
+    runtime::{EmptyGlobals, EngineContext, GameObjectDispatch, Scene, State, WorldState},
 };
 
 #[derive(Debug)]
@@ -31,6 +31,7 @@ pub struct App<S: Scene + 'static, P: GameObjectDispatch = EmptyGlobals> {
     pub events: EventManager,
     pub world: WorldState<S, P>,
     pub render: Option<Render<'static>>,
+    pub state: State,
 
     pub window: Option<Arc<Window>>,
     pub base: Base,
@@ -45,6 +46,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
             systems: CoreSystems::default(),
             events: EventManager::default(),
             world: WorldState::new(root_scene),
+            state: State::new(),
             render: None,
             window: None,
             base: Base::default(),
@@ -140,6 +142,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             camera_position: &mut self.camera_position,
             window_size: &render.window_size,
             is_fixed_update: false,
+            state: &mut self.state,
         };
 
         let (is_running, blending) =

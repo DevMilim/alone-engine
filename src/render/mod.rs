@@ -4,7 +4,7 @@ mod render_queue;
 pub use image::*;
 pub use render_queue::*;
 
-use pixels::{Pixels, PixelsBuilder, SurfaceTexture, wgpu::Backends};
+use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use rayon::prelude::*;
 use std::{sync::Arc, time::Instant};
 use winit::window::Window;
@@ -36,26 +36,7 @@ impl<'a> Render<'a> {
             let window_size = window.inner_size();
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, window.clone());
-            match PixelsBuilder::new(LOGICAL_WIDTH, LOGICAL_HEIGHT, surface_texture)
-                .wgpu_backend(Backends::GL)
-                .build()
-            {
-                Ok(pixels) => {
-                    eprintln!("[pixels] backend GL inicializado com sucesso");
-                    Ok(pixels)
-                }
-                Err(err) => {
-                    eprintln!(
-                        "[pixels] falha ao iniciar com GL ({err}), tentando backend padrão..."
-                    );
-
-                    let surface_texture =
-                        SurfaceTexture::new(window_size.width, window_size.height, window.clone());
-                    PixelsBuilder::new(LOGICAL_WIDTH, LOGICAL_HEIGHT, surface_texture)
-                        .wgpu_backend(Backends::PRIMARY)
-                        .build()
-                }
-            }
+            PixelsBuilder::new(LOGICAL_WIDTH, LOGICAL_HEIGHT, surface_texture).build()
         }
         .unwrap();
 

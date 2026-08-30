@@ -2,7 +2,7 @@ use crate::{
     audio::AudioAsset,
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
     math::Vector2i,
-    runtime::AppCommands,
+    runtime::{AppCommands, State},
 };
 use std::{
     any::{Any, TypeId},
@@ -25,6 +25,7 @@ pub struct EngineContext<'a> {
     pub systems: &'a mut CoreSystems,
     pub events: &'a mut EventManager,
     pub camera_position: &'a mut Vector2,
+    pub state: &'a mut State,
     pub window_size: &'a (u32, u32),
     pub is_fixed_update: bool,
 }
@@ -85,6 +86,22 @@ impl<'a> CoreApi for EngineContext<'a> {
 
     fn async_handle(&mut self) -> &mut tokio::runtime::Handle {
         &mut self.systems.async_handle
+    }
+
+    fn set_state<T: 'static + Send + Sync>(&mut self, value: T) {
+        self.state.set::<T>(value);
+    }
+
+    fn get_state<T: 'static + Send + Sync>(&self) -> Option<&T> {
+        self.state.get::<T>()
+    }
+
+    fn get_state_mut<T: 'static + Send + Sync>(&mut self) -> Option<&mut T> {
+        self.state.get_mut::<T>()
+    }
+
+    fn remove_state<T: 'static + Send + Sync>(&mut self) {
+        self.state.remove::<T>();
     }
 }
 impl<'a> EngineContext<'a> {
