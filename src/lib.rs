@@ -10,6 +10,7 @@ pub mod math;
 pub mod objects;
 pub mod render;
 pub mod resources;
+pub mod rng;
 pub mod runtime;
 pub mod ui;
 
@@ -25,6 +26,7 @@ pub mod prelude {
     pub use crate::math::*;
     pub use crate::render::*;
     pub use crate::resources::*;
+    pub use crate::rng::*;
     pub use crate::runtime::*;
     pub use crate::ui::*;
     pub use macros::*;

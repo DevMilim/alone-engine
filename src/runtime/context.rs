@@ -2,6 +2,7 @@ use crate::{
     audio::AudioAsset,
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
     math::Vector2i,
+    rng::Random,
     runtime::{AppCommands, State},
 };
 use std::{
@@ -28,6 +29,7 @@ pub struct EngineContext<'a> {
     pub state: &'a mut State,
     pub window_size: &'a (u32, u32),
     pub is_fixed_update: bool,
+    pub rng: Random,
 }
 
 impl<'a> EngineApi for EngineContext<'a> {}
@@ -102,6 +104,10 @@ impl<'a> CoreApi for EngineContext<'a> {
 
     fn remove_state<T: 'static>(&mut self) {
         self.state.remove::<T>();
+    }
+
+    fn range(&mut self, range: std::ops::Range<i32>) -> i32 {
+        self.rng.range(range)
     }
 }
 impl<'a> EngineContext<'a> {

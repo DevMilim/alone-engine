@@ -16,7 +16,10 @@ pub struct Player {
     enemy_hitbox: Collider,
     state: PlayerState,
 }
-
+const PLAYER: u32 = 1 << 0;
+const ENEMY: u32 = 1 << 1;
+const WORLD: u32 = 1 << 2;
+const ITEM: u32 = 1 << 3;
 pub enum PlayerState {
     Move,
     Slide,
@@ -43,8 +46,8 @@ impl Player {
                 height: PLAYER_SIZE,
                 offset_x: PLAYER_SIZE / 2,
                 offset_y: PLAYER_SIZE / 2,
-                layer: 3,
-                mask: 3,
+                layer: PLAYER,
+                mask: PLAYER,
                 debug: true,
                 ..Default::default()
             },
@@ -100,6 +103,9 @@ pub struct Enemy {
     collision: Collider,
     #[component]
     hitbox: Collider,
+    #[component(interface = IBody)]
+    body: Body,
+    home_pos: Option<Vector2>,
 }
 
 impl Enemy {
@@ -107,21 +113,27 @@ impl Enemy {
         Self {
             base: Base::new(position),
             collision: Collider {
-                width: 32,
-                height: 32,
-                mask: 2,
-                layer: 2,
+                width: 16,
+                height: 16,
+                mask: ENEMY,
+                layer: ENEMY,
                 ..Default::default()
             },
             hitbox: Collider {
                 is_sensor: true,
-                width: 32,
-                height: 32,
-                mask: 3,
-                layer: 3,
+                width: 16,
+                height: 16,
+                mask: PLAYER,
+                layer: PLAYER,
+                debug: true,
 
                 ..Default::default()
             },
+            body: Body {
+                body_type: BodyType::Character,
+                ..Default::default()
+            },
+            home_pos: None,
         }
     }
 
@@ -132,6 +144,35 @@ impl Enemy {
 
 impl GameObject for Enemy {
     type Message = ();
+    fn start(&mut self, ctx: &mut impl EngineApi) {
+        if let Some(home_pos) = ctx.get_state::<HomePosition>() {
+            self.home_pos = Some(home_pos.position);
+        }
+    }
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
+        let speed = 100.0;
+        if let Some(home_pos) = self.home_pos {
+            let to_home = home_pos - self.position();
+            if to_home.length() > 1.0 {
+                *self.velocity_mut() = to_home.normalize() * speed;
+            } else {
+                *self.velocity_mut() = Vector2::ZERO;
+            }
+            self.move_and_slide(ctx, delta);
+        }
+    }
+    fn draw(&mut self, renderer: &mut impl RenderApi, _blending: f32) {
+        renderer.draw_rect(
+            Rect::new(
+                self.position().x as i32 - 8,
+                self.position().y as i32 - 8,
+                16,
+                16,
+            ),
+            Color::rgb(255, 50, 50),
+            0,
+        );
+    }
 }
 
 #[derive(GameObject)]
@@ -167,7 +208,7 @@ impl GameObject for Pilar {
 
 #[derive(GameObject)]
 #[subscribe(spawn_pilar: SpawnEvent<Pilar>)]
-#[connect(enemy_hit: TriggerEvent, timer_event: TimerEvent)]
+#[connect(enemy_hit: TriggerEvent)]
 pub struct MainScene {
     #[base]
     base: Base,
@@ -181,6 +222,7 @@ pub struct MainScene {
     collision: Collider,
     #[component]
     timer: Timer,
+    game_over: bool,
 }
 
 impl MainScene {
@@ -195,47 +237,64 @@ impl MainScene {
                 height: 48,
                 offset_x: (480.0 / 2.0) as i32,
                 offset_y: (270.0 / 2.0) as i32 - 40,
-                mask: 2,
-                layer: 2,
+                mask: ENEMY,
+                layer: ENEMY,
                 debug: true,
                 is_sensor: true,
                 ..Default::default()
             },
             timer: Timer::new(),
+            game_over: false,
         }
     }
-
-    pub fn spawn_pilar(&mut self, ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
-        self.pilars.spawn(spawn.take().unwrap());
-    }
-
     pub fn enemy_hit(&mut self, ctx: &mut impl EngineApi, _event: &TriggerEvent) {
         self.enemies.queue_free_all();
 
         self.player.queue_free();
 
         self.pilars.queue_free_all();
+        self.game_over = true;
     }
-
-    pub fn timer_event(&mut self, ctx: &mut impl EngineApi, _event: &TimerEvent) {
-        let bottom_y = 260.0;
-
-        self.enemies
-            .spawn(Enemy::new(Vector2::new(200.0, bottom_y)));
+    pub fn spawn_pilar(&mut self, ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
+        self.pilars.spawn(spawn.take().unwrap());
     }
 }
 
-impl GameObject for MainScene {
-    type Message = ();
+pub struct HomePosition {
+    pub position: Vector2,
+}
 
-    fn start(&mut self, _ctx: &mut impl EngineApi) {
+#[derive(Clone)]
+pub enum MainEvent {
+    SpawnEnemy,
+}
+
+impl GameObject for MainScene {
+    type Message = MainEvent;
+
+    fn start(&mut self, ctx: &mut impl EngineApi) {
         self.pilars
             .spawn(Pilar::new(Vector2::new(480.0 / 2.0, 270.0 / 2.0).into()));
 
         self.timer.start_timer(Duration::from_secs_f32(2.0), true);
+        ctx.set_state(HomePosition {
+            position: Vector2::new((480.0 / 2.0) - 32.0, (270.0 / 2.0) - 64.0),
+        });
+        self.timer.set_event(MainEvent::SpawnEnemy);
     }
+    fn on_message(&mut self, ctx: &mut impl EngineApi, msg: &Self::Message) {
+        match msg {
+            MainEvent::SpawnEnemy => {
+                if !self.game_over {
+                    let bottom_y = 260.0;
+                    let x = ctx.range(10..450);
 
-    fn fixed_update(&mut self, _ctx: &mut impl EngineApi, _delta: f32) {}
+                    self.enemies
+                        .spawn(Enemy::new(Vector2::new(x as f32, bottom_y)));
+                }
+            }
+        }
+    }
 
     fn draw(&mut self, renderer: &mut impl RenderApi, _blending: f32) {
         renderer.draw_rect(

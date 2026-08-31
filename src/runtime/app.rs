@@ -15,6 +15,7 @@ use crate::{
     input::InputType,
     math::Vector2,
     render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
+    rng::Random,
     runtime::{EmptyGlobals, EngineContext, GameObjectDispatch, Scene, State, WorldState},
 };
 
@@ -143,6 +144,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             window_size: &render.window_size,
             is_fixed_update: false,
             state: &mut self.state,
+            rng: Random::time_seed(),
         };
 
         let (is_running, blending) =

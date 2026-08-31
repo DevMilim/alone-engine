@@ -1,4 +1,4 @@
-use std::{any::Any, net::SocketAddr};
+use std::{any::Any, net::SocketAddr, ops::Range};
 
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
@@ -39,6 +39,7 @@ pub trait CoreApi {
     fn get_state<T: 'static>(&self) -> Option<&T>;
     fn get_state_mut<T: 'static>(&mut self) -> Option<&mut T>;
     fn remove_state<T: 'static>(&mut self);
+    fn range(&mut self, range: Range<i32>) -> i32;
 }
 
 pub trait WorldApi {
