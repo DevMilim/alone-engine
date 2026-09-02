@@ -16,10 +16,7 @@ pub struct Player {
     enemy_hitbox: Collider,
     state: PlayerState,
 }
-const PLAYER: u32 = 1 << 0;
-const ENEMY: u32 = 1 << 1;
-const WORLD: u32 = 1 << 2;
-const ITEM: u32 = 1 << 3;
+
 pub enum PlayerState {
     Move,
     Slide,
@@ -46,8 +43,8 @@ impl Player {
                 height: PLAYER_SIZE,
                 offset_x: PLAYER_SIZE / 2,
                 offset_y: PLAYER_SIZE / 2,
-                layer: PLAYER,
-                mask: PLAYER,
+                layer: Layer::LAYER_1,
+                mask: Layer::LAYER_1,
                 debug: true,
                 ..Default::default()
             },
@@ -115,16 +112,16 @@ impl Enemy {
             collision: Collider {
                 width: 16,
                 height: 16,
-                mask: ENEMY,
-                layer: ENEMY,
+                mask: Layer::LAYER_2,
+                layer: Layer::LAYER_2,
                 ..Default::default()
             },
             hitbox: Collider {
                 is_sensor: true,
                 width: 16,
                 height: 16,
-                mask: PLAYER,
-                layer: PLAYER,
+                mask: Layer::LAYER_1,
+                layer: Layer::LAYER_1,
                 debug: true,
 
                 ..Default::default()
@@ -137,7 +134,7 @@ impl Enemy {
         }
     }
 
-    pub fn collision(&mut self, ctx: &mut impl EngineApi, _event: &TriggerEvent) {
+    pub fn collision(&mut self, _ctx: &mut impl EngineApi, _event: &TriggerEvent) {
         self.queue_free();
     }
 }
@@ -237,8 +234,8 @@ impl MainScene {
                 height: 48,
                 offset_x: (480.0 / 2.0) as i32,
                 offset_y: (270.0 / 2.0) as i32 - 40,
-                mask: ENEMY,
-                layer: ENEMY,
+                mask: Layer::LAYER_2,
+                layer: Layer::LAYER_2,
                 debug: true,
                 is_sensor: true,
                 ..Default::default()
@@ -247,7 +244,7 @@ impl MainScene {
             game_over: false,
         }
     }
-    pub fn enemy_hit(&mut self, ctx: &mut impl EngineApi, _event: &TriggerEvent) {
+    pub fn enemy_hit(&mut self, _ctx: &mut impl EngineApi, _event: &TriggerEvent) {
         self.enemies.queue_free_all();
 
         self.player.queue_free();
@@ -255,7 +252,7 @@ impl MainScene {
         self.pilars.queue_free_all();
         self.game_over = true;
     }
-    pub fn spawn_pilar(&mut self, ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
+    pub fn spawn_pilar(&mut self, _ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
         self.pilars.spawn(spawn.take().unwrap());
     }
 }

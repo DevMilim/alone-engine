@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    collision::{AABB, ColliderData, ColliderKey},
+    collision::{AABB, ColliderData, ColliderKey, Layer},
     core::{
         AssetApi, Base, Component, EngineApi, GameObjectBase, Handler, Id, LdtkError, LdtkProject,
         LdtkTile, RenderApi, TilesetDef,
@@ -44,7 +44,7 @@ pub struct Tilemap {
     pub z_index: u8,
     pub colliders: Vec<(Id, TileCollision, AABB)>,
     pub collision_rules: FxHashMap<i32, TileCollision>,
-    pub collision_layer: u32,
+    pub collision_layer: Layer,
 }
 
 impl Component for Tilemap {
@@ -113,7 +113,7 @@ impl Tilemap {
             z_index: 0,
             colliders: Vec::new(),
             collision_rules: FxHashMap::default(),
-            collision_layer: 1,
+            collision_layer: Layer::LAYER_1,
         }
     }
     pub fn set_int_grid_rules(&mut self, rules: &[(i32, TileCollision)]) {

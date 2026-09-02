@@ -8,7 +8,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
     audio::AudioAsset,
-    collision::{ColliderData, ColliderKey, CollisionFlag},
+    collision::{ColliderData, ColliderKey, CollisionFlag, Layer},
     core::{GameObject, Handler, Id},
     math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,
@@ -107,8 +107,8 @@ pub trait CollisionApi {
     fn update_collider_geometry(
         &mut self,
         key: ColliderKey,
-        layer: u32,
-        mask: u32,
+        layer: Layer,
+        mask: Layer,
         is_sensor: bool,
         on_way_collision: bool,
         size: (i32, i32),

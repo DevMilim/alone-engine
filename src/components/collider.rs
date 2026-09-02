@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use crate::{
-    collision::{AABB, ColliderData, ColliderKey},
+    collision::{AABB, ColliderData, ColliderKey, Layer},
     core::{Base, Component, EngineApi, Id, RenderApi},
     math::{Color, Rect, Vector2i},
 };
@@ -17,8 +17,8 @@ pub struct Collider {
     pub height: i32,
     pub offset_x: i32,
     pub offset_y: i32,
-    pub layer: u32,
-    pub mask: u32,
+    pub layer: Layer,
+    pub mask: Layer,
     pub debug: bool,
     pub disabled: bool,
     pub is_sensor: bool,
@@ -43,8 +43,8 @@ impl Default for Collider {
             height: 16,
             offset_x: 0,
             offset_y: 0,
-            layer: 1,
-            mask: 1,
+            layer: Layer::LAYER_1,
+            mask: Layer::LAYER_1,
             debug: false,
             disabled: false,
             is_sensor: false,
@@ -73,8 +73,20 @@ impl Component for Collider {
                     width: self.width,
                     height: self.height,
                 },
-                layer: { if self.disabled { 0 } else { self.layer } },
-                mask: { if self.disabled { 0 } else { self.mask } },
+                layer: {
+                    if self.disabled {
+                        Layer::LAYER_0
+                    } else {
+                        self.layer
+                    }
+                },
+                mask: {
+                    if self.disabled {
+                        Layer::LAYER_0
+                    } else {
+                        self.mask
+                    }
+                },
                 is_sensor: self.is_sensor,
                 on_way_collision: self.one_way_collision,
             };

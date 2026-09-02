@@ -1,6 +1,8 @@
 mod aabb;
+mod layer;
 
 pub use aabb::*;
+pub use layer::*;
 
 use rustc_hash::FxHashMap;
 
@@ -16,8 +18,8 @@ pub struct CollisionFlag {
 #[derive(Clone, Copy)]
 pub struct ColliderData {
     pub aabb: AABB,
-    pub layer: u32,
-    pub mask: u32,
+    pub layer: Layer,
+    pub mask: Layer,
     pub is_sensor: bool,
     pub on_way_collision: bool,
 }
@@ -25,7 +27,7 @@ pub struct ColliderData {
 impl ColliderData {
     #[inline]
     pub fn can_collide(&self, other: &Self) -> bool {
-        (self.mask & other.layer) != 0 && (other.mask & self.layer) != 0
+        (self.mask.0 & other.layer.0) != 0 && (other.mask.0 & self.layer.0) != 0
     }
 }
 
@@ -82,8 +84,8 @@ impl CollisionWorld {
     pub fn update_collider_geometry(
         &mut self,
         key: ColliderKey,
-        layer: u32,
-        mask: u32,
+        layer: Layer,
+        mask: Layer,
         is_sensor: bool,
         on_way_collision: bool,
         size: (i32, i32),

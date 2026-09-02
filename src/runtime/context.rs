@@ -1,5 +1,6 @@
 use crate::{
     audio::AudioAsset,
+    collision::Layer,
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
     math::Vector2i,
     rng::Random,
@@ -326,8 +327,8 @@ impl<'a> CollisionApi for EngineContext<'a> {
     fn update_collider_geometry(
         &mut self,
         key: ColliderKey,
-        layer: u32,
-        mask: u32,
+        layer: Layer,
+        mask: Layer,
         is_sensor: bool,
         on_way_collision: bool,
         size: (i32, i32),
