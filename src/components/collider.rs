@@ -24,14 +24,18 @@ pub struct Collider {
     pub is_sensor: bool,
     pub collider_type: ColliderType,
     pub one_way_collision: bool,
-    pub event: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    pub on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    pub on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
 
     pub follow_transform: bool,
 }
 
 impl Collider {
-    pub fn set_event<T: Clone + 'static>(&mut self, event: T) {
-        self.event = Some(Box::new(move || Box::new(event.clone())));
+    pub fn set_on_enter<T: Clone + 'static>(&mut self, event: T) {
+        self.on_enter = Some(Box::new(move || Box::new(event.clone())));
+    }
+    pub fn set_on_exit<T: Clone + 'static>(&mut self, event: T) {
+        self.on_enter = Some(Box::new(move || Box::new(event.clone())));
     }
 }
 
@@ -49,7 +53,8 @@ impl Default for Collider {
             disabled: false,
             is_sensor: false,
             collider_type: ColliderType::Box,
-            event: None,
+            on_enter: None,
+            on_exit: None,
             one_way_collision: false,
             follow_transform: true,
         }
@@ -57,6 +62,15 @@ impl Default for Collider {
 }
 
 impl Component for Collider {
+    fn start(&mut self, ctx: &mut impl EngineApi, base: &mut Base) {
+        if self.on_enter.is_some() || self.on_exit.is_some() {
+            let key = ColliderKey {
+                key: self.key,
+                id: base.id,
+            };
+            ctx.register_trigger_callbacks(key, self.on_enter.take(), self.on_exit.take());
+        }
+    }
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, base: &mut Base, _delta: f32) {
         let key = ColliderKey {
             key: self.key,

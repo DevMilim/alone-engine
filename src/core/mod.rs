@@ -16,7 +16,7 @@ pub use slot::*;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     sync::{
         LazyLock,
         mpsc::{Receiver, Sender, channel},
@@ -30,17 +30,23 @@ use tokio::{
 use crate::{
     audio::AudioSys,
     collision::{ColliderKey, CollisionWorld},
-    event::{BackGroundEvent, GlobalEvent, TriggerEvent, TriggerKind},
+    event::{BackGroundEvent, EventManager, GlobalEvent, TriggerEvent, TriggerKind},
     input::InputState,
     resources::Resources,
 };
 
 pub static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
 
+pub struct TriggerCallbacks {
+    pub on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    pub on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+}
+
 pub struct CoreSystems {
     pub audio: AudioSys,
     pub resources: Resources,
     pub collision: CollisionWorld,
+    pub trigger_callbacks: FxHashMap<ColliderKey, TriggerCallbacks>,
     pub input: InputState,
     pub async_handle: Handle,
 
@@ -68,6 +74,7 @@ impl Default for CoreSystems {
             audio: AudioSys::default(),
             resources: Resources::default(),
             collision: CollisionWorld::default(),
+            trigger_callbacks: FxHashMap::default(),
             input: InputState::default(),
             async_handle,
             bg_event_sender: bg_tx,
@@ -80,50 +87,77 @@ impl Default for CoreSystems {
 }
 
 impl CoreSystems {
-    pub fn collision_step(&mut self) -> Vec<GlobalEvent> {
+    pub fn collision_step(&mut self, events: &mut EventManager) -> Vec<GlobalEvent> {
         self.collision.step();
 
-        let mut trigger_events =
-            self.emit_trigger_events(self.collision.get_entered_pairs(), TriggerKind::Enter);
-        trigger_events
-            .extend(self.emit_trigger_events(self.collision.get_exited_pairs(), TriggerKind::Exit));
+        let mut trigger_events = self.emit_trigger_events(
+            events,
+            self.collision.get_entered_pairs(),
+            TriggerKind::Enter,
+        );
+        trigger_events.extend(self.emit_trigger_events(
+            events,
+            self.collision.get_exited_pairs(),
+            TriggerKind::Exit,
+        ));
 
         self.collision.commit();
         trigger_events
     }
     fn emit_trigger_events(
         &self,
+        events: &mut EventManager,
         pairs: Vec<(ColliderKey, ColliderKey)>,
         kind: TriggerKind,
     ) -> Vec<GlobalEvent> {
         let mut trigger_events = Vec::new();
+
         for (a, b) in pairs {
             if a.id == b.id {
                 continue;
             }
+
             let (Some(da), Some(db)) = (self.collision.get(&a), self.collision.get(&b)) else {
                 continue;
             };
 
             if da.is_sensor {
-                let ev = TriggerEvent {
-                    owner: b.id,
-                    sensor: a,
-                    kind,
-                };
-                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev)));
-                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev)));
+                self.emit_trigger(events, &mut trigger_events, a, b.id, kind);
             }
+
             if db.is_sensor {
-                let ev = TriggerEvent {
-                    owner: a.id,
-                    sensor: b,
-                    kind,
-                };
-                trigger_events.push(GlobalEvent::Targeted(b.id, Box::new(ev)));
-                trigger_events.push(GlobalEvent::Targeted(a.id, Box::new(ev)));
+                self.emit_trigger(events, &mut trigger_events, b, a.id, kind);
             }
         }
+
         trigger_events
+    }
+    fn emit_trigger(
+        &self,
+        events: &mut EventManager,
+        trigger_events: &mut Vec<GlobalEvent>,
+        sensor: ColliderKey,
+        owner: Id,
+        kind: TriggerKind,
+    ) {
+        if let Some(cb) = self.trigger_callbacks.get(&sensor) {
+            let msg = match kind {
+                TriggerKind::Enter => cb.on_enter.as_ref().map(|f| f()),
+                TriggerKind::Exit => cb.on_exit.as_ref().map(|f| f()),
+            };
+
+            if let Some(msg) = msg {
+                events.insert_mailbox_boxed_any(sensor.id, msg);
+                return;
+            }
+        }
+
+        let ev = TriggerEvent {
+            owner,
+            sensor,
+            kind,
+        };
+
+        trigger_events.push(GlobalEvent::Targeted(sensor.id, Box::new(ev)));
     }
 }

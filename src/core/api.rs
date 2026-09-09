@@ -132,6 +132,12 @@ pub trait CollisionApi {
         velocity: &mut Vector2i,
         is_x_axis: bool,
     ) -> Vector2i;
+    fn register_trigger_callbacks(
+        &mut self,
+        key: ColliderKey,
+        on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+        on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    );
 }
 
 pub trait RenderApi {

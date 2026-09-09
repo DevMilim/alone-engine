@@ -1,7 +1,7 @@
 use crate::{
     audio::AudioAsset,
     collision::Layer,
-    core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, WorldApi},
+    core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, TriggerCallbacks, WorldApi},
     math::Vector2i,
     rng::Random,
     runtime::{AppCommands, State},
@@ -359,6 +359,17 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.systems
             .collision
             .resolve_axis(my_id, position, velocity, is_x_axis)
+    }
+
+    fn register_trigger_callbacks(
+        &mut self,
+        key: ColliderKey,
+        on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+        on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    ) {
+        self.systems
+            .trigger_callbacks
+            .insert(key, TriggerCallbacks { on_enter, on_exit });
     }
 }
 

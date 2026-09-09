@@ -205,7 +205,6 @@ impl GameObject for Pilar {
 
 #[derive(GameObject)]
 #[subscribe(spawn_pilar: SpawnEvent<Pilar>)]
-#[connect(enemy_hit: TriggerEvent)]
 pub struct MainScene {
     #[base]
     base: Base,
@@ -244,14 +243,6 @@ impl MainScene {
             game_over: false,
         }
     }
-    pub fn enemy_hit(&mut self, _ctx: &mut impl EngineApi, _event: &TriggerEvent) {
-        self.enemies.queue_free_all();
-
-        self.player.queue_free();
-
-        self.pilars.queue_free_all();
-        self.game_over = true;
-    }
     pub fn spawn_pilar(&mut self, _ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
         self.pilars.spawn(spawn.take().unwrap());
     }
@@ -264,6 +255,7 @@ pub struct HomePosition {
 #[derive(Clone)]
 pub enum MainEvent {
     SpawnEnemy,
+    EnemyHit,
 }
 
 impl GameObject for MainScene {
@@ -278,6 +270,7 @@ impl GameObject for MainScene {
             position: Vector2::new((480.0 / 2.0) - 32.0, (270.0 / 2.0) - 64.0),
         });
         self.timer.set_event(MainEvent::SpawnEnemy);
+        self.collision.set_on_enter(MainEvent::EnemyHit);
     }
     fn on_message(&mut self, ctx: &mut impl EngineApi, msg: &Self::Message) {
         match msg {
@@ -289,6 +282,14 @@ impl GameObject for MainScene {
                     self.enemies
                         .spawn(Enemy::new(Vector2::new(x as f32, bottom_y)));
                 }
+            }
+            MainEvent::EnemyHit => {
+                self.enemies.queue_free_all();
+
+                self.player.queue_free();
+
+                self.pilars.queue_free_all();
+                self.game_over = true;
             }
         }
     }
