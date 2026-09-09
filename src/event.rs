@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use std::{any::Any, collections::VecDeque};
 
 use bincode::{Decode, Encode};
-use indexmap::IndexMap;
 
 use crate::collision::ColliderKey;
 use crate::core::{GameObject, Id};
@@ -36,14 +35,10 @@ impl ServerEvent {
     }
 }
 
-#[derive(Debug)]
-pub enum GlobalEvent {
-    Broadcast(Box<dyn Any>),
-    Targeted(Id, Box<dyn Any>),
-}
+pub type CallBackEvent = Box<dyn Fn() -> Box<dyn Any + Send + 'static>>;
 
 #[derive(Debug)]
-pub enum BackGroundEvent {
+pub enum GlobalEvent {
     Broadcast(Box<dyn Any + Send + 'static>),
     Targeted(Id, Box<dyn Any + Send + 'static>),
     Send(Id, Box<dyn Any + Send + 'static>),
@@ -53,9 +48,6 @@ pub enum BackGroundEvent {
 #[derive(Debug)]
 pub struct EventManager {
     pub global_events: VecDeque<GlobalEvent>,
-    pub mailbox: IndexMap<Id, Vec<Box<dyn Any>>, rustc_hash::FxBuildHasher>,
-    pub bytes_mailbox: IndexMap<Id, Vec<Vec<u8>>>,
-
     pub aplication_commands: VecDeque<AppCommands>,
 }
 
@@ -63,9 +55,7 @@ impl Default for EventManager {
     fn default() -> Self {
         Self {
             global_events: VecDeque::new(),
-            mailbox: IndexMap::default(),
             aplication_commands: VecDeque::new(),
-            bytes_mailbox: IndexMap::new(),
         }
     }
 }
@@ -90,23 +80,6 @@ impl EventManager {
     /// ```
     pub fn insert_global_event(&mut self, event: GlobalEvent) {
         self.global_events.push_back(event);
-    }
-    /// Insere uma mensagem a fila de caixa de mensagens
-    /// Ao cair aqui a engine ira encaminhar para o GameObject com o id especificado
-    /// Se o tipo enviado for compativel com
-    /// ```
-    /// type Message = T
-    /// ```
-    /// Se a mensagem for compativel o GameObject ira receber ela em
-    /// ```
-    /// fn on_message(&mut self, ctx: &mut impl EngineApi, msg: Self::Message){}
-    /// ```
-    pub fn insert_mailbox<T: 'static>(&mut self, id: Id, mail: T) {
-        self.mailbox.entry(id).or_default().push(Box::new(mail));
-    }
-    /// Insere uma mensagem na caixa de mensagens mas com mensagem com tipo `Box<dyn Any + 'static>`
-    pub fn insert_mailbox_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
-        self.mailbox.entry(id).or_default().push(message);
     }
 }
 

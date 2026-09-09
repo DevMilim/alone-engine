@@ -12,7 +12,6 @@ pub trait GameObjectDispatch {
     fn dispatch_late_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent);
-    fn dispatch_message(&mut self, ctx: &mut impl EngineApi);
     fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32);
     fn dispatch_destroy(&mut self, ctx: &mut impl EngineApi);
 }
@@ -77,12 +76,6 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Pool<T> {
     fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent) {
         for obj in self.iter_mut() {
             obj.dispatch_event(ctx, event);
-        }
-    }
-
-    fn dispatch_message(&mut self, ctx: &mut impl EngineApi) {
-        for obj in self.iter_mut() {
-            obj.dispatch_message(ctx);
         }
     }
 }
@@ -151,12 +144,6 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Slot<T> {
             obj.dispatch_event(ctx, event);
         }
     }
-
-    fn dispatch_message(&mut self, ctx: &mut impl EngineApi) {
-        if let Some(obj) = self.inner.as_mut() {
-            obj.dispatch_message(ctx);
-        }
-    }
 }
 pub struct EmptyGlobals;
 
@@ -170,8 +157,6 @@ impl GameObjectDispatch for EmptyGlobals {
     fn dispatch_fixed_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
 
     fn dispatch_event(&mut self, _ctx: &mut impl EngineApi, _event: &GlobalEvent) {}
-
-    fn dispatch_message(&mut self, _ctx: &mut impl EngineApi) {}
 
     fn dispatch_draw(&mut self, _ctx: &mut impl RenderApi, _base: &Base, _blending: f32) {}
 

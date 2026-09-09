@@ -1,7 +1,6 @@
 use std::{any::Any, net::SocketAddr, ops::Range};
 
 use bincode::{Decode, Encode};
-use indexmap::IndexMap;
 use rodio::Player;
 use tokio::runtime::Handle;
 use winit::{event::MouseButton, keyboard::KeyCode};
@@ -10,6 +9,7 @@ use crate::{
     audio::AudioAsset,
     collision::{ColliderData, ColliderKey, CollisionFlag, Layer},
     core::{GameObject, Handler, Id},
+    event::CallBackEvent,
     math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,
     render::{Anchor, DrawCommand, ImageAsset},
@@ -20,7 +20,7 @@ pub trait EngineApi:
     CoreApi + WorldApi + InputApi + AssetApi + EventApi + AudioApi + CollisionApi + SceneApi
 {
 }
-
+pub trait UiApi: CoreApi + InputApi + AssetApi + EventApi + RenderApi {}
 pub trait CoreApi {
     fn camera_mut(&mut self) -> &mut Vector2;
     fn window_size(&self) -> (u32, u32);
@@ -43,7 +43,7 @@ pub trait CoreApi {
 }
 
 pub trait WorldApi {
-    fn spawn<T: GameObject + 'static>(&mut self, obj: T);
+    fn spawn<T: GameObject + Send + 'static>(&mut self, obj: T);
     fn register_alive(&mut self, id: Id);
     fn unregister_alive(&mut self, id: Id);
     fn destroy(&mut self, id: Id);
@@ -95,13 +95,11 @@ pub trait InputApi {
 }
 
 pub trait EventApi {
-    fn send<T: 'static>(&mut self, id: Id, message: T);
-    fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>);
-    fn emit<T: 'static>(&mut self, event: T);
-    fn emit_targeted<T: 'static>(&mut self, id: Id, event: T);
-    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>, rustc_hash::FxBuildHasher>;
-    fn mail_box_is_empty(&self) -> bool;
-    fn send_service<T: 'static, E: 'static>(&mut self, event: E);
+    fn send<T: Send + 'static>(&mut self, id: Id, message: T);
+    fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + Send + 'static>);
+    fn emit<T: Send + 'static>(&mut self, event: T);
+    fn emit_targeted<T: Send + 'static>(&mut self, id: Id, event: T);
+    fn send_service<T: 'static, E: Send + 'static>(&mut self, event: E);
 }
 pub trait CollisionApi {
     fn update_collider_geometry(
@@ -135,8 +133,8 @@ pub trait CollisionApi {
     fn register_trigger_callbacks(
         &mut self,
         key: ColliderKey,
-        on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
-        on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+        on_enter: Option<CallBackEvent>,
+        on_exit: Option<CallBackEvent>,
     );
 }
 

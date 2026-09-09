@@ -11,7 +11,7 @@ use winit::{
 
 use crate::{
     core::{Base, CoreSystems},
-    event::{BackGroundEvent, EventManager, GlobalEvent},
+    event::{EventManager, GlobalEvent},
     input::InputType,
     math::Vector2,
     render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
@@ -153,18 +153,20 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
 
         while let Ok(bg_event) = ctx.systems.bg_event_receiver.try_recv() {
             match bg_event {
-                BackGroundEvent::Broadcast(event) => {
+                GlobalEvent::Broadcast(event) => {
                     ctx.events
                         .global_events
                         .push_back(GlobalEvent::Broadcast(event));
                 }
-                BackGroundEvent::Targeted(id, event) => {
+                GlobalEvent::Targeted(id, event) => {
                     ctx.events
                         .global_events
                         .push_back(GlobalEvent::Targeted(id, event));
                 }
-                BackGroundEvent::Send(id, message) => {
-                    ctx.events.mailbox.entry(id).or_default().push(message);
+                GlobalEvent::Send(id, message) => {
+                    ctx.events
+                        .global_events
+                        .push_back(GlobalEvent::Send(id, message));
                 }
             }
         }
@@ -179,24 +181,13 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
                 }
                 self.world.last_scene().dispatch_event(&mut ctx, &event);
             }
-            if !ctx.events.mailbox.is_empty() {
-                something_processed = true;
-                if let Some(global) = &mut self.world.global {
-                    global.dispatch_message(&mut ctx);
-                }
-                self.world.last_scene().dispatch_message(&mut ctx);
-            }
             if !something_processed {
                 break;
             }
             if round == MAX_EVENT_ROUNDS - 1 && something_processed {
-                eprintln!("limite de rounds de evento atingido, possivel loop de eventos")
+                eprintln!("limite de rounds de evento atingido, possível loop de eventos")
             }
         }
-
-        ctx.events
-            .mailbox
-            .retain(|id, _| ctx.systems.live_ids.contains(id));
 
         while let Some(cmd) = ctx.events.aplication_commands.pop_front() {
             match cmd {

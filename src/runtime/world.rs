@@ -123,10 +123,7 @@ impl<S: Scene, P: GameObjectDispatch> WorldState<S, P> {
             }
             object.dispatch_fixed_update(ctx, base, FIXED_DT);
 
-            let global_events = ctx.systems.collision_step(&mut ctx.events);
-            for event in global_events {
-                ctx.events.global_events.push_back(event);
-            }
+            ctx.systems.collision_step(&mut ctx.events);
 
             self.accumulator -= FIXED_DT;
             ctx.set_fixed_update(false);

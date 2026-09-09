@@ -24,17 +24,17 @@ pub struct Collider {
     pub is_sensor: bool,
     pub collider_type: ColliderType,
     pub one_way_collision: bool,
-    pub on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
-    pub on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    pub on_enter: Option<Box<dyn Fn() -> Box<dyn Any + Send + 'static>>>,
+    pub on_exit: Option<Box<dyn Fn() -> Box<dyn Any + Send + 'static>>>,
 
     pub follow_transform: bool,
 }
 
 impl Collider {
-    pub fn set_on_enter<T: Clone + 'static>(&mut self, event: T) {
+    pub fn set_on_enter<T: Clone + Send + 'static>(&mut self, event: T) {
         self.on_enter = Some(Box::new(move || Box::new(event.clone())));
     }
-    pub fn set_on_exit<T: Clone + 'static>(&mut self, event: T) {
+    pub fn set_on_exit<T: Clone + Send + 'static>(&mut self, event: T) {
         self.on_enter = Some(Box::new(move || Box::new(event.clone())));
     }
 }

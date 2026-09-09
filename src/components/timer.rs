@@ -1,9 +1,9 @@
-use std::{
-    any::Any,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-use crate::core::{Base, Component, EngineApi};
+use crate::{
+    core::{Base, Component, EngineApi},
+    event::CallBackEvent,
+};
 
 pub enum TimerEvent {
     Timeout,
@@ -12,7 +12,7 @@ pub enum TimerEvent {
 pub struct Timer {
     instant: Option<Instant>,
     duration: Duration,
-    event: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    event: Option<CallBackEvent>,
     repeat: bool,
 }
 
@@ -34,7 +34,7 @@ impl Timer {
     pub fn now(&mut self) {
         self.instant = Some(Instant::now());
     }
-    pub fn set_event<T: Clone + 'static>(&mut self, event: T) {
+    pub fn set_event<T: Clone + Send + 'static>(&mut self, event: T) {
         self.event = Some(Box::new(move || Box::new(event.clone())));
     }
     pub fn start_timer(&mut self, duration: Duration, repeat: bool) {

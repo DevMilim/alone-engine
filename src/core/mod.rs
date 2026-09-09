@@ -16,7 +16,7 @@ pub use slot::*;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     sync::{
         LazyLock,
         mpsc::{Receiver, Sender, channel},
@@ -30,7 +30,7 @@ use tokio::{
 use crate::{
     audio::AudioSys,
     collision::{ColliderKey, CollisionWorld},
-    event::{BackGroundEvent, EventManager, GlobalEvent, TriggerEvent, TriggerKind},
+    event::{CallBackEvent, EventManager, GlobalEvent, TriggerEvent, TriggerKind},
     input::InputState,
     resources::Resources,
 };
@@ -38,8 +38,8 @@ use crate::{
 pub static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
 
 pub struct TriggerCallbacks {
-    pub on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
-    pub on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+    pub on_enter: Option<CallBackEvent>,
+    pub on_exit: Option<CallBackEvent>,
 }
 
 pub struct CoreSystems {
@@ -50,8 +50,8 @@ pub struct CoreSystems {
     pub input: InputState,
     pub async_handle: Handle,
 
-    pub bg_event_sender: Sender<BackGroundEvent>,
-    pub bg_event_receiver: Receiver<BackGroundEvent>,
+    pub bg_event_sender: Sender<GlobalEvent>,
+    pub bg_event_receiver: Receiver<GlobalEvent>,
     pub task_handles: FxHashMap<Id, Vec<JoinHandle<()>>>,
     pub service_register: FxHashMap<TypeId, Id>,
     pub live_ids: FxHashSet<Id>,
@@ -69,7 +69,7 @@ impl Default for CoreSystems {
             rt.block_on(async { std::future::pending::<()>().await });
         });
         let async_handle = handle_rx.recv().expect("Falha ao receber Handle");
-        let (bg_tx, bg_rx) = channel::<BackGroundEvent>();
+        let (bg_tx, bg_rx) = channel::<GlobalEvent>();
         Self {
             audio: AudioSys::default(),
             resources: Resources::default(),
@@ -87,31 +87,23 @@ impl Default for CoreSystems {
 }
 
 impl CoreSystems {
-    pub fn collision_step(&mut self, events: &mut EventManager) -> Vec<GlobalEvent> {
+    pub fn collision_step(&mut self, events: &mut EventManager) {
         self.collision.step();
-
-        let mut trigger_events = self.emit_trigger_events(
+        self.emit_trigger_events(
             events,
             self.collision.get_entered_pairs(),
             TriggerKind::Enter,
         );
-        trigger_events.extend(self.emit_trigger_events(
-            events,
-            self.collision.get_exited_pairs(),
-            TriggerKind::Exit,
-        ));
+        self.emit_trigger_events(events, self.collision.get_exited_pairs(), TriggerKind::Exit);
 
         self.collision.commit();
-        trigger_events
     }
     fn emit_trigger_events(
         &self,
         events: &mut EventManager,
         pairs: Vec<(ColliderKey, ColliderKey)>,
         kind: TriggerKind,
-    ) -> Vec<GlobalEvent> {
-        let mut trigger_events = Vec::new();
-
+    ) {
         for (a, b) in pairs {
             if a.id == b.id {
                 continue;
@@ -122,20 +114,17 @@ impl CoreSystems {
             };
 
             if da.is_sensor {
-                self.emit_trigger(events, &mut trigger_events, a, b.id, kind);
+                self.emit_trigger(events, a, b.id, kind);
             }
 
             if db.is_sensor {
-                self.emit_trigger(events, &mut trigger_events, b, a.id, kind);
+                self.emit_trigger(events, b, a.id, kind);
             }
         }
-
-        trigger_events
     }
     fn emit_trigger(
         &self,
         events: &mut EventManager,
-        trigger_events: &mut Vec<GlobalEvent>,
         sensor: ColliderKey,
         owner: Id,
         kind: TriggerKind,
@@ -147,7 +136,9 @@ impl CoreSystems {
             };
 
             if let Some(msg) = msg {
-                events.insert_mailbox_boxed_any(sensor.id, msg);
+                events
+                    .global_events
+                    .push_back(GlobalEvent::Send(sensor.id, msg));
                 return;
             }
         }
@@ -158,6 +149,8 @@ impl CoreSystems {
             kind,
         };
 
-        trigger_events.push(GlobalEvent::Targeted(sensor.id, Box::new(ev)));
+        events
+            .global_events
+            .push_back(GlobalEvent::Targeted(sensor.id, Box::new(ev)));
     }
 }

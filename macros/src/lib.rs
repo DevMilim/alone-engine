@@ -174,6 +174,31 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         }
     });
+    let event_dispatch_block = {
+        quote! {
+            match event{
+                #p::GlobalEvent::Targeted(id, any_event) =>{
+                    if &self.base().id == id {
+                        #(#connect_arms)*
+                        return;
+                    }
+                }
+                #p::GlobalEvent::Broadcast(any_event) =>{
+                    #(#subscribe_arms)*
+                }
+                #p::GlobalEvent::Send(id, any_event) =>{
+                    if &self.base().id == id{
+                        if let Some(message) = any_event.downcast_ref::<<Self as #p::GameObject>::Message>() {
+                            self.on_message(ctx, message);
+                            return
+                        }else{
+                            println!("Evento incompativel recebido. Esperado: {}", std::any::type_name::<<Self as #p::GameObject>::Message>());
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     let struct_name = &receiver.ident;
     let fields = receiver.data.take_struct().unwrap();
@@ -303,32 +328,8 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 self.mark_as_started();
             }
 
-            fn dispatch_message(&mut self, ctx: &mut impl #p::EngineApi) {
-                if ctx.mail_box_is_empty() {
-                    return;
-                }
-
-                let mailbox = ctx.mailbox();
-                if let Some(msgs) = mailbox.remove(&self.base().id) {
-                    for msg in msgs {
-                        if let Some(message) = msg.downcast_ref::<<Self as #p::GameObject>::Message>() {
-                            self.on_message(ctx, message);
-                        } else {
-                            #[cfg(debug_assertions)]
-                            println!("Tipo de evento incompatível recebido");
-                        }
-                    }
-                }
-
-                if ctx.mail_box_is_empty() {
-                    return;
-                }
-                #(self.#object_fields.dispatch_message(ctx);)*
-            }
-
             fn dispatch_event(&mut self, ctx: &mut impl #p::EngineApi, event: &#p::GlobalEvent) {
-                #subscribe_block
-                #connect_block
+                #event_dispatch_block
                 #(self.#object_fields.dispatch_event(ctx, event);)*
             }
 
@@ -460,12 +461,6 @@ fn derive_object_dispatch_enum(
             quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base),
             quote!(),
             quote!(ctx, parent_base),
-        ),
-        (
-            "dispatch_message",
-            quote!(&mut self, ctx: &mut impl #p::EngineApi),
-            quote!(),
-            quote!(ctx),
         ),
         (
             "dispatch_event",

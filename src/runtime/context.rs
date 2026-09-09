@@ -11,14 +11,13 @@ use std::{
     sync::mpsc::Sender,
 };
 
-use indexmap::IndexMap;
 use rodio::Player;
 use winit::keyboard::KeyCode;
 
 use crate::{
     collision::{ColliderData, ColliderKey, CollisionFlag},
     core::{CollisionApi, CoreSystems, EngineApi, EventApi, GameObject, Id},
-    event::{BackGroundEvent, EventManager, GlobalEvent, SpawnEvent},
+    event::{EventManager, GlobalEvent, SpawnEvent},
     math::Vector2,
     render::ImageAsset,
 };
@@ -253,33 +252,27 @@ impl<'a> InputApi for EngineContext<'a> {
 impl<'a> EventApi for EngineContext<'a> {
     /// Utilizado para enviar uma mensagem endereçada para um GameObject especifico
     /// A mensagem tem que ser do mesmo tipo que o definido em type Message = T;
-    fn send<T: 'static>(&mut self, id: Id, message: T) {
-        self.events.insert_mailbox(id, message);
+    fn send<T: Send + 'static>(&mut self, id: Id, message: T) {
+        let event = GlobalEvent::Send(id, Box::new(message));
+        self.events.insert_global_event(event);
     }
     /// Utilizado para emitir um evento global que sera recebido por todos os GameObjects que definiram um #[game(subscribe(metodo: Tipo))]
-    fn emit<T: 'static>(&mut self, event: T) {
+    fn emit<T: Send + 'static>(&mut self, event: T) {
         let event = GlobalEvent::Broadcast(Box::new(event));
         self.events.insert_global_event(event);
     }
     /// Envia um evento similar a mensagem mas que pode ser de qualquer tipo, geralmente utilizado para comunicação de Componente para GameObject
-    fn emit_targeted<T: 'static>(&mut self, id: Id, event: T) {
+    fn emit_targeted<T: Send + 'static>(&mut self, id: Id, event: T) {
         let event = GlobalEvent::Targeted(id, Box::new(event));
         self.events.insert_global_event(event);
     }
 
-    fn mailbox(&mut self) -> &mut IndexMap<Id, Vec<Box<dyn Any>>, rustc_hash::FxBuildHasher> {
-        &mut self.events.mailbox
+    fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + Send + 'static>) {
+        let event = GlobalEvent::Send(id, message);
+        self.events.insert_global_event(event);
     }
 
-    fn mail_box_is_empty(&self) -> bool {
-        self.events.mailbox.is_empty()
-    }
-
-    fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + 'static>) {
-        self.events.insert_mailbox_boxed_any(id, message);
-    }
-
-    fn send_service<T: 'static, E: 'static>(&mut self, event: E) {
+    fn send_service<T: 'static, E: Send + 'static>(&mut self, event: E) {
         if let Some(id) = self.service_id::<T>() {
             self.send(id, event);
         }
@@ -364,8 +357,8 @@ impl<'a> CollisionApi for EngineContext<'a> {
     fn register_trigger_callbacks(
         &mut self,
         key: ColliderKey,
-        on_enter: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
-        on_exit: Option<Box<dyn Fn() -> Box<dyn Any + 'static>>>,
+        on_enter: Option<Box<dyn Fn() -> Box<dyn Any + Send + 'static>>>,
+        on_exit: Option<Box<dyn Fn() -> Box<dyn Any + Send + 'static>>>,
     ) {
         self.systems
             .trigger_callbacks
@@ -374,24 +367,18 @@ impl<'a> CollisionApi for EngineContext<'a> {
 }
 
 pub struct AsyncContext {
-    sender: Sender<BackGroundEvent>,
+    sender: Sender<GlobalEvent>,
 }
 
 impl AsyncContext {
     pub fn emit<T: Any + Send + 'static>(&self, event: T) {
-        let _ = self
-            .sender
-            .send(BackGroundEvent::Broadcast(Box::new(event)));
+        let _ = self.sender.send(GlobalEvent::Broadcast(Box::new(event)));
     }
     pub fn emit_targeted<T: Any + Send + 'static>(&self, id: Id, event: T) {
-        let _ = self
-            .sender
-            .send(BackGroundEvent::Targeted(id, Box::new(event)));
+        let _ = self.sender.send(GlobalEvent::Targeted(id, Box::new(event)));
     }
     pub fn send<T: Any + Send + 'static>(&self, id: Id, message: T) {
-        let _ = self
-            .sender
-            .send(BackGroundEvent::Send(id, Box::new(message)));
+        let _ = self.sender.send(GlobalEvent::Send(id, Box::new(message)));
     }
 }
 impl<'a> SceneApi for EngineContext<'a> {
@@ -421,7 +408,7 @@ impl<'a> SceneApi for EngineContext<'a> {
 }
 
 impl<'a> WorldApi for EngineContext<'a> {
-    fn spawn<T: GameObject + 'static>(&mut self, obj: T) {
+    fn spawn<T: GameObject + Send + 'static>(&mut self, obj: T) {
         self.emit(SpawnEvent::new(obj));
     }
     fn register_alive(&mut self, id: Id) {
