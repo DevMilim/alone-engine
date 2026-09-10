@@ -2,6 +2,7 @@ use std::{
     any::{Any, TypeId},
     net::SocketAddr,
     ops::Range,
+    sync::Arc,
 };
 
 use bincode::{Decode, Encode};
@@ -107,6 +108,12 @@ pub trait EventApi {
     fn take_mailbox(&mut self, id: Id) -> Option<Vec<GlobalEvent>>;
     fn register_subscriptions(&mut self, id: Id, types: &[TypeId]);
     fn unregister_subscriptions(&mut self, id: Id, types: &[TypeId]);
+    fn broadcast_range(&mut self, id: Id, type_id: TypeId) -> (usize, usize);
+    fn get_broadcast(
+        &self,
+        type_id: TypeId,
+        index: usize,
+    ) -> Option<Arc<dyn Any + Send + Sync + 'static>>;
 }
 pub trait CollisionApi {
     fn update_collider_geometry(

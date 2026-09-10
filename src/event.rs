@@ -18,26 +18,34 @@ pub enum GlobalEvent {
     Broadcast(Arc<dyn Any + Send + Sync + 'static>),
 }
 
+pub struct EventManager {
+    pub mailboxes: FxHashMap<Id, Vec<GlobalEvent>>,
+    pub broadcasts: FxHashMap<TypeId, Vec<Arc<dyn Any + Send + Sync + 'static>>>,
+    pub broadcast_cursors: FxHashMap<(Id, TypeId), usize>,
+    pub subscribers: FxHashMap<TypeId, FxHashSet<Id>>,
+    pub aplication_commands: VecDeque<AppCommands>,
+
+    pub broadcast_version: u64,
+}
+
 impl Default for EventManager {
     fn default() -> Self {
         Self {
             mailboxes: FxHashMap::default(),
+            broadcasts: FxHashMap::default(),
+            broadcast_cursors: FxHashMap::default(),
             subscribers: FxHashMap::default(),
             aplication_commands: VecDeque::new(),
+            broadcast_version: 0,
         }
     }
-}
-
-pub struct EventManager {
-    pub mailboxes: FxHashMap<Id, Vec<GlobalEvent>>,
-    pub subscribers: FxHashMap<TypeId, FxHashSet<Id>>,
-    pub aplication_commands: VecDeque<AppCommands>,
 }
 
 impl EventManager {
     pub fn take_mailbox(&mut self, id: Id) -> Option<Vec<GlobalEvent>> {
         self.mailboxes.remove(&id)
     }
+
     pub fn register_subscriptions(&mut self, id: Id, types: &[TypeId]) {
         for &type_id in types {
             self.subscribers.entry(type_id).or_default().insert(id);
@@ -48,13 +56,31 @@ impl EventManager {
         for &type_id in types {
             if let Some(ids) = self.subscribers.get_mut(&type_id) {
                 ids.remove(&id);
-
                 if ids.is_empty() {
                     self.subscribers.remove(&type_id);
                 }
             }
         }
+        self.broadcast_cursors
+            .retain(|&(cursor_id, _), _| cursor_id != id);
     }
+
+    pub fn broadcast_range(&mut self, id: Id, type_id: TypeId) -> (usize, usize) {
+        let len = self.broadcasts.get(&type_id).map_or(0, Vec::len);
+        let cursor = self.broadcast_cursors.entry((id, type_id)).or_insert(0);
+        let start = (*cursor).min(len);
+        *cursor = len;
+        (start, len)
+    }
+
+    pub fn get_broadcast(
+        &self,
+        type_id: TypeId,
+        index: usize,
+    ) -> Option<Arc<dyn Any + Send + Sync + 'static>> {
+        self.broadcasts.get(&type_id)?.get(index).cloned()
+    }
+
     pub fn insert_global_event(&mut self, event: GlobalEvent) {
         match event {
             GlobalEvent::Broadcast(payload) => self.insert_broadcast_event(payload),
@@ -72,24 +98,28 @@ impl EventManager {
             }
         }
     }
-    pub fn insert_broadcast_event(&mut self, event: Arc<dyn Any + Send + Sync>) {
+
+    pub fn insert_broadcast_event(&mut self, event: Arc<dyn Any + Send + Sync + 'static>) {
         let type_id = (*event).type_id();
 
-        let Some(subscriber_ids) = self.subscribers.get(&type_id) else {
+        if !self.subscribers.contains_key(&type_id) {
             return;
-        };
-
-        for &id in subscriber_ids {
-            self.mailboxes
-                .entry(id)
-                .or_default()
-                .push(GlobalEvent::Broadcast(event.clone()));
         }
+
+        self.broadcasts.entry(type_id).or_default().push(event);
+        self.broadcast_version = self.broadcast_version.wrapping_add(1);
     }
+
     pub fn prune_dead_mailboxes(&mut self, live_ids: &FxHashSet<Id>) {
         self.mailboxes.retain(|id, _| live_ids.contains(id));
     }
+
+    pub fn clear_broadcast_log(&mut self) {
+        self.broadcasts.clear();
+        self.broadcast_cursors.clear();
+    }
 }
+
 /// Evento usado para Collider com `is_sensor: true`
 /// Para utilizar ele deve ser utilizada a assinatura
 /// ```

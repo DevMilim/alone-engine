@@ -288,6 +288,18 @@ impl<'a> EventApi for EngineContext<'a> {
     fn unregister_subscriptions(&mut self, id: Id, types: &[TypeId]) {
         self.events.unregister_subscriptions(id, types);
     }
+
+    fn broadcast_range(&mut self, id: Id, type_id: TypeId) -> (usize, usize) {
+        self.events.broadcast_range(id, type_id)
+    }
+
+    fn get_broadcast(
+        &self,
+        type_id: TypeId,
+        index: usize,
+    ) -> Option<Arc<dyn Any + Send + Sync + 'static>> {
+        self.events.get_broadcast(type_id, index)
+    }
 }
 impl<'a> CollisionApi for EngineContext<'a> {
     fn update_collider(&mut self, key: ColliderKey, data: ColliderData) {

@@ -191,8 +191,34 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     };
 
     let subscribe_arms = build_downcast_arms(&subscribe);
-
     let connect_arms = build_downcast_arms(&connect);
+
+    let mut seen_subscribe_types = std::collections::HashSet::new();
+    let subscribe_type_ids: Vec<_> = subscribe
+        .iter()
+        .filter_map(|sub| {
+            let ty = &sub.event_type;
+            let ty_string = quote!(#ty).to_string();
+            seen_subscribe_types
+                .insert(ty_string)
+                .then(|| quote! { ::std::any::TypeId::of::<#ty>() })
+        })
+        .collect();
+
+    let broadcast_read_block = (!subscribe_type_ids.is_empty())
+        .then(|| {
+            quote! {
+                for &type_id in &[#(#subscribe_type_ids),*] {
+                    let (start, end) = ctx.broadcast_range(self.base().id, type_id);
+                    for i in start..end {
+                        if let Some(any_event) = ctx.get_broadcast(type_id, i) {
+                            #(#subscribe_arms)*
+                        }
+                    }
+                }
+            }
+        })
+        .unwrap_or_default();
 
     let event_dispatch_block = {
         quote! {
@@ -203,10 +229,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                             let _ = &any_event;
                             #(#connect_arms)*
                         }
-                        #p::GlobalEvent::Broadcast(any_event) => {
-                            let _ = &any_event;
-                            #(#subscribe_arms)*
-                        }
+                        #p::GlobalEvent::Broadcast(_) => {}
                         #p::GlobalEvent::Send(_id, any_event) =>{
                             if let Some(message) = any_event.downcast_ref::<<Self as #p::GameObject>::Message>() {
                                 self.on_message(ctx, message);
@@ -219,17 +242,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         }
     };
-    let mut seen_subscribe_types = std::collections::HashSet::new();
-    let subscribe_type_ids: Vec<_> = subscribe
-        .iter()
-        .filter_map(|sub| {
-            let ty = &sub.event_type;
-            let ty_string = quote!(#ty).to_string();
-            seen_subscribe_types
-                .insert(ty_string)
-                .then(|| quote! { ::std::any::TypeId::of::<#ty>() })
-        })
-        .collect();
 
     let register_subscriptions = (!subscribe_type_ids.is_empty())
         .then(|| {
@@ -392,6 +404,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
             fn dispatch_events(&mut self, ctx: &mut impl #p::EngineApi) {
                 #event_dispatch_block
+                #broadcast_read_block
                 #(self.#object_fields.dispatch_events(ctx);)*
             }
 
@@ -424,13 +437,15 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
 
             fn dispatch_destroy(&mut self, ctx: &mut impl #p::EngineApi) {
-                ctx.unregister_alive(self.base().id);
-                #unregister_subscriptions
-                ctx.abort_tasks_of(self.base().id);
-                ctx.destroy(self.base().id);
                 self.destroy(ctx);
+
+                #unregister_subscriptions
                 #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 #(self.#object_fields.dispatch_destroy(ctx);)*
+                
+                ctx.abort_tasks_of(self.base().id);
+                ctx.unregister_alive(self.base().id);
+                ctx.destroy(self.base().id);
             }
         }
     }

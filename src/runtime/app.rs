@@ -161,10 +161,16 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
         }
 
         const MAX_EVENT_ROUNDS: u32 = 10;
+        let mut last_broadcast_version = 0;
+
         for round in 0..MAX_EVENT_ROUNDS {
-            if ctx.events.mailboxes.is_empty() {
+            let mailboxes_pending = !ctx.events.mailboxes.is_empty();
+            let broadcasts_pending = ctx.events.broadcast_version != last_broadcast_version;
+
+            if !mailboxes_pending && !broadcasts_pending {
                 break;
             }
+            last_broadcast_version = ctx.events.broadcast_version;
 
             if let Some(global) = &mut self.world.global {
                 global.dispatch_events(&mut ctx);
@@ -173,10 +179,15 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
 
             ctx.events.prune_dead_mailboxes(&ctx.systems.live_ids);
 
-            if round == MAX_EVENT_ROUNDS - 1 && !ctx.events.mailboxes.is_empty() {
+            let still_pending = !ctx.events.mailboxes.is_empty()
+                || ctx.events.broadcast_version != last_broadcast_version;
+
+            if round == MAX_EVENT_ROUNDS - 1 && still_pending {
                 eprintln!("limite de rounds de evento atingido, possível loop de eventos");
             }
         }
+
+        ctx.events.clear_broadcast_log();
 
         while let Some(cmd) = ctx.events.aplication_commands.pop_front() {
             match cmd {

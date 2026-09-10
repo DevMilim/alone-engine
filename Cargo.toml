@@ -31,3 +31,10 @@ tokio = { version = "1.53.1", features = [
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.34"
 rayon = "1.12.0"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "event_dispatch"
+harness = false
