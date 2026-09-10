@@ -74,6 +74,11 @@ pub struct CollisionWorld {
     current_stamp: u32,
 
     query_result: Vec<DenseIndex>,
+    owner_keys_scratch: Vec<ColliderKey>,
+    cell_slots_scratch: Vec<(u32, u32)>,
+
+    entered_scratch: Vec<(ColliderKey, ColliderKey)>,
+    exited_scratch: Vec<(ColliderKey, ColliderKey)>,
 }
 
 impl CollisionWorld {
@@ -227,8 +232,11 @@ impl CollisionWorld {
         self.rebuild_grid();
         self.current_overlaps.clear();
 
-        for slot in self.cell_offsets.values().copied().collect::<Vec<_>>() {
-            let (start, count) = slot;
+        self.cell_slots_scratch.clear();
+        self.cell_slots_scratch
+            .extend(self.cell_offsets.values().copied());
+
+        for &(start, count) in &self.cell_slots_scratch {
             let bucket = &self.cell_entries[start as usize..(start + count) as usize];
 
             for i in 0..bucket.len() {
@@ -258,33 +266,50 @@ impl CollisionWorld {
         self.last_overlaps.extend_from_slice(&self.current_overlaps);
     }
 
-    fn diff_pairs(
-        &self,
+    fn diff_pairs_into(
         a: &[(ColliderKey, ColliderKey)],
         b: &[(ColliderKey, ColliderKey)],
-    ) -> Vec<(ColliderKey, ColliderKey)> {
-        let mut result = Vec::new();
+        out: &mut Vec<(ColliderKey, ColliderKey)>,
+    ) {
+        out.clear();
         let mut j = 0usize;
-
         for &pair in a {
             while j < b.len() && b[j] < pair {
                 j += 1;
             }
             let present_in_b = j < b.len() && b[j] == pair;
             if !present_in_b {
-                result.push(pair);
+                out.push(pair);
             }
         }
-
-        result
     }
 
-    pub fn get_entered_pairs(&self) -> Vec<(ColliderKey, ColliderKey)> {
-        self.diff_pairs(&self.current_overlaps, &self.last_overlaps)
+    pub fn get_entered_pairs(&mut self) -> &[(ColliderKey, ColliderKey)] {
+        let CollisionWorld {
+            current_overlaps,
+            last_overlaps,
+            entered_scratch,
+            ..
+        } = self;
+        Self::diff_pairs_into(current_overlaps, last_overlaps, entered_scratch);
+        entered_scratch
     }
 
-    pub fn get_exited_pairs(&self) -> Vec<(ColliderKey, ColliderKey)> {
-        self.diff_pairs(&self.last_overlaps, &self.current_overlaps)
+    pub fn get_exited_pairs(&mut self) -> &[(ColliderKey, ColliderKey)] {
+        let CollisionWorld {
+            current_overlaps,
+            last_overlaps,
+            exited_scratch,
+            ..
+        } = self;
+        Self::diff_pairs_into(last_overlaps, current_overlaps, exited_scratch);
+        exited_scratch
+    }
+    fn my_keys_into_scratch(&mut self, my_id: Id) {
+        self.owner_keys_scratch.clear();
+        if let Some(keys) = self.owners.get(&my_id) {
+            self.owner_keys_scratch.extend_from_slice(keys);
+        }
     }
 
     fn filter_pairs(
@@ -300,20 +325,21 @@ impl CollisionWorld {
             })
             .collect()
     }
-
-    pub fn get_entered_for(&self, my_id: Id) -> Vec<ColliderKey> {
-        self.filter_pairs(self.get_entered_pairs().into_iter(), my_id)
+    pub fn get_entered_for(&mut self, my_id: Id) -> Vec<ColliderKey> {
+        let pairs: Vec<_> = self.get_entered_pairs().iter().copied().collect();
+        self.filter_pairs(pairs.into_iter(), my_id)
     }
 
-    pub fn get_exited_for(&self, my_id: Id) -> Vec<ColliderKey> {
-        self.filter_pairs(self.get_exited_pairs().into_iter(), my_id)
+    pub fn get_exited_for(&mut self, my_id: Id) -> Vec<ColliderKey> {
+        let pairs: Vec<_> = self.get_exited_pairs().iter().copied().collect();
+        self.filter_pairs(pairs.into_iter(), my_id)
     }
-
     pub fn check_collisions(&mut self, my_id: Id) -> bool {
-        let my_keys: Vec<ColliderKey> = self.owners.get(&my_id).cloned().unwrap_or_default();
+        self.my_keys_into_scratch(my_id);
 
-        for key in &my_keys {
-            let Some(&idx) = self.key_to_index.get(key) else {
+        for i in 0..self.owner_keys_scratch.len() {
+            let key = self.owner_keys_scratch[i];
+            let Some(&idx) = self.key_to_index.get(&key) else {
                 continue;
             };
             let my_data = self.data[idx as usize];
@@ -441,11 +467,7 @@ impl CollisionWorld {
         velocity: &mut Vector2i,
         is_x_axis: bool,
     ) -> Vector2i {
-        let my_keys: Vec<ColliderKey> = self
-            .owners
-            .get(&my_id)
-            .map(|keys| keys.clone())
-            .unwrap_or_default();
+        self.my_keys_into_scratch(my_id);
 
         let mut final_correction = Vector2i::ZERO;
         let mut iterations = 0;
@@ -454,8 +476,9 @@ impl CollisionWorld {
         while iterations < MAX_ITERATIONS {
             let mut moved = false;
 
-            for key in &my_keys {
-                let Some(&idx) = self.key_to_index.get(key) else {
+            for i in 0..self.owner_keys_scratch.len() {
+                let key = self.owner_keys_scratch[i];
+                let Some(&idx) = self.key_to_index.get(&key) else {
                     continue;
                 };
                 let my_data = self.data[idx as usize];
@@ -502,16 +525,13 @@ impl CollisionWorld {
     }
 
     pub fn snap_to_floor(&mut self, my_id: Id, snap_length: i32) -> Option<i32> {
-        let my_keys: Vec<ColliderKey> = self
-            .owners
-            .get(&my_id)
-            .map(|keys| keys.clone())
-            .unwrap_or_default();
+        self.my_keys_into_scratch(my_id);
 
         let mut best_snap = None;
 
-        for key in &my_keys {
-            let Some(&idx) = self.key_to_index.get(key) else {
+        for i in 0..self.owner_keys_scratch.len() {
+            let key = self.owner_keys_scratch[i];
+            let Some(&idx) = self.key_to_index.get(&key) else {
                 continue;
             };
             let my_data = self.data[idx as usize];

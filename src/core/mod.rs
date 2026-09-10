@@ -89,19 +89,19 @@ impl Default for CoreSystems {
 impl CoreSystems {
     pub fn collision_step(&mut self, events: &mut EventManager) {
         self.collision.step();
-        self.emit_trigger_events(
-            events,
-            self.collision.get_entered_pairs(),
-            TriggerKind::Enter,
-        );
-        self.emit_trigger_events(events, self.collision.get_exited_pairs(), TriggerKind::Exit);
+
+        let entered: Vec<_> = self.collision.get_entered_pairs().to_vec();
+        self.emit_trigger_events(events, &entered, TriggerKind::Enter);
+
+        let exited: Vec<_> = self.collision.get_exited_pairs().to_vec();
+        self.emit_trigger_events(events, &exited, TriggerKind::Exit);
 
         self.collision.commit();
     }
     fn emit_trigger_events(
         &self,
         events: &mut EventManager,
-        pairs: Vec<(ColliderKey, ColliderKey)>,
+        pairs: &[(ColliderKey, ColliderKey)],
         kind: TriggerKind,
     ) {
         for (a, b) in pairs {
@@ -114,11 +114,11 @@ impl CoreSystems {
             };
 
             if da.is_sensor {
-                self.emit_trigger(events, a, b.id, kind);
+                self.emit_trigger(events, *a, b.id, kind);
             }
 
             if db.is_sensor {
-                self.emit_trigger(events, b, a.id, kind);
+                self.emit_trigger(events, *b, a.id, kind);
             }
         }
     }
