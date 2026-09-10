@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     core::{Base, Component, EngineApi},
-    event::CallBackEvent,
+    event::CallbackEvent,
 };
 
 pub enum TimerEvent {
@@ -12,7 +12,7 @@ pub enum TimerEvent {
 pub struct Timer {
     instant: Option<Instant>,
     duration: Duration,
-    event: Option<CallBackEvent>,
+    event: Option<CallbackEvent>,
     repeat: bool,
 }
 

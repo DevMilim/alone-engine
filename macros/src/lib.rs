@@ -23,21 +23,32 @@ impl FromField for GameField {
         let mut component = false;
         let mut component_trait = None;
         let mut object = false;
+        let mut markers = 0u8;
 
         for attr in &field.attrs {
             if attr.path().is_ident("base") {
                 base = true;
+                markers += 1;
             } else if attr.path().is_ident("component") {
                 component = true;
+                markers += 1;
 
                 if let syn::Meta::List(meta_list) = &attr.meta {
-                    if let Ok(args) = meta_list.parse_args::<ComponentArgs>() {
-                        component_trait = args.interface;
-                    }
+                    let args = meta_list
+                        .parse_args::<ComponentArgs>()
+                        .map_err(|e| darling::Error::custom(e.to_string()))?;
+                    component_trait = args.interface;
                 }
             } else if attr.path().is_ident("object") {
-                object = true
+                object = true;
+                markers += 1;
             }
+        }
+        if markers > 1 {
+            return Err(darling::Error::custom(
+                "um campo so pode ter um dos atributos: #[base], #[component] ou #[object]",
+            )
+            .with_span(field));
         }
         Ok(GameField {
             ident: field.ident.clone(),
@@ -73,6 +84,11 @@ impl Parse for ComponentArgs {
 
             if ident == "interface" {
                 interface = Some(value);
+            } else {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    format!("chave desconhecida `{ident}` em #[component(...)]; use `interface`"),
+                ));
             }
 
             if input.is_empty() {
@@ -120,8 +136,28 @@ fn parse_event_attributes(
             connect.extend(parsed);
         }
     }
+    check_no_duplicates(&subscribe, "subscribe")?;
+    check_no_duplicates(&connect, "connect")?;
 
     Ok((subscribe, connect))
+}
+
+fn check_no_duplicates(subs: &[Subscription], attr_name: &str) -> syn::Result<()> {
+    let mut seen = std::collections::HashSet::new();
+    for sub in subs {
+        let ty = &sub.event_type;
+        let key = (sub.handler.to_string(), quote!(#ty).to_string());
+        if !seen.insert(key) {
+            return Err(syn::Error::new_spanned(
+                &sub.handler,
+                format!(
+                    "entrada duplicada em #[{attr_name}(...)] para `{}`",
+                    sub.handler
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn build_downcast_arms(subs: &[Subscription]) -> Vec<proc_macro2::TokenStream> {
@@ -155,50 +191,61 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     };
 
     let subscribe_arms = build_downcast_arms(&subscribe);
-    let subscribe_block = (!subscribe.is_empty()).then(|| {
-        quote! {
-            if let #p::GlobalEvent::Broadcast(any_event) = event {
-                #(#subscribe_arms)*
-            }
-        }
-    });
 
     let connect_arms = build_downcast_arms(&connect);
-    let connect_block = (!connect.is_empty()).then(|| {
-        quote! {
-            if let #p::GlobalEvent::Targeted(id, any_event) = event {
-                if &self.base().id == id {
-                    #(#connect_arms)*
-                    return;
-                }
-            }
-        }
-    });
+
     let event_dispatch_block = {
         quote! {
-            match event{
-                #p::GlobalEvent::Targeted(id, any_event) =>{
-                    if &self.base().id == id {
-                        #(#connect_arms)*
-                        return;
-                    }
-                }
-                #p::GlobalEvent::Broadcast(any_event) =>{
-                    #(#subscribe_arms)*
-                }
-                #p::GlobalEvent::Send(id, any_event) =>{
-                    if &self.base().id == id{
-                        if let Some(message) = any_event.downcast_ref::<<Self as #p::GameObject>::Message>() {
-                            self.on_message(ctx, message);
-                            return
-                        }else{
-                            println!("Evento incompativel recebido. Esperado: {}", std::any::type_name::<<Self as #p::GameObject>::Message>());
+            if let Some(events) = ctx.take_mailbox(self.base().id){
+                for event in events{
+                    match event{
+                        #p::GlobalEvent::Targeted(_id, any_event) => {
+                            let _ = &any_event;
+                            #(#connect_arms)*
+                        }
+                        #p::GlobalEvent::Broadcast(any_event) => {
+                            let _ = &any_event;
+                            #(#subscribe_arms)*
+                        }
+                        #p::GlobalEvent::Send(_id, any_event) =>{
+                            if let Some(message) = any_event.downcast_ref::<<Self as #p::GameObject>::Message>() {
+                                self.on_message(ctx, message);
+                            }else{
+                                println!("Evento incompativel recebido. Esperado: {}", std::any::type_name::<<Self as #p::GameObject>::Message>());
+                            }
                         }
                     }
                 }
             }
         }
     };
+    let mut seen_subscribe_types = std::collections::HashSet::new();
+    let subscribe_type_ids: Vec<_> = subscribe
+        .iter()
+        .filter_map(|sub| {
+            let ty = &sub.event_type;
+            let ty_string = quote!(#ty).to_string();
+            seen_subscribe_types
+                .insert(ty_string)
+                .then(|| quote! { ::std::any::TypeId::of::<#ty>() })
+        })
+        .collect();
+
+    let register_subscriptions = (!subscribe_type_ids.is_empty())
+        .then(|| {
+            quote! {
+                ctx.register_subscriptions(self.base().id, &[#(#subscribe_type_ids),*]);
+            }
+        })
+        .unwrap_or_default();
+
+    let unregister_subscriptions = (!subscribe_type_ids.is_empty())
+        .then(|| {
+            quote! {
+                ctx.unregister_subscriptions(self.base().id, &[#(#subscribe_type_ids),*]);
+            }
+        })
+        .unwrap_or_default();
 
     let struct_name = &receiver.ident;
     let fields = receiver.data.take_struct().unwrap();
@@ -209,7 +256,8 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let mut bounds = Vec::new();
     let mut pending_component_impls = Vec::new();
     let mut seen_interfaces = std::collections::HashSet::new();
-
+    let mut seen_component_bounds = std::collections::HashSet::new();
+    let mut seen_object_bounds = std::collections::HashSet::new();
     for field in fields.fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
@@ -232,7 +280,9 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         } else if field.component {
             component_fields.push(ident.clone());
-            bounds.push(quote! { #ty: #p::Component });
+            if seen_component_bounds.insert(quote!(#ty).to_string()) {
+                bounds.push(quote! { #ty: #p::Component });
+            }
 
             if let Some(trait_path) = &field.interface {
                 let trait_name = quote! {#trait_path}.to_string();
@@ -250,7 +300,9 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         } else if field.object {
             object_fields.push(ident.clone());
-            bounds.push(quote! { #ty: #p::GameObject + #p::GameObjectDispatch });
+            if seen_object_bounds.insert(quote!(#ty).to_string()) {
+                bounds.push(quote! { #ty: #p::GameObject + #p::GameObjectDispatch });
+            }
         }
     }
 
@@ -299,8 +351,16 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 impl #trait_path for #struct_name {}
             }
         });
-
+    let assert_base_type = quote! {
+        const _: () = {
+            #[allow(non_snake_case)]
+            fn __assert_base_field #impl_generics (v: &#struct_name #ty_generics) #where_clause {
+                let _base: &#p::Base = &v.#base_field;
+            }
+        };
+    };
     quote! {
+        #assert_base_type
         #(#injected_methods)*
         impl #impl_generics #p::GameObjectBase for #struct_name #ty_generics {
             fn base(&self) -> &#p::Base {
@@ -321,16 +381,18 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 if self.is_started() {
                     return;
                 }
+                #apply_transform
                 ctx.register_alive(self.base().id);
+                #register_subscriptions
                 self.start(ctx);
                 #(self.#component_fields.start(ctx, &mut self.#base_field);)*
                 #(self.#object_fields.dispatch_start(ctx, &self.#base_field);)*
                 self.mark_as_started();
             }
 
-            fn dispatch_event(&mut self, ctx: &mut impl #p::EngineApi, event: &#p::GlobalEvent) {
+            fn dispatch_events(&mut self, ctx: &mut impl #p::EngineApi) {
                 #event_dispatch_block
-                #(self.#object_fields.dispatch_event(ctx, event);)*
+                #(self.#object_fields.dispatch_events(ctx);)*
             }
 
             fn dispatch_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
@@ -363,6 +425,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
             fn dispatch_destroy(&mut self, ctx: &mut impl #p::EngineApi) {
                 ctx.unregister_alive(self.base().id);
+                #unregister_subscriptions
                 ctx.abort_tasks_of(self.base().id);
                 ctx.destroy(self.base().id);
                 self.destroy(ctx);
@@ -463,10 +526,10 @@ fn derive_object_dispatch_enum(
             quote!(ctx, parent_base),
         ),
         (
-            "dispatch_event",
-            quote!(&mut self, ctx: &mut impl #p::EngineApi, event: &#p::GlobalEvent),
+            "dispatch_events",
+            quote!(&mut self, ctx: &mut impl #p::EngineApi),
             quote!(),
-            quote!(ctx, event),
+            quote!(ctx),
         ),
         (
             "dispatch_update",

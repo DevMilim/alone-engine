@@ -1,7 +1,4 @@
-use crate::{
-    core::{Base, EngineApi, GameObject, Pool, RenderApi, Slot},
-    event::GlobalEvent,
-};
+use crate::core::{Base, EngineApi, GameObject, Pool, RenderApi, Slot};
 
 pub trait GameObjectDispatch {
     fn is_pending_removal(&self) -> bool {
@@ -11,7 +8,7 @@ pub trait GameObjectDispatch {
     fn dispatch_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_late_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
     fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32);
-    fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent);
+    fn dispatch_events(&mut self, ctx: &mut impl EngineApi);
     fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32);
     fn dispatch_destroy(&mut self, ctx: &mut impl EngineApi);
 }
@@ -73,9 +70,9 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Pool<T> {
         }
     }
 
-    fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent) {
+    fn dispatch_events(&mut self, ctx: &mut impl EngineApi) {
         for obj in self.iter_mut() {
-            obj.dispatch_event(ctx, event);
+            obj.dispatch_events(ctx);
         }
     }
 }
@@ -139,9 +136,9 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Slot<T> {
         }
     }
 
-    fn dispatch_event(&mut self, ctx: &mut impl EngineApi, event: &GlobalEvent) {
+    fn dispatch_events(&mut self, ctx: &mut impl EngineApi) {
         if let Some(obj) = self.inner.as_mut() {
-            obj.dispatch_event(ctx, event);
+            obj.dispatch_events(ctx);
         }
     }
 }
@@ -156,7 +153,7 @@ impl GameObjectDispatch for EmptyGlobals {
 
     fn dispatch_fixed_update(&mut self, _ctx: &mut impl EngineApi, _base: &Base, _delta: f32) {}
 
-    fn dispatch_event(&mut self, _ctx: &mut impl EngineApi, _event: &GlobalEvent) {}
+    fn dispatch_events(&mut self, _ctx: &mut impl EngineApi) {}
 
     fn dispatch_draw(&mut self, _ctx: &mut impl RenderApi, _base: &Base, _blending: f32) {}
 

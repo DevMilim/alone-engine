@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{
     any::{Any, TypeId},
-    sync::mpsc::Sender,
+    sync::{Arc, mpsc::Sender},
 };
 
 use rodio::Player;
@@ -29,7 +29,7 @@ pub struct EngineContext<'a> {
     pub state: &'a mut State,
     pub window_size: &'a (u32, u32),
     pub is_fixed_update: bool,
-    pub rng: Random,
+    pub rng: &'a mut Random,
 }
 
 impl<'a> EngineApi for EngineContext<'a> {}
@@ -257,9 +257,8 @@ impl<'a> EventApi for EngineContext<'a> {
         self.events.insert_global_event(event);
     }
     /// Utilizado para emitir um evento global que sera recebido por todos os GameObjects que definiram um #[game(subscribe(metodo: Tipo))]
-    fn emit<T: Send + 'static>(&mut self, event: T) {
-        let event = GlobalEvent::Broadcast(Box::new(event));
-        self.events.insert_global_event(event);
+    fn emit<T: Send + Sync + 'static>(&mut self, event: T) {
+        self.events.insert_broadcast_event(Arc::new(event));
     }
     /// Envia um evento similar a mensagem mas que pode ser de qualquer tipo, geralmente utilizado para comunicação de Componente para GameObject
     fn emit_targeted<T: Send + 'static>(&mut self, id: Id, event: T) {
@@ -276,6 +275,18 @@ impl<'a> EventApi for EngineContext<'a> {
         if let Some(id) = self.service_id::<T>() {
             self.send(id, event);
         }
+    }
+
+    fn take_mailbox(&mut self, id: Id) -> Option<Vec<GlobalEvent>> {
+        self.events.take_mailbox(id)
+    }
+
+    fn register_subscriptions(&mut self, id: Id, types: &[TypeId]) {
+        self.events.register_subscriptions(id, types);
+    }
+
+    fn unregister_subscriptions(&mut self, id: Id, types: &[TypeId]) {
+        self.events.unregister_subscriptions(id, types);
     }
 }
 impl<'a> CollisionApi for EngineContext<'a> {
@@ -366,18 +377,36 @@ impl<'a> CollisionApi for EngineContext<'a> {
     }
 }
 
+impl<'a> WorldApi for EngineContext<'a> {
+    fn spawn<T: GameObject + Send + 'static>(&mut self, obj: T) {
+        self.emit(SpawnEvent::new(obj));
+    }
+    fn register_alive(&mut self, id: Id) {
+        self.systems.live_ids.insert(id);
+    }
+    fn unregister_alive(&mut self, id: Id) {
+        self.systems.live_ids.remove(&id);
+    }
+    fn destroy(&mut self, id: Id) {
+        self.systems.live_ids.remove(&id);
+
+        self.systems.resources.textures.remove_game_object(id);
+        self.systems.resources.sounds.remove_game_object(id);
+    }
+}
+
 pub struct AsyncContext {
     sender: Sender<GlobalEvent>,
 }
 
 impl AsyncContext {
-    pub fn emit<T: Any + Send + 'static>(&self, event: T) {
-        let _ = self.sender.send(GlobalEvent::Broadcast(Box::new(event)));
+    pub fn emit<T: Any + Send + Sync + 'static>(&self, event: T) {
+        let _ = self.sender.send(GlobalEvent::Broadcast(Arc::new(event)));
     }
-    pub fn emit_targeted<T: Any + Send + 'static>(&self, id: Id, event: T) {
+    pub fn emit_targeted<T: Any + Send + Sync + 'static>(&self, id: Id, event: T) {
         let _ = self.sender.send(GlobalEvent::Targeted(id, Box::new(event)));
     }
-    pub fn send<T: Any + Send + 'static>(&self, id: Id, message: T) {
+    pub fn send<T: Any + Sync + Send + 'static>(&self, id: Id, message: T) {
         let _ = self.sender.send(GlobalEvent::Send(id, Box::new(message)));
     }
 }
@@ -404,23 +433,5 @@ impl<'a> SceneApi for EngineContext<'a> {
         self.events
             .aplication_commands
             .push_back(AppCommands::ClearScenes);
-    }
-}
-
-impl<'a> WorldApi for EngineContext<'a> {
-    fn spawn<T: GameObject + Send + 'static>(&mut self, obj: T) {
-        self.emit(SpawnEvent::new(obj));
-    }
-    fn register_alive(&mut self, id: Id) {
-        self.systems.live_ids.insert(id);
-    }
-    fn unregister_alive(&mut self, id: Id) {
-        self.systems.live_ids.remove(&id);
-    }
-    fn destroy(&mut self, id: Id) {
-        self.systems.live_ids.remove(&id);
-
-        self.systems.resources.textures.remove_game_object(id);
-        self.systems.resources.sounds.remove_game_object(id);
     }
 }

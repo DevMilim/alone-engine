@@ -39,6 +39,7 @@ pub struct App<S: Scene + 'static, P: GameObjectDispatch = EmptyGlobals> {
     pub camera_position: Vector2,
     pub update_frame_count: u64,
     pub fixed_frame_count: u64,
+    pub rng: Random,
 }
 
 impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
@@ -54,6 +55,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
             camera_position: Vector2::new(0.0, 0.0),
             update_frame_count: 0,
             fixed_frame_count: 0,
+            rng: Random::time_seed(),
         }
     }
 
@@ -144,7 +146,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             window_size: &render.window_size,
             is_fixed_update: false,
             state: &mut self.state,
-            rng: Random::time_seed(),
+            rng: &mut self.rng,
         };
 
         let (is_running, blending) =
@@ -153,39 +155,26 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
 
         while let Ok(bg_event) = ctx.systems.bg_event_receiver.try_recv() {
             match bg_event {
-                GlobalEvent::Broadcast(event) => {
-                    ctx.events
-                        .global_events
-                        .push_back(GlobalEvent::Broadcast(event));
-                }
-                GlobalEvent::Targeted(id, event) => {
-                    ctx.events
-                        .global_events
-                        .push_back(GlobalEvent::Targeted(id, event));
-                }
-                GlobalEvent::Send(id, message) => {
-                    ctx.events
-                        .global_events
-                        .push_back(GlobalEvent::Send(id, message));
-                }
+                GlobalEvent::Broadcast(any) => ctx.events.insert_broadcast_event(any),
+                other => ctx.events.insert_global_event(other),
             }
         }
 
         const MAX_EVENT_ROUNDS: u32 = 10;
         for round in 0..MAX_EVENT_ROUNDS {
-            let mut something_processed = false;
-            while let Some(event) = ctx.events.global_events.pop_front() {
-                something_processed = true;
-                if let Some(global) = &mut self.world.global {
-                    global.dispatch_event(&mut ctx, &event);
-                }
-                self.world.last_scene().dispatch_event(&mut ctx, &event);
-            }
-            if !something_processed {
+            if ctx.events.mailboxes.is_empty() {
                 break;
             }
-            if round == MAX_EVENT_ROUNDS - 1 && something_processed {
-                eprintln!("limite de rounds de evento atingido, possível loop de eventos")
+
+            if let Some(global) = &mut self.world.global {
+                global.dispatch_events(&mut ctx);
+            }
+            self.world.last_scene().dispatch_events(&mut ctx);
+
+            ctx.events.prune_dead_mailboxes(&ctx.systems.live_ids);
+
+            if round == MAX_EVENT_ROUNDS - 1 && !ctx.events.mailboxes.is_empty() {
+                eprintln!("limite de rounds de evento atingido, possível loop de eventos");
             }
         }
 

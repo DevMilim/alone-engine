@@ -30,7 +30,7 @@ use tokio::{
 use crate::{
     audio::AudioSys,
     collision::{ColliderKey, CollisionWorld},
-    event::{CallBackEvent, EventManager, GlobalEvent, TriggerEvent, TriggerKind},
+    event::{CallbackEvent, EventManager, GlobalEvent, TriggerEvent, TriggerKind},
     input::InputState,
     resources::Resources,
 };
@@ -38,8 +38,8 @@ use crate::{
 pub static EMPTY_BASE: LazyLock<Base> = LazyLock::new(Base::default);
 
 pub struct TriggerCallbacks {
-    pub on_enter: Option<CallBackEvent>,
-    pub on_exit: Option<CallBackEvent>,
+    pub on_enter: Option<CallbackEvent>,
+    pub on_exit: Option<CallbackEvent>,
 }
 
 pub struct CoreSystems {
@@ -136,9 +136,7 @@ impl CoreSystems {
             };
 
             if let Some(msg) = msg {
-                events
-                    .global_events
-                    .push_back(GlobalEvent::Send(sensor.id, msg));
+                events.insert_global_event(GlobalEvent::Send(sensor.id, msg));
                 return;
             }
         }
@@ -149,8 +147,6 @@ impl CoreSystems {
             kind,
         };
 
-        events
-            .global_events
-            .push_back(GlobalEvent::Targeted(sensor.id, Box::new(ev)));
+        events.insert_global_event(GlobalEvent::Targeted(sensor.id, Box::new(ev)));
     }
 }

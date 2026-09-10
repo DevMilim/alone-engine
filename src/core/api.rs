@@ -1,4 +1,8 @@
-use std::{any::Any, net::SocketAddr, ops::Range};
+use std::{
+    any::{Any, TypeId},
+    net::SocketAddr,
+    ops::Range,
+};
 
 use bincode::{Decode, Encode};
 use rodio::Player;
@@ -9,7 +13,7 @@ use crate::{
     audio::AudioAsset,
     collision::{ColliderData, ColliderKey, CollisionFlag, Layer},
     core::{GameObject, Handler, Id},
-    event::CallBackEvent,
+    event::{CallbackEvent, GlobalEvent},
     math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,
     render::{Anchor, DrawCommand, ImageAsset},
@@ -27,7 +31,7 @@ pub trait CoreApi {
     fn async_ctx(&self) -> AsyncContext;
     fn async_task<F>(&mut self, owner_id: Id, future: F)
     where
-        F: Future<Output = ()> + Send + 'static;
+        F: Future<Output = ()> + Send + Sync + 'static;
     fn blocking_task<F>(&mut self, owner_id: Id, future: F)
     where
         F: FnOnce() -> () + Send + 'static;
@@ -97,9 +101,12 @@ pub trait InputApi {
 pub trait EventApi {
     fn send<T: Send + 'static>(&mut self, id: Id, message: T);
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + Send + 'static>);
-    fn emit<T: Send + 'static>(&mut self, event: T);
+    fn emit<T: Send + Sync + 'static>(&mut self, event: T);
     fn emit_targeted<T: Send + 'static>(&mut self, id: Id, event: T);
     fn send_service<T: 'static, E: Send + 'static>(&mut self, event: E);
+    fn take_mailbox(&mut self, id: Id) -> Option<Vec<GlobalEvent>>;
+    fn register_subscriptions(&mut self, id: Id, types: &[TypeId]);
+    fn unregister_subscriptions(&mut self, id: Id, types: &[TypeId]);
 }
 pub trait CollisionApi {
     fn update_collider_geometry(
@@ -133,8 +140,8 @@ pub trait CollisionApi {
     fn register_trigger_callbacks(
         &mut self,
         key: ColliderKey,
-        on_enter: Option<CallBackEvent>,
-        on_exit: Option<CallBackEvent>,
+        on_enter: Option<CallbackEvent>,
+        on_exit: Option<CallbackEvent>,
     );
 }
 
