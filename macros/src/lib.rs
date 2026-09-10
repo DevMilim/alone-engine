@@ -209,12 +209,11 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         .then(|| {
             quote! {
                 for &type_id in &[#(#subscribe_type_ids),*] {
-                    let (start, end) = ctx.broadcast_range(self.base().id, type_id);
-                    for i in start..end {
-                        if let Some(any_event) = ctx.get_broadcast(type_id, i) {
-                            #(#subscribe_arms)*
-                        }
+                    let buf = ctx.poll_broadcasts(self.base().id, type_id);
+                    for any_event in &buf {
+                        #(#subscribe_arms)*
                     }
+                    ctx.recycle_broadcast_buffer(buf);
                 }
             }
         })
@@ -332,10 +331,10 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         self.#base_field.transform.apply_parent(&parent_base.transform, inherit);
     };
     let ensure_started = quote! {
-        #apply_transform
         if !self.is_started() {
             self.dispatch_start(ctx, parent_base);
         }
+        #apply_transform
     };
 
     let (impl_generics, ty_generics, where_clause) = receiver.generics.split_for_impl();

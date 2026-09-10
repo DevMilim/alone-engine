@@ -288,17 +288,15 @@ impl<'a> EventApi for EngineContext<'a> {
     fn unregister_subscriptions(&mut self, id: Id, types: &[TypeId]) {
         self.events.unregister_subscriptions(id, types);
     }
-
-    fn broadcast_range(&mut self, id: Id, type_id: TypeId) -> (usize, usize) {
-        self.events.broadcast_range(id, type_id)
-    }
-
-    fn get_broadcast(
-        &self,
+    fn poll_broadcasts(
+        &mut self,
+        id: Id,
         type_id: TypeId,
-        index: usize,
-    ) -> Option<Arc<dyn Any + Send + Sync + 'static>> {
-        self.events.get_broadcast(type_id, index)
+    ) -> Vec<Arc<dyn Any + Send + Sync + 'static>> {
+        self.events.poll_broadcasts(id, type_id)
+    }
+    fn recycle_broadcast_buffer(&mut self, buf: Vec<Arc<dyn Any + Send + Sync + 'static>>) {
+        self.events.recycle_broadcast_buffer(buf);
     }
 }
 impl<'a> CollisionApi for EngineContext<'a> {

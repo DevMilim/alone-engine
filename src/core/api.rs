@@ -108,12 +108,12 @@ pub trait EventApi {
     fn take_mailbox(&mut self, id: Id) -> Option<Vec<GlobalEvent>>;
     fn register_subscriptions(&mut self, id: Id, types: &[TypeId]);
     fn unregister_subscriptions(&mut self, id: Id, types: &[TypeId]);
-    fn broadcast_range(&mut self, id: Id, type_id: TypeId) -> (usize, usize);
-    fn get_broadcast(
-        &self,
+    fn poll_broadcasts(
+        &mut self,
+        id: Id,
         type_id: TypeId,
-        index: usize,
-    ) -> Option<Arc<dyn Any + Send + Sync + 'static>>;
+    ) -> Vec<Arc<dyn Any + Send + Sync + 'static>>;
+    fn recycle_broadcast_buffer(&mut self, buf: Vec<Arc<dyn Any + Send + Sync + 'static>>);
 }
 pub trait CollisionApi {
     fn update_collider_geometry(

@@ -26,6 +26,7 @@ pub struct EventManager {
     pub aplication_commands: VecDeque<AppCommands>,
 
     pub broadcast_version: u64,
+    pub broadcast_scratch_pool: Vec<Vec<Arc<dyn Any + Send + Sync + 'static>>>,
 }
 
 impl Default for EventManager {
@@ -37,6 +38,7 @@ impl Default for EventManager {
             subscribers: FxHashMap::default(),
             aplication_commands: VecDeque::new(),
             broadcast_version: 0,
+            broadcast_scratch_pool: Vec::new(),
         }
     }
 }
@@ -65,20 +67,31 @@ impl EventManager {
             .retain(|&(cursor_id, _), _| cursor_id != id);
     }
 
-    pub fn broadcast_range(&mut self, id: Id, type_id: TypeId) -> (usize, usize) {
-        let len = self.broadcasts.get(&type_id).map_or(0, Vec::len);
+    pub fn poll_broadcasts(
+        &mut self,
+        id: Id,
+        type_id: TypeId,
+    ) -> Vec<Arc<dyn Any + Send + Sync + 'static>> {
+        let mut buf = self.broadcast_scratch_pool.pop().unwrap_or_default();
+
+        let Some(log) = self.broadcasts.get(&type_id) else {
+            return buf;
+        };
+
         let cursor = self.broadcast_cursors.entry((id, type_id)).or_insert(0);
-        let start = (*cursor).min(len);
-        *cursor = len;
-        (start, len)
+        let start = (*cursor).min(log.len());
+        *cursor = log.len();
+
+        if start < log.len() {
+            buf.extend(log[start..].iter().cloned());
+        }
+
+        buf
     }
 
-    pub fn get_broadcast(
-        &self,
-        type_id: TypeId,
-        index: usize,
-    ) -> Option<Arc<dyn Any + Send + Sync + 'static>> {
-        self.broadcasts.get(&type_id)?.get(index).cloned()
+    pub fn recycle_broadcast_buffer(&mut self, mut buf: Vec<Arc<dyn Any + Send + Sync + 'static>>) {
+        buf.clear();
+        self.broadcast_scratch_pool.push(buf);
     }
 
     pub fn insert_global_event(&mut self, event: GlobalEvent) {
