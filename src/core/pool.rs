@@ -28,6 +28,9 @@ impl<T: GameObject + GameObjectDispatch> Pool<T> {
             item.base_mut().queue_free();
         }
     }
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
 }
 
 impl<T: GameObject + GameObjectDispatch> GameObject for Pool<T> {
