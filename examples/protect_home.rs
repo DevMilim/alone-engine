@@ -150,8 +150,11 @@ impl GameObject for Enemy {
         let speed = 100.0;
         if let Some(home_pos) = self.home_pos {
             let to_home = home_pos - self.position();
-            if to_home.length() > 1.0 {
-                *self.velocity_mut() = to_home.normalize() * speed;
+            let dist = to_home.length();
+            if dist > 1.0 {
+                let max_move = speed * delta;
+                let move_len = dist.min(max_move);
+                *self.velocity_mut() = to_home.normalize() * (move_len / delta.max(1e-6));
             } else {
                 *self.velocity_mut() = Vector2::ZERO;
             }
