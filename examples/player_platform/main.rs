@@ -1,14 +1,7 @@
 use std::time::Duration;
 
 use crate::{platform::Platform, player::Player};
-use alone_engine::{
-    GameObject, Scene,
-    components::{Collider, PlaybackMode, Sound, TileCollision, Tilemap},
-    core::{Base, Component, EngineApi, GameObject, GameObjectBase, Slot},
-    event::{TriggerEvent, TriggerKind},
-    math::Vector2,
-    runtime::App,
-};
+use alone_engine::prelude::*;
 
 mod platform;
 mod player;

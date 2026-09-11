@@ -1,8 +1,4 @@
-use alone_engine::{
-    GameObject, Scene,
-    core::{Base, EngineApi, GameObject, GameObjectBase},
-    runtime::App,
-};
+use alone_engine::prelude::*;
 
 #[derive(GameObject)]
 pub struct MainScene {
