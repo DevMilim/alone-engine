@@ -31,6 +31,9 @@ impl<T: GameObject + GameObjectDispatch> Pool<T> {
     pub fn len(&self) -> usize {
         self.items.len()
     }
+    pub fn capacity(&self) -> usize {
+        self.items.capacity()
+    }
 }
 
 impl<T: GameObject + GameObjectDispatch> GameObject for Pool<T> {

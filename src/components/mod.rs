@@ -4,6 +4,7 @@ mod camera;
 mod collider;
 mod sprite;
 mod sprite_animation;
+mod text;
 mod tilemap;
 mod timer;
 
@@ -13,5 +14,6 @@ pub use camera::*;
 pub use collider::*;
 pub use sprite::*;
 pub use sprite_animation::*;
+pub use text::*;
 pub use tilemap::*;
 pub use timer::*;

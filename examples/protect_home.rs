@@ -221,6 +221,8 @@ pub struct MainScene {
     collision: Collider,
     #[component]
     timer: Timer,
+    #[component]
+    text: Text,
     game_over: bool,
 }
 
@@ -244,6 +246,7 @@ impl MainScene {
             },
             timer: Timer::new(),
             game_over: false,
+            text: Text::new("Hello World!", Color::BLACK, 50),
         }
     }
     pub fn spawn_pilar(&mut self, _ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
@@ -275,7 +278,8 @@ impl GameObject for MainScene {
         self.timer.set_event(MainEvent::SpawnEnemy);
         self.collision.set_on_enter(MainEvent::EnemyHit);
         let font = ctx.load_font(self.base.id, "assets/fonts/PixelOperator8.ttf");
-        ctx.ensure_text_glyphs(font, "Hello, World!", 50);
+        self.text.set_font(font);
+        self.text.offset = Vector2::new(10.0, 50.0)
     }
     fn on_message(&mut self, ctx: &mut impl EngineApi, msg: &Self::Message) {
         match msg {
@@ -300,14 +304,6 @@ impl GameObject for MainScene {
     }
 
     fn draw(&mut self, renderer: &mut impl RenderApi, _blending: f32) {
-        renderer.draw_text(
-            "Hello, World!".into(),
-            Handler::new(0),
-            Vector2::new(10.0, 50.0),
-            Color::BLACK,
-            50,
-            4,
-        );
         renderer.draw_rect(
             Rect::new((480.0 / 2.0) as i32 - 32, (270.0 / 2.0) as i32 - 64, 64, 48),
             Color::rgb(124, 124, 124),
