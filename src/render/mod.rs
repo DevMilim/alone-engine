@@ -28,7 +28,6 @@ pub struct Render<'a> {
     pub fps_timer: Instant,
     bands: Vec<[Vec<u32>; 6]>,
     avg_raster_time: f32,
-    pub(crate) is_sequential: bool,
 }
 
 impl<'a> Render<'a> {
@@ -51,7 +50,6 @@ impl<'a> Render<'a> {
             fps_timer: Instant::now(),
             bands: Vec::new(),
             avg_raster_time: 0.001,
-            is_sequential: false,
         }
     }
 
@@ -147,7 +145,6 @@ impl<'a> Render<'a> {
         } else {
             total_commands > PARALLEL_COMMAND_THRESHOLD
         };
-        self.is_sequential = !use_parallel;
 
         if use_parallel {
             self.render_paralel(camera_position, resources);

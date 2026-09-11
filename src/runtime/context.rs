@@ -30,7 +30,6 @@ pub struct EngineContext<'a> {
     pub window_size: &'a (u32, u32),
     pub is_fixed_update: bool,
     pub rng: &'a mut Random,
-    pub is_sequential: bool,
 }
 
 impl<'a> EngineApi for EngineContext<'a> {}
@@ -109,10 +108,6 @@ impl<'a> CoreApi for EngineContext<'a> {
 
     fn range(&mut self, range: std::ops::Range<i32>) -> i32 {
         self.rng.range(range)
-    }
-
-    fn render_sequential(&self) -> bool {
-        self.is_sequential
     }
 }
 impl<'a> EngineContext<'a> {
