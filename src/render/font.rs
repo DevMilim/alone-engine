@@ -141,27 +141,6 @@ impl GlyphCache {
         self.row_height = 0;
     }
 
-    fn get_or_rasterize_glyph(
-        &mut self,
-        font: &fontdue::Font,
-        font_id: usize,
-        ch: char,
-        size_px: u32,
-    ) -> &GlyphInfo {
-        let key = GlyphKey {
-            font_id,
-            character: ch,
-            size_px,
-        };
-
-        if !self.glyphs.contains_key(&key) {
-            let (metrics, bitmap) = font.rasterize(ch, size_px as f32);
-            let info = self.pack_into_atlas(metrics, &bitmap);
-            self.glyphs.insert(key, info);
-        }
-
-        &self.glyphs[&key]
-    }
     pub fn get(&self, key: &GlyphKey) -> Option<&GlyphInfo> {
         self.glyphs.get(key)
     }
