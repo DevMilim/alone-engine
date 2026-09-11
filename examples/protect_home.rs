@@ -274,6 +274,8 @@ impl GameObject for MainScene {
         });
         self.timer.set_event(MainEvent::SpawnEnemy);
         self.collision.set_on_enter(MainEvent::EnemyHit);
+        let font = ctx.load_font(self.base.id, "assets/fonts/PixelOperator8.ttf");
+        ctx.ensure_text_glyphs(font, "Hello, World!", 50);
     }
     fn on_message(&mut self, ctx: &mut impl EngineApi, msg: &Self::Message) {
         match msg {
@@ -298,6 +300,14 @@ impl GameObject for MainScene {
     }
 
     fn draw(&mut self, renderer: &mut impl RenderApi, _blending: f32) {
+        renderer.draw_text(
+            "Hello, World!".into(),
+            Handler::new(0),
+            Vector2::new(10.0, 50.0),
+            Color::BLACK,
+            50,
+            4,
+        );
         renderer.draw_rect(
             Rect::new((480.0 / 2.0) as i32 - 32, (270.0 / 2.0) as i32 - 64, 64, 48),
             Color::rgb(124, 124, 124),
@@ -315,7 +325,6 @@ impl GameObject for MainScene {
         }
     }
 }
-
 #[derive(Scene)]
 
 pub enum GameScenes {

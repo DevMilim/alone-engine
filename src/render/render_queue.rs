@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use crate::{
     core::{Handler, RenderApi},
     math::{Color, Rect, Vector2},
-    render::ImageAsset,
+    render::{FontAsset, ImageAsset},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -10,7 +12,7 @@ pub enum Anchor {
     TopLeft,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum DrawCommand {
     Sprite {
         position: Vector2,
@@ -30,6 +32,13 @@ pub enum DrawCommand {
         end: Vector2,
         color: Color,
         thickness: f32,
+    },
+    Text {
+        text: Arc<str>,
+        font: Handler<FontAsset>,
+        position: Vector2,
+        color: Color,
+        size_px: u32,
     },
 }
 
@@ -85,5 +94,22 @@ impl<'a> RenderApi for RenderQueue<'a> {
     }
     fn camera_mut(&mut self) -> &mut Vector2 {
         self.camera
+    }
+    fn draw_text(
+        &mut self,
+        text: Arc<str>,
+        font: Handler<FontAsset>,
+        position: Vector2,
+        color: Color,
+        size_px: u32,
+        z_index: u8,
+    ) {
+        self.queue[z_index as usize].push(DrawCommand::Text {
+            text,
+            font,
+            position,
+            color,
+            size_px,
+        });
     }
 }

@@ -1,6 +1,8 @@
+mod font;
 mod image;
 mod render_queue;
 
+pub use font::*;
 pub use image::*;
 pub use render_queue::*;
 
@@ -9,7 +11,11 @@ use rayon::prelude::*;
 use std::{sync::Arc, time::Instant};
 use winit::window::Window;
 
-use crate::{math::Vector2, resources::Resources};
+use crate::{
+    core::Handler,
+    math::{Color, Vector2},
+    resources::Resources,
+};
 
 pub const LOGICAL_WIDTH: u32 = 480;
 pub const LOGICAL_HEIGHT: u32 = 270;
@@ -59,6 +65,7 @@ impl<'a> Render<'a> {
                 DrawCommand::Sprite { image, .. } => (1, image.id),
                 DrawCommand::Rect { .. } => (0, 0),
                 DrawCommand::Line { .. } => (0, 0),
+                DrawCommand::Text { .. } => (0, 0),
             });
         }
     }
@@ -130,6 +137,26 @@ impl<'a> Render<'a> {
                 let (top, bottom) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
                 let pad = (thickness / 2.0).max(1.0);
                 Some(((top - pad).floor() as isize, (bottom + pad).ceil() as isize))
+            }
+            DrawCommand::Text {
+                text,
+                font,
+                position,
+                size_px,
+                ..
+            } => {
+                let font_obj = resources.fonts.get(*font)?;
+
+                let width: f32 = text
+                    .chars()
+                    .map(|ch| font_obj.font.metrics(ch, *size_px as f32).advance_width)
+                    .sum();
+
+                let top = position.y - cam_y - *size_px as f32;
+                let bottom = position.y - cam_y;
+
+                let _ = width;
+                Some((top.floor() as isize, bottom.ceil() as isize))
             }
         }
     }
@@ -237,6 +264,29 @@ impl<'a> Render<'a> {
                             *rotation,
                             *flip_h,
                             *flip_v,
+                        );
+                    }
+                    DrawCommand::Text {
+                        text,
+                        font,
+                        position,
+                        color,
+                        size_px,
+                    } => {
+                        Self::blit_text(
+                            frame_pixels,
+                            frame_width,
+                            0,
+                            0,
+                            frame_height,
+                            resources,
+                            *font,
+                            text,
+                            *position,
+                            *color,
+                            *size_px,
+                            cam_x,
+                            cam_y,
                         );
                     }
                     DrawCommand::Line {
@@ -421,6 +471,29 @@ impl<'a> Render<'a> {
                                     *flip_v,
                                 );
                             }
+                            DrawCommand::Text {
+                                text,
+                                font,
+                                position,
+                                color,
+                                size_px,
+                            } => {
+                                Self::blit_text(
+                                    band_pixels,
+                                    frame_width,
+                                    y0,
+                                    y0,
+                                    y1,
+                                    resources,
+                                    *font,
+                                    text,
+                                    *position,
+                                    *color,
+                                    *size_px,
+                                    cam_x,
+                                    cam_y,
+                                );
+                            }
                             DrawCommand::Line {
                                 start,
                                 end,
@@ -469,7 +542,91 @@ impl<'a> Render<'a> {
         let _ = self.pixels.render();
         self.clear();
     }
+    fn blit_text(
+        pixels: &mut [[u8; 4]],
+        pixels_width: usize,
+        row_offset: usize,
+        clip_y0: usize,
+        clip_y1: usize,
+        resources: &Resources,
+        font: Handler<FontAsset>,
+        text: &str,
+        position: Vector2,
+        color: Color,
+        size_px: u32,
+        cam_x: f32,
+        cam_y: f32,
+    ) {
+        let Some(font_obj) = resources.fonts.get(font) else {
+            return;
+        };
 
+        let color_bytes = color.bytes();
+        let base_alpha = color_bytes[3] as u32;
+        if base_alpha == 0 {
+            return;
+        }
+
+        let mut cursor_x = position.x - cam_x;
+        let baseline_y = position.y - cam_y;
+
+        let atlas = &resources.glyph_cache.atlas;
+        let atlas_width = resources.glyph_cache.atlas_width as usize;
+
+        for ch in text.chars() {
+            let key = GlyphKey {
+                font_id: font.id,
+                character: ch,
+                size_px,
+            };
+
+            let advance = match resources.glyph_cache.get(&key) {
+                Some(info) if info.width > 0 && info.height > 0 => {
+                    // CUIDADO: sinal/direção aqui é o ponto clássico de bug em texto.
+                    // bearing_y (=ymin do fontdue) é medido a partir da baseline pra cima;
+                    // a tela cresce pra baixo, então o topo do glifo fica em:
+                    let dst_x = (cursor_x + info.bearing_x).round() as isize;
+                    let dst_y = (baseline_y - info.bearing_y - info.height as f32).round() as isize;
+
+                    let gw = info.width as isize;
+                    let gh = info.height as isize;
+
+                    let sx0 = dst_x.max(0) as usize;
+                    let sy0 = dst_y.max(clip_y0 as isize) as usize;
+                    let sx1 = (dst_x + gw).min(pixels_width as isize).max(0) as usize;
+                    let sy1 = (dst_y + gh).min(clip_y1 as isize).max(clip_y0 as isize) as usize;
+
+                    if sx0 < sx1 && sy0 < sy1 {
+                        for py in sy0..sy1 {
+                            let glyph_row = (py as isize - dst_y) as usize;
+                            let atlas_row = (info.atlas_y as usize + glyph_row) * atlas_width
+                                + info.atlas_x as usize;
+                            let dst_row = (py - row_offset) * pixels_width;
+
+                            for px in sx0..sx1 {
+                                let glyph_col = (px as isize - dst_x) as usize;
+                                let coverage = atlas[atlas_row + glyph_col] as u32;
+                                if coverage == 0 {
+                                    continue;
+                                }
+                                let sa = (coverage * base_alpha) / 255;
+                                if sa == 0 {
+                                    continue;
+                                }
+                                let src =
+                                    [color_bytes[0], color_bytes[1], color_bytes[2], sa as u8];
+                                Render::blending_pixel(&mut pixels[dst_row + px], &src);
+                            }
+                        }
+                    }
+                    info.advance
+                }
+                _ => font_obj.font.metrics(ch, size_px as f32).advance_width,
+            };
+
+            cursor_x += advance;
+        }
+    }
     fn blit_sprite(
         pixels: &mut [[u8; 4]],
         pixels_width: usize,

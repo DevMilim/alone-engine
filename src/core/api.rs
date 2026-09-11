@@ -17,7 +17,7 @@ use crate::{
     event::{CallbackEvent, GlobalEvent},
     math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,
-    render::{Anchor, DrawCommand, ImageAsset},
+    render::{Anchor, DrawCommand, FontAsset, ImageAsset},
     runtime::{AsyncContext, Scene},
 };
 
@@ -174,6 +174,15 @@ pub trait RenderApi {
         thickness: f32,
         z_index: u8,
     );
+    fn draw_text(
+        &mut self,
+        text: Arc<str>,
+        font: Handler<FontAsset>,
+        position: Vector2,
+        color: Color,
+        size_px: u32,
+        z_index: u8,
+    );
     fn camera_mut(&mut self) -> &mut Vector2;
 }
 pub trait AssetApi {
@@ -194,6 +203,9 @@ pub trait AssetApi {
     fn unload_audio(&mut self, owner: Id, audio: Handler<AudioAsset>);
 
     fn clear_assets(&mut self);
+
+    fn ensure_text_glyphs(&mut self, font: Handler<FontAsset>, text: &str, size_px: u32);
+    fn load_font(&mut self, owner: Id, path: &str) -> Handler<FontAsset>;
 }
 pub trait AudioApi {
     fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player;

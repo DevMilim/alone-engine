@@ -3,6 +3,8 @@ use crate::{
     collision::Layer,
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, TriggerCallbacks, WorldApi},
     math::Vector2i,
+    render::FontAsset,
+    resources::Resources,
     rng::Random,
     runtime::{AppCommands, State},
 };
@@ -177,6 +179,31 @@ impl<'a> AssetApi for EngineContext<'a> {
     fn clear_assets(&mut self) {
         let assets = &mut self.systems.resources;
         assets.clear();
+    }
+
+    fn ensure_text_glyphs(&mut self, font: Handler<FontAsset>, text: &str, size_px: u32) {
+        let Resources {
+            fonts, glyph_cache, ..
+        } = &mut self.systems.resources;
+
+        let Some(font_obj) = fonts.get(font) else {
+            return;
+        };
+
+        for ch in text.chars() {
+            glyph_cache.get_or_rasterize(&font_obj.font, font.id, ch, size_px);
+        }
+    }
+
+    fn load_font(&mut self, owner: Id, path: &str) -> Handler<FontAsset> {
+        if let Some(id) = self.systems.resources.fonts.get_id(path) {
+            return Handler::new(id);
+        }
+        let font = FontAsset::new(path);
+        self.systems
+            .resources
+            .fonts
+            .insert(owner, path, font.expect("Font load error"))
     }
 }
 impl<'a> InputApi for EngineContext<'a> {

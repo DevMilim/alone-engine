@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     audio::AudioAsset,
     core::{Handler, Id},
-    render::ImageAsset,
+    render::{FontAsset, GlyphCache, ImageAsset},
 };
 
 /// Utilizado para armazenar assets em cache
@@ -146,6 +146,8 @@ impl<T: Debug> Default for AssetCache<T> {
 pub struct Resources {
     pub textures: AssetCache<ImageAsset>,
     pub sounds: AssetCache<AudioAsset>,
+    pub fonts: AssetCache<FontAsset>,
+    pub glyph_cache: GlyphCache,
 }
 
 impl Default for Resources {
@@ -159,6 +161,8 @@ impl Resources {
         Self {
             textures: AssetCache::new(),
             sounds: AssetCache::new(),
+            fonts: AssetCache::new(),
+            glyph_cache: GlyphCache::new(),
         }
     }
     /// limpa todos os assets
