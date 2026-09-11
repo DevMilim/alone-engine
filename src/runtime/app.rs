@@ -147,6 +147,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             is_fixed_update: false,
             state: &mut self.state,
             rng: &mut self.rng,
+            is_sequential: render.is_sequential,
         };
 
         let (is_running, blending) =
