@@ -33,7 +33,12 @@ impl Text {
         self.dirty = true;
     }
     pub fn set_font(&mut self, font: Handler<FontAsset>) {
-        self.font = Some(font)
+        self.font = Some(font);
+        self.dirty = true;
+    }
+    pub fn set_size(&mut self, size_px: u32) {
+        self.size_px = size_px;
+        self.dirty = true
     }
 }
 
