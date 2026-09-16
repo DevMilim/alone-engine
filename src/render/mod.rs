@@ -1,9 +1,11 @@
 mod font;
 mod image;
+mod rasterizer;
 mod render_queue;
 
 pub use font::*;
 pub use image::*;
+pub use rasterizer::*;
 pub use render_queue::*;
 
 use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
@@ -11,11 +13,7 @@ use rayon::prelude::*;
 use std::{sync::Arc, time::Instant};
 use winit::window::Window;
 
-use crate::{
-    core::Handler,
-    math::{Color, Vector2},
-    resources::Resources,
-};
+use crate::{math::Vector2, resources::Resources};
 
 pub const LOGICAL_WIDTH: u32 = 480;
 pub const LOGICAL_HEIGHT: u32 = 270;
@@ -245,7 +243,7 @@ impl<'a> Render<'a> {
                             )
                         };
 
-                        Self::blit_sprite(
+                        Rasterizer::blit_sprite(
                             frame_pixels,
                             frame_width,
                             0,
@@ -273,7 +271,7 @@ impl<'a> Render<'a> {
                         color,
                         size_px,
                     } => {
-                        Self::blit_text(
+                        Rasterizer::blit_text(
                             frame_pixels,
                             frame_width,
                             0,
@@ -295,7 +293,7 @@ impl<'a> Render<'a> {
                         color,
                         thickness,
                     } => {
-                        Self::blit_line(
+                        Rasterizer::blit_line(
                             frame_pixels,
                             frame_width,
                             0,
@@ -310,7 +308,7 @@ impl<'a> Render<'a> {
                         );
                     }
                     DrawCommand::Rect { color, rect } => {
-                        Self::blit_rect(
+                        Rasterizer::blit_rect(
                             frame_pixels,
                             frame_width,
                             0,
@@ -450,7 +448,7 @@ impl<'a> Render<'a> {
                                     )
                                 };
 
-                                Self::blit_sprite(
+                                Rasterizer::blit_sprite(
                                     band_pixels,
                                     frame_width,
                                     y0,
@@ -478,7 +476,7 @@ impl<'a> Render<'a> {
                                 color,
                                 size_px,
                             } => {
-                                Self::blit_text(
+                                Rasterizer::blit_text(
                                     band_pixels,
                                     frame_width,
                                     y0,
@@ -500,7 +498,7 @@ impl<'a> Render<'a> {
                                 color,
                                 thickness,
                             } => {
-                                Self::blit_line(
+                                Rasterizer::blit_line(
                                     band_pixels,
                                     frame_width,
                                     y0,
@@ -515,7 +513,7 @@ impl<'a> Render<'a> {
                                 );
                             }
                             DrawCommand::Rect { color, rect } => {
-                                Self::blit_rect(
+                                Rasterizer::blit_rect(
                                     band_pixels,
                                     frame_width,
                                     y0,
@@ -541,456 +539,5 @@ impl<'a> Render<'a> {
 
         let _ = self.pixels.render();
         self.clear();
-    }
-    fn blit_text(
-        pixels: &mut [[u8; 4]],
-        pixels_width: usize,
-        row_offset: usize,
-        clip_y0: usize,
-        clip_y1: usize,
-        resources: &Resources,
-        font: Handler<FontAsset>,
-        text: &str,
-        position: Vector2,
-        color: Color,
-        size_px: u32,
-        cam_x: f32,
-        cam_y: f32,
-    ) {
-        let Some(font_obj) = resources.fonts.get(font) else {
-            return;
-        };
-
-        let color_bytes = color.bytes();
-        let base_alpha = color_bytes[3] as u32;
-        if base_alpha == 0 {
-            return;
-        }
-
-        let mut cursor_x = position.x - cam_x;
-        let baseline_y = position.y - cam_y;
-
-        let atlas = &resources.glyph_cache.atlas;
-        let atlas_width = resources.glyph_cache.atlas_width as usize;
-
-        for ch in text.chars() {
-            let key = GlyphKey {
-                font_id: font.id,
-                character: ch,
-                size_px,
-            };
-
-            let advance = match resources.glyph_cache.get(&key) {
-                Some(info) if info.width > 0 && info.height > 0 => {
-                    // CUIDADO: sinal/direção aqui é o ponto clássico de bug em texto.
-                    // bearing_y (=ymin do fontdue) é medido a partir da baseline pra cima;
-                    // a tela cresce pra baixo, então o topo do glifo fica em:
-                    let dst_x = (cursor_x + info.bearing_x).round() as isize;
-                    let dst_y = (baseline_y - info.bearing_y - info.height as f32).round() as isize;
-
-                    let gw = info.width as isize;
-                    let gh = info.height as isize;
-
-                    let sx0 = dst_x.max(0) as usize;
-                    let sy0 = dst_y.max(clip_y0 as isize) as usize;
-                    let sx1 = (dst_x + gw).min(pixels_width as isize).max(0) as usize;
-                    let sy1 = (dst_y + gh).min(clip_y1 as isize).max(clip_y0 as isize) as usize;
-
-                    if sx0 < sx1 && sy0 < sy1 {
-                        for py in sy0..sy1 {
-                            let glyph_row = (py as isize - dst_y) as usize;
-                            let atlas_row = (info.atlas_y as usize + glyph_row) * atlas_width
-                                + info.atlas_x as usize;
-                            let dst_row = (py - row_offset) * pixels_width;
-
-                            for px in sx0..sx1 {
-                                let glyph_col = (px as isize - dst_x) as usize;
-                                let coverage = atlas[atlas_row + glyph_col] as u32;
-                                if coverage == 0 {
-                                    continue;
-                                }
-                                let sa = (coverage * base_alpha) / 255;
-                                if sa == 0 {
-                                    continue;
-                                }
-                                let src =
-                                    [color_bytes[0], color_bytes[1], color_bytes[2], sa as u8];
-                                Render::blending_pixel(&mut pixels[dst_row + px], &src);
-                            }
-                        }
-                    }
-                    info.advance
-                }
-                _ => font_obj.font.metrics(ch, size_px as f32).advance_width,
-            };
-
-            cursor_x += advance;
-        }
-    }
-    fn blit_sprite(
-        pixels: &mut [[u8; 4]],
-        pixels_width: usize,
-        row_offset: usize,
-        clip_y0: usize,
-        clip_y1: usize,
-        tex_pixels: &[[u8; 4]],
-        tex_width: usize,
-        src_x: usize,
-        src_y: usize,
-        sprite_w: usize,
-        sprite_h: usize,
-        anchor: &Anchor,
-        position: Vector2,
-        cam_x: f32,
-        cam_y: f32,
-        rotation: f32,
-        flip_h: bool,
-        flip_v: bool,
-    ) {
-        let (start_x, start_y) = match anchor {
-            Anchor::Center => {
-                let center_x = position.x - (sprite_w as f32 / 2.0);
-                let center_y = position.y - (sprite_h as f32 / 2.0);
-                (
-                    (center_x - cam_x).round() as isize,
-                    (center_y - cam_y).round() as isize,
-                )
-            }
-            Anchor::TopLeft => (
-                (position.x - cam_x).round() as isize,
-                (position.y - cam_y).round() as isize,
-            ),
-        };
-
-        let screen_min_x = start_x.max(0) as usize;
-        let screen_min_y = start_y.max(clip_y0 as isize) as usize;
-
-        let screen_max_x = (start_x + sprite_w as isize)
-            .min(pixels_width as isize)
-            .max(0) as usize;
-        let screen_max_y = (start_y + sprite_h as isize)
-            .min(clip_y1 as isize)
-            .max(clip_y0 as isize) as usize;
-
-        if screen_min_x >= screen_max_x || screen_min_y >= screen_max_y {
-            return;
-        }
-
-        if rotation.abs() >= 0.001 {
-            Self::blit_rotated(
-                pixels,
-                pixels_width,
-                row_offset,
-                clip_y0,
-                clip_y1,
-                tex_pixels,
-                tex_width,
-                src_x,
-                src_y,
-                sprite_w,
-                sprite_h,
-                anchor,
-                position,
-                cam_x,
-                cam_y,
-                rotation,
-                flip_h,
-                flip_v,
-            );
-            return;
-        }
-
-        for dst_y in screen_min_y..screen_max_y {
-            let base_tex_y = (dst_y as isize - start_y) as usize;
-            let tex_y = if flip_v {
-                sprite_h - 1 - base_tex_y
-            } else {
-                base_tex_y
-            };
-
-            let dst_row_start = (dst_y - row_offset) * pixels_width;
-            let tex_row_start = (src_y + tex_y) * tex_width;
-
-            let tex_min_x = (screen_min_x as isize - start_x) as usize;
-            let lenght = screen_max_x - screen_min_x;
-
-            let (actual_tex_x_start, actual_tex_x_end) = if flip_h {
-                (
-                    src_x + sprite_w - tex_min_x - lenght,
-                    src_x + sprite_w - tex_min_x,
-                )
-            } else {
-                (src_x + tex_min_x, src_x + tex_min_x + lenght)
-            };
-
-            let dst_row = &mut pixels[dst_row_start + screen_min_x..dst_row_start + screen_max_x];
-            let tex_row =
-                &tex_pixels[tex_row_start + actual_tex_x_start..tex_row_start + actual_tex_x_end];
-
-            if flip_h {
-                for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter().rev()) {
-                    Self::blending_pixel(dst_px, src_px);
-                }
-            } else {
-                for (dst_px, src_px) in dst_row.iter_mut().zip(tex_row.iter()) {
-                    Self::blending_pixel(dst_px, src_px);
-                }
-            }
-        }
-    }
-    fn blit_line(
-        pixels: &mut [[u8; 4]],
-        pixels_width: usize,
-        row_offset: usize,
-        clip_y0: usize,
-        clip_y1: usize,
-        color_bytes: [u8; 4],
-        start: Vector2,
-        end: Vector2,
-        thickness: f32,
-        cam_x: f32,
-        cam_y: f32,
-    ) {
-        let sa = color_bytes[3] as u32;
-        if sa == 0 {
-            return;
-        }
-
-        let x0 = start.x - cam_x;
-        let y0 = start.y - cam_y;
-        let x1 = end.x - cam_x;
-        let y1 = end.y - cam_y;
-
-        let dx = x1 - x0;
-        let dy = y1 - y0;
-        let len_sq = dx * dx + dy * dy;
-
-        if len_sq < 0.0001 {
-            return;
-        }
-
-        let half_thickness = (thickness / 2.0).max(0.5);
-
-        let min_x = ((x0.min(x1) - half_thickness).floor() as isize)
-            .max(0)
-            .min(pixels_width as isize) as usize;
-        let max_x = ((x0.max(x1) + half_thickness).ceil() as isize)
-            .max(0)
-            .min(pixels_width as isize) as usize;
-        let min_y = ((y0.min(y1) - half_thickness).floor() as isize)
-            .max(clip_y0 as isize)
-            .min(clip_y1 as isize) as usize;
-        let max_y = ((y0.max(y1) + half_thickness).ceil() as isize)
-            .max(clip_y0 as isize)
-            .min(clip_y1 as isize) as usize;
-
-        if min_x >= max_x || min_y >= max_y {
-            return;
-        }
-
-        for py in min_y..max_y {
-            let row_start = (py - row_offset) * pixels_width;
-            let fy = py as f32 + 0.5;
-
-            for px in min_x..max_x {
-                let fx = px as f32 + 0.5;
-
-                let pdx = fx - x0;
-                let pdy = fy - y0;
-                let t = ((pdx * dx + pdy * dy) / len_sq).clamp(0.0, 1.0);
-
-                let closest_x = x0 + t * dx;
-                let closest_y = y0 + t * dy;
-
-                let dist_x = fx - closest_x;
-                let dist_y = fy - closest_y;
-                let dist_sq = dist_x * dist_x + dist_y * dist_y;
-
-                if dist_sq <= half_thickness * half_thickness {
-                    Self::blending_pixel(&mut pixels[row_start + px], &color_bytes);
-                }
-            }
-        }
-    }
-
-    fn blit_rotated(
-        pixels: &mut [[u8; 4]],
-        pixels_width: usize,
-        row_offset: usize,
-        clip_y0: usize,
-        clip_y1: usize,
-        tex_pixels: &[[u8; 4]],
-        tex_width: usize,
-        src_x: usize,
-        src_y: usize,
-        sprite_w: usize,
-        sprite_h: usize,
-        anchor: &Anchor,
-        position: Vector2,
-        cam_x: f32,
-        cam_y: f32,
-        rotation: f32,
-        flip_h: bool,
-        flip_v: bool,
-    ) {
-        let (cx, cy): (f32, f32) = match anchor {
-            Anchor::Center => (position.x - cam_x, position.y - cam_y),
-            Anchor::TopLeft => (
-                position.x - cam_x + sprite_w as f32 / 2.0,
-                position.y - cam_y + sprite_h as f32 / 2.0,
-            ),
-        };
-
-        let hw = sprite_w as f32 / 2.0;
-        let hh = sprite_h as f32 / 2.0;
-
-        let (sin, cos) = rotation.sin_cos();
-        let bbox_hw = hw * cos.abs() + hh * sin.abs();
-        let bbox_hh = hw * sin.abs() + hh * cos.abs();
-
-        let min_x = ((cx - bbox_hw) as isize).max(0) as usize;
-        let max_x = ((cx + bbox_hw) as isize).min(pixels_width as isize).max(0) as usize;
-        let min_y = ((cy - bbox_hh) as isize).max(clip_y0 as isize) as usize;
-        let max_y = ((cy + bbox_hh) as isize)
-            .min(clip_y1 as isize)
-            .max(clip_y0 as isize) as usize;
-        let fixed_scale = 65536.0;
-
-        let inv_cos = cos;
-        let inv_sin = -sin;
-
-        let step_x_u = (inv_cos * fixed_scale) as i32;
-        let step_x_v = (inv_sin * fixed_scale) as i32;
-
-        let u_max = (sprite_w as i32) << 16;
-        let v_max = (sprite_h as i32) << 16;
-
-        for dst_y in min_y..max_y {
-            let dy = dst_y as f32 - cy;
-            let dx0 = min_x as f32 - cx;
-
-            let start_u = dx0 * inv_cos - dy * inv_sin + hw;
-            let start_v = dx0 * inv_sin + dy * inv_cos + hh;
-
-            let mut u_fixed = (start_u * fixed_scale) as i32;
-            let mut v_fixed = (start_v * fixed_scale) as i32;
-
-            let row_start = (dst_y - row_offset) * pixels_width;
-
-            for dst_x in min_x..max_x {
-                if u_fixed >= 0 && u_fixed < u_max && v_fixed >= 0 && v_fixed < v_max {
-                    let tex_x = (u_fixed >> 16) as usize;
-                    let tex_y = (v_fixed >> 16) as usize;
-
-                    let tx = if flip_h { sprite_w - 1 - tex_x } else { tex_x };
-                    let ty = if flip_v { sprite_h - 1 - tex_y } else { tex_y };
-
-                    let src_px = &tex_pixels[(src_y + ty) * tex_width + (src_x + tx)];
-
-                    Self::blending_pixel(&mut pixels[row_start + dst_x], src_px);
-                }
-
-                u_fixed += step_x_u;
-                v_fixed += step_x_v;
-            }
-        }
-    }
-
-    fn blit_rect(
-        pixels: &mut [[u8; 4]],
-        pixels_width: usize,
-        row_offset: usize,
-        clip_y0: usize,
-        clip_y1: usize,
-        color_bytes: [u8; 4],
-        rect_x: f32,
-        rect_y: f32,
-        rect_width: f32,
-        rect_height: f32,
-        cam_x: f32,
-        cam_y: f32,
-    ) {
-        let sa = color_bytes[3] as u32;
-        if sa == 0 {
-            return;
-        }
-
-        let screen_x = rect_x - cam_x;
-        let screen_y = rect_y - cam_y;
-
-        let start_x = (screen_x as i32).max(0).min(pixels_width as i32) as usize;
-        let start_y = (screen_y as i32).max(clip_y0 as i32).min(clip_y1 as i32) as usize;
-        let end_x = ((screen_x + rect_width) as i32)
-            .max(0)
-            .min(pixels_width as i32) as usize;
-        let end_y = ((screen_y + rect_height) as i32)
-            .max(clip_y0 as i32)
-            .min(clip_y1 as i32) as usize;
-
-        if start_x >= end_x || start_y >= end_y {
-            return;
-        }
-
-        if sa == 255 {
-            for y in start_y..end_y {
-                let row_start = (y - row_offset) * pixels_width + start_x;
-                let row_end = (y - row_offset) * pixels_width + end_x;
-
-                pixels[row_start..row_end].fill(color_bytes);
-            }
-        } else {
-            let inv = 255u32 - sa;
-            let sr = color_bytes[0] as u32;
-            let sg = color_bytes[1] as u32;
-            let sb = color_bytes[2] as u32;
-
-            for y in start_y..end_y {
-                let row_start = (y - row_offset) * pixels_width + start_x;
-                let row_end = (y - row_offset) * pixels_width + end_x;
-
-                for dst_px in &mut pixels[row_start..row_end] {
-                    let dr = dst_px[0] as u32;
-                    let dg = dst_px[1] as u32;
-                    let db = dst_px[2] as u32;
-
-                    *dst_px = [
-                        (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
-                        (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
-                        (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
-                        255,
-                    ];
-                }
-            }
-        }
-    }
-
-    #[inline(always)]
-    pub fn blending_pixel(dst_px: &mut [u8; 4], src_px: &[u8; 4]) {
-        let sa = src_px[3] as u32;
-
-        if sa == 0 {
-            return;
-        }
-
-        if sa == 255 {
-            *dst_px = *src_px;
-        } else {
-            let inv = 255u32 - sa;
-
-            let sr = src_px[0] as u32;
-            let sg = src_px[1] as u32;
-            let sb = src_px[2] as u32;
-
-            let dr = dst_px[0] as u32;
-            let dg = dst_px[1] as u32;
-            let db = dst_px[2] as u32;
-
-            *dst_px = [
-                (((sr * sa + dr * inv + 128) * 257) >> 16) as u8,
-                (((sg * sa + dg * inv + 128) * 257) >> 16) as u8,
-                (((sb * sa + db * inv + 128) * 257) >> 16) as u8,
-                255,
-            ]
-        }
     }
 }

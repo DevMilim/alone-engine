@@ -200,12 +200,12 @@ pub trait AssetApi {
 
     fn unload_texture(&mut self, owner: Id, texture: Handler<ImageAsset>);
 
+    fn load_font(&mut self, owner: Id, path: &str) -> Handler<FontAsset>;
     fn unload_audio(&mut self, owner: Id, audio: Handler<AudioAsset>);
 
     fn clear_assets(&mut self);
 
     fn ensure_text_glyphs(&mut self, font: Handler<FontAsset>, text: &str, size_px: u32);
-    fn load_font(&mut self, owner: Id, path: &str) -> Handler<FontAsset>;
 }
 pub trait AudioApi {
     fn play(&mut self, sound: Handler<AudioAsset>, looped: bool) -> Player;
