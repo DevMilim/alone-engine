@@ -144,11 +144,11 @@ example/         # Runnable example project
 
 ## Known limitations / roadmap
 
-- No built-in UI or text rendering yet — draw text using a bitmap-font spritesheet in the meantime.
+- No built-in UI.
 - No particle system yet.
 - No line-of-sight/raycast query API yet.
 Contributions and issues are welcome.
 
 ## License
 
-Alone Engine is licensed under the [MIT License](./LICENSE).
+Alone Engine is licensed under the [MIT License](./LICENSE-MIT) or [APACHE](./LICENSE-APACHE).
