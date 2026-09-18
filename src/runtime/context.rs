@@ -1,6 +1,6 @@
 use crate::{
     audio::AudioAsset,
-    collision::Layer,
+    collision::{Layer, RaycastHit},
     core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, TriggerCallbacks, WorldApi},
     math::Vector2i,
     render::FontAsset,
@@ -411,6 +411,25 @@ impl<'a> CollisionApi for EngineContext<'a> {
         self.systems
             .trigger_callbacks
             .insert(key, TriggerCallbacks { on_enter, on_exit });
+    }
+
+    fn raycast(
+        &mut self,
+        origin: Vector2,
+        direction: Vector2,
+        max_distance: f32,
+    ) -> Option<RaycastHit> {
+        self.systems
+            .collision
+            .raycast(origin, direction, max_distance)
+    }
+
+    fn linecast_all(&mut self, from: Vector2, to: Vector2) -> Vec<RaycastHit> {
+        self.systems.collision.linecast_all(from, to)
+    }
+
+    fn linecast(&mut self, from: Vector2, to: Vector2) -> Option<RaycastHit> {
+        self.systems.collision.linecast(from, to)
     }
 }
 

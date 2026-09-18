@@ -6,7 +6,10 @@ pub use layer::*;
 
 use rustc_hash::FxHashMap;
 
-use crate::{core::Id, math::Vector2i};
+use crate::{
+    core::Id,
+    math::{Vector2, Vector2i},
+};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CollisionFlag {
@@ -588,5 +591,107 @@ impl CollisionWorld {
         let margin = 4;
 
         velocity_y >= 0 && my_old_bottom <= platform_top + margin && my_new_bottom >= platform_top
+    }
+    pub fn raycast(
+        &mut self,
+        origin: Vector2,
+        direction: Vector2,
+        max_distance: f32,
+    ) -> Option<RaycastHit> {
+        let end = origin + direction.normalize() * max_distance;
+        self.query_nearby(&ray_aabb_for(origin, end));
+
+        let mut closest: Option<(f32, DenseIndex)> = None;
+
+        for &idx in &self.query_result {
+            let data = &self.data[idx as usize];
+            if let Some(t) = ray_vs_aabb(origin, direction, max_distance, &data.aabb) {
+                if closest.is_none_or(|(best_t, _)| t < best_t) {
+                    closest = Some((t, idx));
+                }
+            }
+        }
+
+        closest.map(|(t, idx)| RaycastHit {
+            key: self.keys[idx as usize],
+            point: origin + direction.normalize() * t,
+            distance: t,
+        })
+    }
+    pub fn linecast(&mut self, from: Vector2, to: Vector2) -> Option<RaycastHit> {
+        let delta = to - from;
+        let distance = delta.length();
+
+        if distance < 0.0001 {
+            return None;
+        }
+
+        self.raycast(from, delta / distance, distance)
+    }
+    pub fn linecast_all(&mut self, from: Vector2, to: Vector2) -> Vec<RaycastHit> {
+        let delta = to - from;
+        let distance = delta.length();
+        if distance < 0.0001 {
+            return Vec::new();
+        }
+
+        let direction = delta / distance;
+        self.query_nearby(&ray_aabb_for(from, to));
+
+        let mut hits: Vec<RaycastHit> = self
+            .query_result
+            .iter()
+            .filter_map(|&idx| {
+                let data = &self.data[idx as usize];
+                ray_vs_aabb(from, direction, distance, &data.aabb).map(|t| RaycastHit {
+                    key: self.keys[idx as usize],
+                    point: from + direction * t,
+                    distance: t,
+                })
+            })
+            .collect();
+
+        hits.sort_unstable_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+        hits
+    }
+}
+pub struct RaycastHit {
+    pub key: ColliderKey,
+    pub point: Vector2,
+    pub distance: f32,
+}
+fn ray_aabb_for(from: Vector2, to: Vector2) -> AABB {
+    let min_x = from.x.min(to.x);
+    let max_x = from.x.max(to.x);
+    let min_y = from.y.min(to.y);
+    let max_y = from.y.max(to.y);
+
+    AABB {
+        x: min_x as i32,
+        y: min_y as i32,
+        width: (max_x - min_x).ceil() as i32,
+        height: (max_y - min_y).ceil() as i32,
+    }
+}
+fn ray_vs_aabb(origin: Vector2, direction: Vector2, max_dist: f32, aabb: &AABB) -> Option<f32> {
+    let inv_dx = 1.0 / direction.x;
+    let inv_dy = 1.0 / direction.y;
+
+    let (tx1, tx2) = (
+        (aabb.min_x() as f32 - origin.x) * inv_dx,
+        (aabb.max_x() as f32 - origin.x) * inv_dx,
+    );
+    let (ty1, ty2) = (
+        (aabb.min_y() as f32 - origin.y) * inv_dy,
+        (aabb.max_y() as f32 - origin.y) * inv_dy,
+    );
+
+    let tmin = tx1.min(tx2).max(ty1.min(ty2));
+    let tmax = tx1.max(tx2).min(ty1.max(ty2));
+
+    if tmax >= tmin.max(0.0) && tmin <= max_dist {
+        Some(tmin.max(0.0))
+    } else {
+        None
     }
 }

@@ -12,7 +12,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::{
     audio::AudioAsset,
-    collision::{ColliderData, ColliderKey, CollisionFlag, Layer},
+    collision::{ColliderData, ColliderKey, CollisionFlag, Layer, RaycastHit},
     core::{GameObject, Handler, Id},
     event::{CallbackEvent, GlobalEvent},
     math::{Color, Rect, Vector2, Vector2i},
@@ -150,6 +150,14 @@ pub trait CollisionApi {
         on_enter: Option<CallbackEvent>,
         on_exit: Option<CallbackEvent>,
     );
+    fn raycast(
+        &mut self,
+        origin: Vector2,
+        direction: Vector2,
+        max_distance: f32,
+    ) -> Option<RaycastHit>;
+    fn linecast_all(&mut self, from: Vector2, to: Vector2) -> Vec<RaycastHit>;
+    fn linecast(&mut self, from: Vector2, to: Vector2) -> Option<RaycastHit>;
 }
 
 pub trait RenderApi {

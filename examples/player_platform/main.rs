@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{platform::Platform, player::Player};
-use alone_engine::prelude::*;
+use alone_engine::{objects::network::NetworkClient, prelude::*};
 
 mod platform;
 mod player;
@@ -89,5 +89,32 @@ pub enum GameScenes {
 }
 
 fn main() {
-    App::<GameScenes>::new(MainScene::new().into()).run();
+    App::<GameScenes, Globals>::new(MainScene::new().into())
+        .with_globals(Globals::new())
+        .run();
+}
+
+#[derive(GameObject)]
+pub struct Globals {
+    #[base]
+    base: Base,
+    #[object]
+    client: Slot<NetworkClient>,
+}
+impl Globals {
+    pub fn new() -> Self {
+        Self {
+            base: Base::default(),
+            client: Slot::default(),
+        }
+    }
+}
+
+impl GameObject for Globals {
+    type Message = ();
+    fn start(&mut self, ctx: &mut impl EngineApi) {
+        ctx.register_service::<Globals>(self.base.id);
+
+        self.client = Slot::new(NetworkClient::new("localhost:3000", ctx.async_handle()).unwrap());
+    }
 }
