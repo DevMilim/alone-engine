@@ -1,4 +1,4 @@
-use crate::core::{Base, EngineApi, GameObject, Pool, RenderApi, Slot};
+use crate::core::{Base, EMPTY_BASE, EngineApi, GameObject, GameObjectBase, Pool, RenderApi, Slot};
 
 pub trait GameObjectDispatch {
     fn is_pending_removal(&self) -> bool {
@@ -74,6 +74,62 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Pool<T> {
         for obj in self.iter_mut() {
             obj.dispatch_events(ctx);
         }
+    }
+}
+impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for [T] {
+    fn dispatch_start(&mut self, ctx: &mut impl EngineApi, base: &Base) {
+        for obj in self.iter_mut() {
+            obj.dispatch_start(ctx, base);
+        }
+    }
+
+    fn dispatch_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_update(ctx, base, delta);
+        }
+    }
+
+    fn dispatch_late_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_late_update(ctx, base, delta);
+        }
+    }
+
+    fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_fixed_update(ctx, base, delta);
+        }
+    }
+
+    fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_draw(ctx, base, blending);
+        }
+    }
+
+    fn dispatch_destroy(&mut self, ctx: &mut impl EngineApi) {
+        for obj in self.iter_mut() {
+            obj.dispatch_destroy(ctx);
+        }
+    }
+
+    fn dispatch_events(&mut self, ctx: &mut impl EngineApi) {
+        for obj in self.iter_mut() {
+            obj.dispatch_events(ctx);
+        }
+    }
+}
+impl<T: GameObjectDispatch + GameObject> GameObject for [T] {
+    type Message = ();
+}
+
+impl<T: GameObjectDispatch + GameObject> GameObjectBase for [T] {
+    fn base(&self) -> &Base {
+        &EMPTY_BASE
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        panic!("Tentativa invalida de acessar base_mut em um Vec<GameObject>")
     }
 }
 
