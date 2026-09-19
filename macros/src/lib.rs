@@ -464,6 +464,7 @@ fn type_is_base(ty: &Type) -> bool {
 fn gen_dispatch_method(
     variants: &[&Ident],
     name: &str,
+    self_call: Option<proc_macro2::TokenStream>,
     sig: proc_macro2::TokenStream,
     ret: proc_macro2::TokenStream,
     call_args: proc_macro2::TokenStream,
@@ -471,6 +472,7 @@ fn gen_dispatch_method(
     let method = Ident::new(name, proc_macro2::Span::call_site());
     quote! {
         fn #method(#sig) #ret {
+            #self_call
             match self {
                 #(Self::#variants(inner) => inner.#method(#call_args),)*
             }
@@ -480,6 +482,7 @@ fn gen_dispatch_method(
 
 fn derive_object_dispatch_enum(
     input: &syn::DeriveInput,
+    include_self_calls: bool,
 ) -> Result<proc_macro2::TokenStream, TokenStream> {
     let crate_name = get_crate_name();
     let p = quote!(::#crate_name::prelude);
@@ -535,50 +538,63 @@ fn derive_object_dispatch_enum(
     let dispatch_methods: Vec<_> = [
         (
             "dispatch_start",
+            include_self_calls.then(|| quote!(self.start(ctx);)),
             quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base),
             quote!(),
             quote!(ctx, parent_base),
         ),
         (
             "dispatch_events",
+            None,
             quote!(&mut self, ctx: &mut impl #p::EngineApi),
             quote!(),
             quote!(ctx),
         ),
         (
             "dispatch_update",
+            include_self_calls.then(|| quote!(self.update(ctx, delta);)),
             quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32),
             quote!(),
             quote!(ctx, parent_base, delta),
         ),
         (
             "dispatch_late_update",
+            include_self_calls.then(|| quote!(self.late_update(ctx, delta);)),
             quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32),
             quote!(),
             quote!(ctx, parent_base, delta),
         ),
         (
             "dispatch_fixed_update",
+            include_self_calls.then(|| quote!(self.fixed_update(ctx, delta);)),
             quote!(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32),
             quote!(),
             quote!(ctx, parent_base, delta),
         ),
         (
             "dispatch_draw",
+            include_self_calls.then(|| quote!(self.draw(renderer, blending);)),
             quote!(&mut self, renderer: &mut impl #p::RenderApi, parent_base: &#p::Base, blending: f32),
             quote!(),
             quote!(renderer, parent_base, blending),
         ),
         (
             "dispatch_destroy",
+            include_self_calls.then(|| quote!(self.destroy(ctx);)),
             quote!(&mut self, ctx: &mut impl #p::EngineApi),
             quote!(),
             quote!(ctx),
         ),
-        ("is_pending_removal", quote!(&self), quote!(-> bool), quote!()),
+        (
+            "is_pending_removal",
+            None,
+            quote!(&self),
+            quote!(-> bool),
+            quote!(),
+        ),
     ]
     .into_iter()
-    .map(|(name, sig, ret, args)| gen_dispatch_method(v, name, sig, ret, args))
+    .map(|(name, self_call, sig, ret, args)| gen_dispatch_method(v, name, self_call, sig, ret, args))
     .collect();
 
     let base_methods: Vec<_> = [
@@ -591,7 +607,7 @@ fn derive_object_dispatch_enum(
         ),
     ]
     .into_iter()
-    .map(|(name, sig, ret, args)| gen_dispatch_method(v, name, sig, ret, args))
+    .map(|(name, sig, ret, args)| gen_dispatch_method(v, name, None, sig, ret, args))
     .collect();
 
     Ok(quote! {
@@ -609,7 +625,7 @@ fn derive_object_dispatch_enum(
 #[proc_macro_derive(ObjectEnum)]
 pub fn object_enum_derive(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    match derive_object_dispatch_enum(&input) {
+    match derive_object_dispatch_enum(&input, true) {
         Ok(tokens) => tokens.into(),
         Err(err) => err,
     }
@@ -621,7 +637,7 @@ pub fn scene_dispatch_derive(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let name = &input.ident;
 
-    let dispatch_impl = match derive_object_dispatch_enum(&input) {
+    let dispatch_impl = match derive_object_dispatch_enum(&input, false) {
         Ok(tokens) => tokens,
         Err(err) => return err,
     };
