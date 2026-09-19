@@ -76,6 +76,63 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for Pool<T> {
         }
     }
 }
+
+impl<T: GameObjectDispatch + GameObject, const N: usize> GameObjectDispatch for [T; N] {
+    fn dispatch_start(&mut self, ctx: &mut impl EngineApi, base: &Base) {
+        for obj in self.iter_mut() {
+            obj.dispatch_start(ctx, base);
+        }
+    }
+
+    fn dispatch_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_update(ctx, base, delta);
+        }
+    }
+
+    fn dispatch_late_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_late_update(ctx, base, delta);
+        }
+    }
+
+    fn dispatch_fixed_update(&mut self, ctx: &mut impl EngineApi, base: &Base, delta: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_fixed_update(ctx, base, delta);
+        }
+    }
+
+    fn dispatch_draw(&mut self, ctx: &mut impl RenderApi, base: &Base, blending: f32) {
+        for obj in self.iter_mut() {
+            obj.dispatch_draw(ctx, base, blending);
+        }
+    }
+
+    fn dispatch_destroy(&mut self, ctx: &mut impl EngineApi) {
+        for obj in self.iter_mut() {
+            obj.dispatch_destroy(ctx);
+        }
+    }
+
+    fn dispatch_events(&mut self, ctx: &mut impl EngineApi) {
+        for obj in self.iter_mut() {
+            obj.dispatch_events(ctx);
+        }
+    }
+}
+impl<T: GameObjectDispatch + GameObject, const N: usize> GameObject for [T; N] {
+    type Message = ();
+}
+
+impl<T: GameObjectDispatch + GameObject, const N: usize> GameObjectBase for [T; N] {
+    fn base(&self) -> &Base {
+        &EMPTY_BASE
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        panic!("Tentativa invalida de acessar base_mut em um Vec<GameObject>")
+    }
+}
 impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for [T] {
     fn dispatch_start(&mut self, ctx: &mut impl EngineApi, base: &Base) {
         for obj in self.iter_mut() {
