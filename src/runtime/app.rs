@@ -1,6 +1,13 @@
-use std::{any::Any, sync::Arc};
+use std::{
+    any::Any,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
-use gilrs::{EventType, Gilrs};
+use gilrs::{
+    EventType, GamepadId, Gilrs,
+    ff::{BaseEffect, BaseEffectType, EffectBuilder, Repeat, Replay, Ticks},
+};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -42,6 +49,9 @@ pub struct App<S: Scene + 'static, P: GameObjectDispatch = EmptyGlobals> {
     pub fixed_frame_count: u64,
     pub rng: Random,
     pub gilrs: Option<Gilrs>,
+    pub active_effects: Vec<(gilrs::ff::Effect, Instant)>,
+    pub continuous_effect: Option<(gilrs::ff::Effect, GamepadId)>,
+    pub continuous_gain: f32,
 }
 
 impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
@@ -61,6 +71,9 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
             gilrs: Gilrs::new()
                 .map_err(|e| eprintln!("gamepad indisponível: {e}"))
                 .ok(),
+            active_effects: Vec::new(),
+            continuous_effect: None,
+            continuous_gain: 0.0,
         }
     }
 
@@ -107,6 +120,122 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
                 EventType::AxisChanged(axis, value, _) => input.update_axis(axis, value),
                 EventType::ButtonChanged(b, value, _) => input.update_button_value(b, value),
                 _ => {}
+            }
+        }
+    }
+    fn process_rumble(&mut self) {
+        let now = Instant::now();
+        self.active_effects.retain(|(_, end)| *end > now);
+
+        let requests = std::mem::take(&mut self.systems.input.rumble_requests);
+        let Some(gilrs) = &mut self.gilrs else { return };
+        let Some(id) = self.systems.input.active_gamepad else {
+            return;
+        };
+        if !gilrs.gamepad(id).is_ff_supported() {
+            return;
+        }
+
+        let to_u16 = |v: f32| (v.clamp(0.0, 1.0) * u16::MAX as f32) as u16;
+
+        for r in requests {
+            let scheduling = Replay {
+                play_for: Ticks::from_ms(r.duration_ms),
+                ..Default::default()
+            };
+
+            let effect = EffectBuilder::new()
+                .add_effect(BaseEffect {
+                    kind: BaseEffectType::Strong {
+                        magnitude: to_u16(r.strong),
+                    },
+                    scheduling,
+                    envelope: Default::default(),
+                })
+                .add_effect(BaseEffect {
+                    kind: BaseEffectType::Weak {
+                        magnitude: to_u16(r.weak),
+                    },
+                    scheduling,
+                    envelope: Default::default(),
+                })
+                .gamepads(&[id])
+                .finish(gilrs);
+
+            match effect {
+                Ok(effect) => {
+                    if effect.play().is_ok() {
+                        let end = now + Duration::from_millis(r.duration_ms as u64 + 50);
+                        self.active_effects.push((effect, end));
+                    }
+                }
+                Err(e) => eprintln!("falha ao criar vibração: {e}"),
+            }
+        }
+    }
+    fn process_continuous_rumble(&mut self) {
+        let intensity = self.systems.input.continuous_rumble;
+        let active = self.systems.input.active_gamepad;
+        let Some(gilrs) = &mut self.gilrs else { return };
+
+        // Soltou o gatilho ou trocou de controle: dropar o Effect para a vibração
+        let wrong_pad = matches!(&self.continuous_effect, Some((_, id)) if Some(*id) != active);
+        if intensity <= 0.0 || wrong_pad {
+            self.continuous_effect = None;
+            self.continuous_gain = 0.0;
+            if intensity <= 0.0 {
+                return;
+            }
+        }
+
+        let Some(id) = active else { return };
+        if !gilrs.gamepad(id).is_ff_supported() {
+            return;
+        }
+
+        // Cria o efeito na primeira vez que precisar
+        if self.continuous_effect.is_none() {
+            let scheduling = Replay {
+                play_for: Ticks::from_ms(1000),
+                ..Default::default()
+            };
+            let built = EffectBuilder::new()
+                .add_effect(BaseEffect {
+                    kind: BaseEffectType::Strong {
+                        magnitude: u16::MAX,
+                    },
+                    scheduling,
+                    envelope: Default::default(),
+                })
+                .add_effect(BaseEffect {
+                    kind: BaseEffectType::Weak {
+                        magnitude: u16::MAX / 2,
+                    },
+                    scheduling,
+                    envelope: Default::default(),
+                })
+                .repeat(Repeat::Infinitely)
+                .gamepads(&[id])
+                .finish(gilrs);
+
+            match built {
+                Ok(effect) => {
+                    let _ = effect.set_gain(intensity);
+                    if effect.play().is_ok() {
+                        self.continuous_gain = intensity;
+                        self.continuous_effect = Some((effect, id));
+                    }
+                }
+                Err(e) => eprintln!("falha ao criar vibração contínua: {e}"),
+            }
+            return;
+        }
+
+        // Só atualiza quando a mudança for perceptível, para não mandar comando todo frame
+        if let Some((effect, _)) = &self.continuous_effect {
+            if (intensity - self.continuous_gain).abs() > 0.01 {
+                let _ = effect.set_gain(intensity);
+                self.continuous_gain = intensity;
             }
         }
     }
@@ -260,7 +389,18 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
         if !is_running {
             event_loop.exit();
         }
+
         self.window.as_mut().unwrap().request_redraw();
+
+        render.render_auto(self.camera_position, &self.systems.resources);
+
+        self.process_rumble();
+        self.process_continuous_rumble();
+
+        if !is_running {
+            event_loop.exit();
+        }
+
         self.systems.input.clear_frame_data();
     }
 }

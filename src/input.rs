@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet};
-
 pub use gilrs::{Axis, Button, GamepadId};
+use rustc_hash::{FxHashMap, FxHashSet};
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
@@ -11,6 +10,13 @@ pub enum AxisDir {
     Negative,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct Rumble {
+    pub strong: f32, // motor grave (0.0..=1.0)
+    pub weak: f32,   // motor agudo (0.0..=1.0)
+    pub duration_ms: u32,
+}
+
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum InputType {
     Key(KeyCode),
@@ -19,33 +25,37 @@ pub enum InputType {
     GamepadAxis(Axis, AxisDir),
 }
 pub struct InputState {
-    pub pressed_input: HashSet<InputType>,
-    pub just_pressed_input: HashMap<InputType, (u64, u64)>,
+    pub pressed_input: FxHashSet<InputType>,
+    pub just_pressed_input: FxHashMap<InputType, (u64, u64)>,
     pub mouse_position: Vector2,
     pub map: InputMap,
     pub current_update_frame: u64,
     pub current_fixed_frame: u64,
-    pub axes: HashMap<Axis, f32>,
+    pub axes: FxHashMap<Axis, f32>,
     pub active_gamepad: Option<GamepadId>,
     pub axis_press_threshold: f32,
     pub deadzone: f32,
-    pub button_values: HashMap<Button, f32>,
+    pub button_values: FxHashMap<Button, f32>,
+    pub rumble_requests: Vec<Rumble>,
+    pub continuous_rumble: f32,
 }
 
 impl InputState {
     pub fn new() -> Self {
         Self {
-            pressed_input: HashSet::new(),
-            just_pressed_input: HashMap::new(),
+            pressed_input: FxHashSet::default(),
+            just_pressed_input: FxHashMap::default(),
             mouse_position: Vector2::ZERO,
             map: InputMap::new(),
             current_update_frame: 0,
             current_fixed_frame: 0,
-            axes: HashMap::new(),
+            axes: FxHashMap::default(),
             active_gamepad: None,
             axis_press_threshold: 0.0,
             deadzone: 0.0,
-            button_values: HashMap::new(),
+            button_values: FxHashMap::default(),
+            rumble_requests: Vec::new(),
+            continuous_rumble: 0.0,
         }
     }
     pub fn update_axis(&mut self, axis: Axis, value: f32) {
@@ -108,6 +118,16 @@ impl InputState {
             other => self.pressed_input.contains(other) as i32 as f32,
         }
     }
+    pub fn rumble(&mut self, strong: f32, weak: f32, duration_ms: u32) {
+        self.rumble_requests.push(Rumble {
+            strong,
+            weak,
+            duration_ms,
+        });
+    }
+    pub fn set_continuous_rumble(&mut self, intensity: f32) {
+        self.continuous_rumble = self.continuous_rumble.max(intensity.clamp(0.0, 1.0));
+    }
 
     pub fn set_mouse_position(&mut self, x: f32, y: f32) {
         self.mouse_position = Vector2::new(x, y);
@@ -167,7 +187,8 @@ impl InputState {
         let current_u = self.current_update_frame;
         let current_f = self.current_fixed_frame;
         self.just_pressed_input
-            .retain(|_, (target_u, target_f)| *target_u >= current_u || *target_f >= current_f)
+            .retain(|_, (target_u, target_f)| *target_u >= current_u || *target_f >= current_f);
+        self.continuous_rumble = 0.0;
     }
     pub fn update_input_state(&mut self, key: InputType, pressed: bool) {
         if pressed {
@@ -275,7 +296,7 @@ pub struct InputActions {
 impl InputActions {}
 
 pub struct InputMap {
-    pub bindings: HashMap<String, Vec<InputType>>,
+    pub bindings: FxHashMap<String, Vec<InputType>>,
 }
 
 impl Default for InputMap {
@@ -287,7 +308,7 @@ impl Default for InputMap {
 impl InputMap {
     pub fn new() -> Self {
         Self {
-            bindings: HashMap::new(),
+            bindings: FxHashMap::default(),
         }
     }
     pub fn insert_actions() {}

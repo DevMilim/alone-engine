@@ -103,6 +103,8 @@ pub trait InputApi {
     fn input_strength(&self, input: &InputType) -> f32;
     fn action_strength(&self, action: &str) -> f32;
     fn bind_action(&mut self, action: &str, key: InputType);
+    fn gamepad_rumble(&mut self, strong: f32, weak: f32, duration_ms: u32);
+    fn set_continuous_rumble(&mut self, intensity: f32);
 }
 
 pub trait EventApi {

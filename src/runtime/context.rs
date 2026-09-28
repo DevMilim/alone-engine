@@ -296,6 +296,14 @@ impl<'a> InputApi for EngineContext<'a> {
     fn input_strength(&self, input: &crate::prelude::InputType) -> f32 {
         self.systems.input.input_strength(input)
     }
+
+    fn gamepad_rumble(&mut self, strong: f32, weak: f32, duration_ms: u32) {
+        self.systems.input.rumble(strong, weak, duration_ms);
+    }
+
+    fn set_continuous_rumble(&mut self, intensity: f32) {
+        self.systems.input.set_continuous_rumble(intensity);
+    }
 }
 
 impl<'a> EventApi for EngineContext<'a> {

@@ -16,13 +16,8 @@ impl MainScene {
 
 impl GameObject for MainScene {
     type Message = ();
-    fn start(&mut self, ctx: &mut impl EngineApi) {
-        ctx.bind_action("a", InputType::Gamepad(Button::LeftTrigger2));
-    }
-    fn fixed_update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
-        let a = ctx.action_strength("a");
-        println!("{a}")
-    }
+    fn start(&mut self, ctx: &mut impl EngineApi) {}
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {}
 }
 #[derive(Scene)]
 pub enum GameScenes {
