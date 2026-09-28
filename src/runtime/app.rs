@@ -1,5 +1,6 @@
 use std::{any::Any, sync::Arc};
 
+use gilrs::{EventType, Gilrs};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -40,6 +41,7 @@ pub struct App<S: Scene + 'static, P: GameObjectDispatch = EmptyGlobals> {
     pub update_frame_count: u64,
     pub fixed_frame_count: u64,
     pub rng: Random,
+    pub gilrs: Option<Gilrs>,
 }
 
 impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
@@ -56,6 +58,9 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
             update_frame_count: 0,
             fixed_frame_count: 0,
             rng: Random::time_seed(),
+            gilrs: Gilrs::new()
+                .map_err(|e| eprintln!("gamepad indisponível: {e}"))
+                .ok(),
         }
     }
 
@@ -69,6 +74,41 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
     pub fn with_globals(&mut self, global: P) -> &mut Self {
         self.world.global = Some(global);
         self
+    }
+    fn poll_gamepads(&mut self) {
+        let Some(gilrs) = &mut self.gilrs else { return };
+        let input = &mut self.systems.input;
+
+        if input.active_gamepad.is_none() {
+            input.active_gamepad = gilrs.gamepads().next().map(|(id, _)| id);
+        }
+
+        while let Some(gilrs::Event { id, event, .. }) = gilrs.next_event() {
+            if matches!(event, EventType::ButtonPressed(..)) && input.active_gamepad != Some(id) {
+                input.release_gamepad();
+                input.active_gamepad = Some(id);
+            }
+
+            match event {
+                EventType::Connected if input.active_gamepad.is_none() => {
+                    input.active_gamepad = Some(id);
+                }
+                EventType::Disconnected if input.active_gamepad == Some(id) => {
+                    input.release_gamepad();
+                    input.active_gamepad = gilrs.gamepads().map(|(g, _)| g).find(|&g| g != id);
+                }
+                _ if input.active_gamepad != Some(id) => {}
+                EventType::ButtonPressed(b, _) => {
+                    input.update_input_state(InputType::Gamepad(b), true)
+                }
+                EventType::ButtonReleased(b, _) => {
+                    input.update_input_state(InputType::Gamepad(b), false)
+                }
+                EventType::AxisChanged(axis, value, _) => input.update_axis(axis, value),
+                EventType::ButtonChanged(b, value, _) => input.update_button_value(b, value),
+                _ => {}
+            }
+        }
     }
 }
 
@@ -131,6 +171,8 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.poll_gamepads();
+
         self.update_frame_count += 1;
         self.systems.input.current_update_frame = self.update_frame_count;
         self.systems.input.current_fixed_frame = self.fixed_frame_count;

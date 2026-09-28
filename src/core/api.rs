@@ -15,6 +15,7 @@ use crate::{
     collision::{ColliderData, ColliderKey, CollisionFlag, Layer, RaycastHit},
     core::{GameObject, Handler, Id},
     event::{CallbackEvent, GlobalEvent},
+    input::InputType,
     math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,
     render::{Anchor, DrawCommand, FontAsset, ImageAsset},
@@ -97,6 +98,11 @@ pub trait InputApi {
     ) -> Vector2;
     fn get_key_axis(&self, negative_key: KeyCode, positive_key: KeyCode) -> f32;
     fn get_axis(&self, negative_action: &str, positive_action: &str) -> f32;
+    fn get_gamepad_axis(&self, negative_action: &str, positive_action: &str) -> f32;
+    fn get_gamepad_vector(&self, up: &str, down: &str, left: &str, right: &str) -> Vector2;
+    fn input_strength(&self, input: &InputType) -> f32;
+    fn action_strength(&self, action: &str) -> f32;
+    fn bind_action(&mut self, action: &str, key: InputType);
 }
 
 pub trait EventApi {

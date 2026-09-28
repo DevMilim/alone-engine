@@ -274,6 +274,28 @@ impl<'a> InputApi for EngineContext<'a> {
             .input
             .get_axis(negative_action, positive_action)
     }
+
+    fn get_gamepad_axis(&self, negative_action: &str, positive_action: &str) -> f32 {
+        self.systems
+            .input
+            .get_gamepad_axis(negative_action, positive_action)
+    }
+
+    fn get_gamepad_vector(&self, up: &str, down: &str, left: &str, right: &str) -> Vector2 {
+        self.systems.input.get_gamepad_vector(up, down, left, right)
+    }
+
+    fn action_strength(&self, action: &str) -> f32 {
+        self.systems.input.action_strength(action)
+    }
+
+    fn bind_action(&mut self, action: &str, key: crate::prelude::InputType) {
+        self.systems.input.map.bind_action(action, key);
+    }
+
+    fn input_strength(&self, input: &crate::prelude::InputType) -> f32 {
+        self.systems.input.input_strength(input)
+    }
 }
 
 impl<'a> EventApi for EngineContext<'a> {

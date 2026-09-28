@@ -1,4 +1,5 @@
 use alone_engine::prelude::*;
+use gilrs::Button;
 
 #[derive(GameObject)]
 pub struct MainScene {
@@ -15,7 +16,13 @@ impl MainScene {
 
 impl GameObject for MainScene {
     type Message = ();
-    fn start(&mut self, _ctx: &mut impl EngineApi) {}
+    fn start(&mut self, ctx: &mut impl EngineApi) {
+        ctx.bind_action("a", InputType::Gamepad(Button::LeftTrigger2));
+    }
+    fn fixed_update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
+        let a = ctx.action_strength("a");
+        println!("{a}")
+    }
 }
 #[derive(Scene)]
 pub enum GameScenes {

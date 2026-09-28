@@ -1,16 +1,23 @@
 use std::collections::{HashMap, HashSet};
 
+pub use gilrs::{Axis, Button, GamepadId};
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
 use crate::math::Vector2;
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub enum AxisDir {
+    Positive,
+    Negative,
+}
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum InputType {
     Key(KeyCode),
     Mouse(MouseButton),
+    Gamepad(Button),
+    GamepadAxis(Axis, AxisDir),
 }
-
 pub struct InputState {
     pub pressed_input: HashSet<InputType>,
     pub just_pressed_input: HashMap<InputType, (u64, u64)>,
@@ -18,6 +25,11 @@ pub struct InputState {
     pub map: InputMap,
     pub current_update_frame: u64,
     pub current_fixed_frame: u64,
+    pub axes: HashMap<Axis, f32>,
+    pub active_gamepad: Option<GamepadId>,
+    pub axis_press_threshold: f32,
+    pub deadzone: f32,
+    pub button_values: HashMap<Button, f32>,
 }
 
 impl InputState {
@@ -29,6 +41,71 @@ impl InputState {
             map: InputMap::new(),
             current_update_frame: 0,
             current_fixed_frame: 0,
+            axes: HashMap::new(),
+            active_gamepad: None,
+            axis_press_threshold: 0.0,
+            deadzone: 0.0,
+            button_values: HashMap::new(),
+        }
+    }
+    pub fn update_axis(&mut self, axis: Axis, value: f32) {
+        self.axes.insert(axis, value);
+        let t = self.axis_press_threshold;
+        self.update_input_state(InputType::GamepadAxis(axis, AxisDir::Positive), value > t);
+        self.update_input_state(InputType::GamepadAxis(axis, AxisDir::Negative), value < -t);
+    }
+
+    pub fn release_gamepad(&mut self) {
+        self.pressed_input
+            .retain(|i| !matches!(i, InputType::Gamepad(_) | InputType::GamepadAxis(..)));
+        self.axes.clear();
+        self.button_values.clear();
+    }
+    pub fn update_button_value(&mut self, button: Button, value: f32) {
+        self.button_values.insert(button, value);
+    }
+
+    pub fn gamepad_button_value(&self, button: Button) -> f32 {
+        self.input_strength(&InputType::Gamepad(button))
+    }
+
+    pub fn get_gamepad_axis(&self, negative_action: &str, positive_action: &str) -> f32 {
+        self.action_strength(positive_action) - self.action_strength(negative_action)
+    }
+
+    pub fn get_gamepad_vector(&self, up: &str, down: &str, left: &str, right: &str) -> Vector2 {
+        let x = self.action_strength(right) - self.action_strength(left);
+        let y = self.action_strength(down) - self.action_strength(up);
+        let vec = Vector2::new(x, y);
+        if vec.length() > 1.0 {
+            vec.normalize()
+        } else {
+            vec
+        }
+    }
+    pub fn action_strength(&self, action: &str) -> f32 {
+        self.map
+            .bindings
+            .get(action)
+            .map(|b| b.iter().map(|i| self.input_strength(i)).fold(0.0, f32::max))
+            .unwrap_or(0.0)
+    }
+    pub fn input_strength(&self, input: &InputType) -> f32 {
+        match input {
+            InputType::GamepadAxis(axis, dir) => {
+                let v = self.axes.get(axis).copied().unwrap_or(0.0);
+                let v = match dir {
+                    AxisDir::Positive => v.max(0.0),
+                    AxisDir::Negative => (-v).max(0.0),
+                };
+                if v < self.deadzone { 0.0 } else { v }
+            }
+            InputType::Gamepad(b) => match self.button_values.get(b) {
+                Some(&v) if v < self.deadzone => 0.0,
+                Some(&v) => v,
+                None => self.pressed_input.contains(input) as i32 as f32,
+            },
+            other => self.pressed_input.contains(other) as i32 as f32,
         }
     }
 
