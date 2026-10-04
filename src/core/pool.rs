@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 use crate::{
     core::{Base, EMPTY_BASE, GameObject, GameObjectBase},
     runtime::GameObjectDispatch,
@@ -10,6 +12,19 @@ pub struct Pool<T: GameObject + GameObjectDispatch> {
 impl<T: GameObject + GameObjectDispatch> Default for Pool<T> {
     fn default() -> Self {
         Self { items: Vec::new() }
+    }
+}
+
+impl<T: GameObject + GameObjectDispatch> Index<usize> for Pool<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.items[index]
+    }
+}
+impl<T: GameObject + GameObjectDispatch> IndexMut<usize> for Pool<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.items[index]
     }
 }
 
