@@ -392,8 +392,6 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
 
         self.window.as_mut().unwrap().request_redraw();
 
-        render.render_auto(self.camera_position, &self.systems.resources);
-
         self.process_rumble();
         self.process_continuous_rumble();
 
