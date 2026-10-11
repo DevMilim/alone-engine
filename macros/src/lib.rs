@@ -395,8 +395,8 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #apply_transform
                 ctx.register_alive(self.base().id);
                 #register_subscriptions
-                self.start(ctx);
                 #(self.#component_fields.start(ctx, &mut self.#base_field);)*
+                self.start(ctx);
                 #(self.#object_fields.dispatch_start(ctx, &self.#base_field);)*
                 self.mark_as_started();
             }
