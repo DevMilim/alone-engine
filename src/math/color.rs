@@ -25,6 +25,12 @@ impl Color {
         b: 255,
         a: 255,
     };
+    pub const RED: Self = Self {
+        r: 255,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
     pub fn is_transparent(&self) -> bool {
         self.a == 0
     }

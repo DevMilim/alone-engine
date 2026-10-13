@@ -110,6 +110,13 @@ impl<'a> Render<'a> {
                 let cy = match anchor {
                     Anchor::Center => position.y - cam_y,
                     Anchor::TopLeft => position.y - cam_y + hh,
+                    Anchor::TopCenter => todo!(),
+                    Anchor::TopRight => todo!(),
+                    Anchor::CenterLeft => todo!(),
+                    Anchor::CenterRight => todo!(),
+                    Anchor::BottomLeft => todo!(),
+                    Anchor::BottomCenter => todo!(),
+                    Anchor::BottomRight => todo!(),
                 };
 
                 let bbox_hh = if rotation.abs() < 0.001 {

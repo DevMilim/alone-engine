@@ -18,8 +18,11 @@ impl Layer {
     pub const LAYER_11: Self = Self(1 << 11);
     pub const LAYER_12: Self = Self(1 << 12);
 
-    pub fn contains(self, other: Self) -> bool {
+    pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) != 0
+    }
+    pub const fn named(layer: u32) -> Self {
+        Self(1 << layer)
     }
 }
 

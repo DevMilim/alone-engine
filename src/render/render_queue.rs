@@ -10,6 +10,13 @@ use crate::{
 pub enum Anchor {
     Center,
     TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
 }
 
 #[derive(Debug, Clone)]

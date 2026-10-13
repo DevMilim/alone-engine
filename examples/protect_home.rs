@@ -92,7 +92,7 @@ impl GameObject for Player {
 }
 
 #[derive(GameObject)]
-#[connect(collision: TriggerEvent)]
+#[connect(collision => TriggerEvent)]
 pub struct Enemy {
     #[base]
     base: Base,
@@ -207,7 +207,7 @@ impl GameObject for Pilar {
 }
 
 #[derive(GameObject)]
-#[subscribe(spawn_pilar: SpawnEvent<Pilar>)]
+#[subscribe(spawn_pilar => SpawnEvent<Pilar>)]
 pub struct MainScene {
     #[base]
     base: Base,

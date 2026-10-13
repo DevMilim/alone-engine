@@ -123,6 +123,13 @@ impl Rasterizer {
                 (position.x - cam_x).round() as isize,
                 (position.y - cam_y).round() as isize,
             ),
+            Anchor::TopCenter => todo!(),
+            Anchor::TopRight => todo!(),
+            Anchor::CenterLeft => todo!(),
+            Anchor::CenterRight => todo!(),
+            Anchor::BottomLeft => todo!(),
+            Anchor::BottomCenter => todo!(),
+            Anchor::BottomRight => todo!(),
         };
 
         let screen_min_x = start_x.max(0) as usize;
@@ -302,6 +309,13 @@ impl Rasterizer {
                 position.x - cam_x + sprite_w as f32 / 2.0,
                 position.y - cam_y + sprite_h as f32 / 2.0,
             ),
+            Anchor::TopCenter => todo!(),
+            Anchor::TopRight => todo!(),
+            Anchor::CenterLeft => todo!(),
+            Anchor::CenterRight => todo!(),
+            Anchor::BottomLeft => todo!(),
+            Anchor::BottomCenter => todo!(),
+            Anchor::BottomRight => todo!(),
         };
 
         let hw = sprite_w as f32 / 2.0;

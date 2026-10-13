@@ -110,7 +110,7 @@ struct Subscription {
 impl Parse for Subscription {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let handler: Ident = input.parse()?;
-        let _: Token![:] = input.parse()?;
+        let _: Token![=>] = input.parse()?;
         let event_type: Path = input.parse()?;
         Ok(Subscription {
             handler,
