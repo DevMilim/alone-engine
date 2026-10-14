@@ -170,7 +170,7 @@ pub trait CollisionApi {
 
 pub trait RenderApi {
     fn draw(&mut self, z_index: u8, command: DrawCommand);
-    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8);
+    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: i32);
     fn draw_sprite(
         &mut self,
         position: Vector2,
@@ -179,7 +179,7 @@ pub trait RenderApi {
         source: Option<Rect>,
         flip_v: bool,
         flip_h: bool,
-        z_index: u8,
+        z_index: i32,
         rotation: f32,
     );
     fn draw_line(
@@ -188,7 +188,7 @@ pub trait RenderApi {
         end: Vector2,
         color: Color,
         thickness: f32,
-        z_index: u8,
+        z_index: i32,
     );
     fn draw_text(
         &mut self,
@@ -197,7 +197,7 @@ pub trait RenderApi {
         position: Vector2,
         color: Color,
         size_px: u32,
-        z_index: u8,
+        z_index: i32,
     );
     fn camera_mut(&mut self) -> &mut Vector2;
 }

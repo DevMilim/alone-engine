@@ -14,7 +14,6 @@ pub type CallbackEvent = Box<dyn Fn() -> Box<dyn Any + Send + 'static>>;
 #[derive(Debug)]
 pub enum GlobalEvent {
     Targeted(Id, Box<dyn Any + Send + 'static>),
-    Send(Id, Box<dyn Any + Send + 'static>),
     Broadcast(Arc<dyn Any + Send + Sync + 'static>),
 }
 
@@ -102,12 +101,6 @@ impl EventManager {
                     .entry(id)
                     .or_default()
                     .push(GlobalEvent::Targeted(id, payload));
-            }
-            GlobalEvent::Send(id, payload) => {
-                self.mailboxes
-                    .entry(id)
-                    .or_default()
-                    .push(GlobalEvent::Send(id, payload));
             }
         }
     }

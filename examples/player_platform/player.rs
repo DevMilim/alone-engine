@@ -5,7 +5,6 @@ use alone_engine::{
     input::KeyCode,
     math::{Vector2, Vector2i},
     render::SpriteSrc,
-    sleep_tokio,
 };
 
 #[derive(GameObject)]
@@ -56,12 +55,7 @@ impl Player {
     }
 }
 
-pub enum PlayerMessage {
-    AsyncTask,
-}
-
 impl GameObject for Player {
-    type Message = PlayerMessage;
     fn start(&mut self, ctx: &mut impl EngineApi) {
         println!("Player inicializado");
         let mut animation = SpriteAnimation::new();
@@ -75,15 +69,9 @@ impl GameObject for Player {
         animation.new_animation(iddle_frames, "idle");
         animation.play("idle");
         self.sprite_animation = Slot::new(animation);
-        let async_ctx = ctx.async_ctx();
 
         let id = self.base.id.clone();
         println!("Player id{:?}", id);
-
-        ctx.async_task(self.base.id, async move {
-            sleep_tokio(5.0).await;
-            async_ctx.send(id, PlayerMessage::AsyncTask);
-        });
     }
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         let gravity = 9.7;
@@ -106,8 +94,5 @@ impl GameObject for Player {
 
         self.velocity_mut().x = speed * direction;
         self.move_and_slide(ctx, delta);
-    }
-    fn on_message(&mut self, _ctx: &mut impl EngineApi, _msg: &Self::Message) {
-        println!("Mensagem recebida")
     }
 }

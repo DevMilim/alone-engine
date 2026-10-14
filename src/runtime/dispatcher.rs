@@ -120,9 +120,7 @@ impl<T: GameObjectDispatch + GameObject, const N: usize> GameObjectDispatch for 
         }
     }
 }
-impl<T: GameObjectDispatch + GameObject, const N: usize> GameObject for [T; N] {
-    type Message = ();
-}
+impl<T: GameObjectDispatch + GameObject, const N: usize> GameObject for [T; N] {}
 
 impl<T: GameObjectDispatch + GameObject, const N: usize> GameObjectBase for [T; N] {
     fn base(&self) -> &Base {
@@ -176,9 +174,7 @@ impl<T: GameObjectDispatch + GameObject> GameObjectDispatch for [T] {
         }
     }
 }
-impl<T: GameObjectDispatch + GameObject> GameObject for [T] {
-    type Message = ();
-}
+impl<T: GameObjectDispatch + GameObject> GameObject for [T] {}
 
 impl<T: GameObjectDispatch + GameObject> GameObjectBase for [T] {
     fn base(&self) -> &Base {

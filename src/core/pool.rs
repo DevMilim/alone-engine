@@ -51,9 +51,7 @@ impl<T: GameObject + GameObjectDispatch> Pool<T> {
     }
 }
 
-impl<T: GameObject + GameObjectDispatch> GameObject for Pool<T> {
-    type Message = ();
-}
+impl<T: GameObject + GameObjectDispatch> GameObject for Pool<T> {}
 impl<T: GameObjectBase + GameObject + GameObjectDispatch> GameObjectBase for Pool<T> {
     fn base(&self) -> &Base {
         &EMPTY_BASE

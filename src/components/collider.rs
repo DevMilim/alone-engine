@@ -37,6 +37,12 @@ impl Collider {
     pub fn set_on_exit<T: Clone + Send + 'static>(&mut self, event: T) {
         self.on_enter = Some(Box::new(move || Box::new(event.clone())));
     }
+    pub fn enable(&mut self) {
+        self.disabled = false;
+    }
+    pub fn disable(&mut self) {
+        self.disabled = true;
+    }
 }
 
 impl Default for Collider {

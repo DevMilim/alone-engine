@@ -122,6 +122,4 @@ impl NetworkClient {
     }
 }
 
-impl GameObject for NetworkClient {
-    type Message = ();
-}
+impl GameObject for NetworkClient {}

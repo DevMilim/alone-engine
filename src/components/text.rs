@@ -12,7 +12,7 @@ pub struct Text {
     pub color: Color,
     pub size_px: u32,
     pub offset: Vector2,
-    pub z_index: u8,
+    pub z_index: i32,
     dirty: bool,
 }
 
@@ -28,7 +28,7 @@ impl Text {
             dirty: true,
         }
     }
-    pub fn set_content(&mut self, content: impl Into<Arc<str>>) {
+    pub fn set_text(&mut self, content: impl Into<Arc<str>>) {
         self.content = content.into();
         self.dirty = true;
     }

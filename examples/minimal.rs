@@ -16,7 +16,6 @@ impl Player {
     }
 }
 impl GameObject for Player {
-    type Message = ();
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, _delta: f32) {
         let direction =
             ctx.get_key_vector(KeyCode::KeyW, KeyCode::KeyS, KeyCode::KeyA, KeyCode::KeyD);
@@ -41,9 +40,8 @@ impl MainScene {
     }
 }
 
-impl GameObject for MainScene {
-    type Message = ();
-}
+impl GameObject for MainScene {}
+
 #[derive(Scene)]
 pub enum GameScenes {
     MainScene(MainScene),
@@ -58,7 +56,7 @@ pub struct RectRenderer {
     pub width: i32,
     pub height: i32,
     pub color: Color,
-    pub z_index: u8,
+    pub z_index: i32,
 }
 
 impl RectRenderer {

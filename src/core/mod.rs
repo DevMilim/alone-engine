@@ -136,7 +136,7 @@ impl CoreSystems {
             };
 
             if let Some(msg) = msg {
-                events.insert_global_event(GlobalEvent::Send(sensor.id, msg));
+                events.insert_global_event(GlobalEvent::Targeted(sensor.id, msg));
                 return;
             }
         }

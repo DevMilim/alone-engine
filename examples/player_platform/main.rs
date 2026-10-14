@@ -58,7 +58,6 @@ impl MainScene {
 }
 
 impl GameObject for MainScene {
-    type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
         self.coin_sound = Slot::new(Sound::new(
             ctx.load_audio(self.base.id, "assets/sounds/coin.wav"),
@@ -111,7 +110,6 @@ impl Globals {
 }
 
 impl GameObject for Globals {
-    type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
         ctx.register_service::<Globals>(self.base.id);
 

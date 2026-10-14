@@ -15,9 +15,6 @@ use winit::window::Window;
 
 use crate::{math::Vector2, resources::Resources};
 
-pub const LOGICAL_WIDTH: u32 = 480;
-pub const LOGICAL_HEIGHT: u32 = 270;
-
 const PARALLEL_COMMAND_THRESHOLD: usize = 1500;
 const SWITCH_UP_MS: f32 = 3.0;
 const SWITCH_DOWN_MS: f32 = 1.5;
@@ -35,12 +32,12 @@ pub struct Render<'a> {
 }
 
 impl<'a> Render<'a> {
-    pub fn new(window: &Arc<Window>) -> Self {
+    pub fn new(window: &Arc<Window>, resolution: (u32, u32)) -> Self {
         let mut pixels = {
             let window_size = window.inner_size();
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, window.clone());
-            PixelsBuilder::new(LOGICAL_WIDTH, LOGICAL_HEIGHT, surface_texture).build()
+            PixelsBuilder::new(resolution.0, resolution.1, surface_texture).build()
         }
         .unwrap();
 
@@ -48,7 +45,7 @@ impl<'a> Render<'a> {
         Self {
             pixels,
             queue: [const { Vec::new() }; 6],
-            window_size: (LOGICAL_WIDTH, LOGICAL_HEIGHT),
+            window_size: (resolution.0, resolution.1),
             last_frame: Instant::now(),
             frame_count: 0,
             fps_timer: Instant::now(),

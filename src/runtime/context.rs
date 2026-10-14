@@ -310,7 +310,7 @@ impl<'a> EventApi for EngineContext<'a> {
     /// Utilizado para enviar uma mensagem endereçada para um GameObject especifico
     /// A mensagem tem que ser do mesmo tipo que o definido em type Message = T;
     fn send<T: Send + 'static>(&mut self, id: Id, message: T) {
-        let event = GlobalEvent::Send(id, Box::new(message));
+        let event = GlobalEvent::Targeted(id, Box::new(message));
         self.events.insert_global_event(event);
     }
     /// Utilizado para emitir um evento global que sera recebido por todos os GameObjects que definiram um #[game(subscribe(metodo: Tipo))]
@@ -324,7 +324,7 @@ impl<'a> EventApi for EngineContext<'a> {
     }
 
     fn send_boxed_any(&mut self, id: Id, message: Box<dyn Any + Send + 'static>) {
-        let event = GlobalEvent::Send(id, message);
+        let event = GlobalEvent::Targeted(id, message);
         self.events.insert_global_event(event);
     }
 
@@ -493,7 +493,9 @@ impl AsyncContext {
         let _ = self.sender.send(GlobalEvent::Targeted(id, Box::new(event)));
     }
     pub fn send<T: Any + Sync + Send + 'static>(&self, id: Id, message: T) {
-        let _ = self.sender.send(GlobalEvent::Send(id, Box::new(message)));
+        let _ = self
+            .sender
+            .send(GlobalEvent::Targeted(id, Box::new(message)));
     }
 }
 impl<'a> SceneApi for EngineContext<'a> {

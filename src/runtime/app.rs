@@ -22,7 +22,7 @@ use crate::{
     event::{EventManager, GlobalEvent},
     input::InputType,
     math::Vector2,
-    render::{LOGICAL_HEIGHT, LOGICAL_WIDTH, Render},
+    render::Render,
     rng::Random,
     runtime::{EmptyGlobals, EngineContext, GameObjectDispatch, Scene, State, WorldState},
 };
@@ -52,6 +52,7 @@ pub struct App<S: Scene + 'static, P: GameObjectDispatch = EmptyGlobals> {
     pub active_effects: Vec<(gilrs::ff::Effect, Instant)>,
     pub continuous_effect: Option<(gilrs::ff::Effect, GamepadId)>,
     pub continuous_gain: f32,
+    resolution: (u32, u32),
 }
 
 impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
@@ -74,7 +75,13 @@ impl<S: Scene + 'static, P: GameObjectDispatch> App<S, P> {
             active_effects: Vec::new(),
             continuous_effect: None,
             continuous_gain: 0.0,
+            resolution: (320, 240),
         }
+    }
+
+    pub fn with_resolution(&mut self, width: u32, height: u32) -> &mut Self {
+        self.resolution = (width, height);
+        self
     }
 
     pub fn run(&mut self) {
@@ -249,7 +256,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
 
         let window = Arc::new(event_loop.create_window(attrs).unwrap());
 
-        self.render = Some(Render::new(&window));
+        self.render = Some(Render::new(&window, self.resolution));
         window.request_redraw();
         self.window = Some(window);
     }
@@ -290,7 +297,7 @@ impl<S: Scene + 'static, P: GameObjectDispatch> ApplicationHandler for App<S, P>
             WindowEvent::Resized(size) if size.width > 0 && size.height > 0 => {
                 let _ = state.pixels.resize_surface(size.width, size.height);
 
-                state.set_window_size((LOGICAL_WIDTH, LOGICAL_HEIGHT));
+                state.set_window_size((self.resolution.0, self.resolution.1));
 
                 if let Some(window) = &self.window {
                     window.request_redraw();

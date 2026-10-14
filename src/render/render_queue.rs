@@ -56,10 +56,12 @@ pub struct RenderQueue<'a> {
 
 impl<'a> RenderApi for RenderQueue<'a> {
     fn draw(&mut self, z_index: u8, command: DrawCommand) {
+        let z_index = z_index.clamp(0, 5);
         self.queue[z_index as usize].push(command);
     }
 
-    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: u8) {
+    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: i32) {
+        let z_index = z_index.clamp(0, 5);
         self.queue[z_index as usize].push(DrawCommand::Rect { color, rect });
     }
 
@@ -71,9 +73,10 @@ impl<'a> RenderApi for RenderQueue<'a> {
         source: Option<Rect>,
         flip_v: bool,
         flip_h: bool,
-        z_index: u8,
+        z_index: i32,
         rotation: f32,
     ) {
+        let z_index = z_index.clamp(0, 5);
         self.queue[z_index as usize].push(DrawCommand::Sprite {
             position,
             image: texture,
@@ -90,8 +93,9 @@ impl<'a> RenderApi for RenderQueue<'a> {
         end: Vector2,
         color: Color,
         thickness: f32,
-        z_index: u8,
+        z_index: i32,
     ) {
+        let z_index = z_index.clamp(0, 5);
         self.queue[z_index as usize].push(DrawCommand::Line {
             start,
             end,
@@ -109,8 +113,9 @@ impl<'a> RenderApi for RenderQueue<'a> {
         position: Vector2,
         color: Color,
         size_px: u32,
-        z_index: u8,
+        z_index: i32,
     ) {
+        let z_index = z_index.clamp(0, 5);
         self.queue[z_index as usize].push(DrawCommand::Text {
             text,
             font,

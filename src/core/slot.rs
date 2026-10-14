@@ -98,6 +98,4 @@ impl<T: Component> Component for Slot<T> {
     }
 }
 
-impl<T: GameObject> GameObject for Slot<T> {
-    type Message = ();
-}
+impl<T: GameObject> GameObject for Slot<T> {}

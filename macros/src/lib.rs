@@ -1,7 +1,7 @@
 use darling::{FromDeriveInput, FromField, ast::Data};
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{Ident, Path, Token, Type, parse::Parse, punctuated::Punctuated};
+use quote::{quote};
+use syn::{Ident, Path, Token, Type, parse::{Parse, ParseStream}, punctuated::Punctuated};
 
 fn get_crate_name() -> proc_macro2::TokenStream {
     quote!(alone_engine)
@@ -36,7 +36,7 @@ impl FromField for GameField {
                 if let syn::Meta::List(meta_list) = &attr.meta {
                     let args = meta_list
                         .parse_args::<ComponentArgs>()
-                        .map_err(|e| darling::Error::custom(e.to_string()))?;
+                        .map_err(darling::Error::from)?;
                     component_trait = args.interface;
                 }
             } else if attr.path().is_ident("object") {
@@ -74,21 +74,21 @@ struct ComponentArgs {
     interface: Option<Path>,
 }
 impl Parse for ComponentArgs {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut interface = None;
 
         while !input.is_empty() {
-            let ident: Ident = input.parse()?;
+            let key: Ident = input.parse()?;
             let _: Token![=] = input.parse()?;
-            let value: Path = input.parse()?;
 
-            if ident == "interface" {
-                interface = Some(value);
-            } else {
-                return Err(syn::Error::new(
-                    ident.span(),
-                    format!("chave desconhecida `{ident}` em #[component(...)]; use `interface`"),
-                ));
+            match key.to_string().as_str() {
+                "interface" => set_once(&mut interface, input.parse()?, &key)?,
+                _ => {
+                    return Err(syn::Error::new(
+                        key.span(),
+                        format!("chave desconhecida `{key}` em #[component(...)]; use `interface` ou `init`"),
+                    ));
+                }
             }
 
             if input.is_empty() {
@@ -96,11 +96,16 @@ impl Parse for ComponentArgs {
             }
             let _: Token![,] = input.parse()?;
         }
-
         Ok(Self { interface })
     }
 }
 
+fn set_once<T>(slot: &mut Option<T>, value: T, key: &Ident) -> syn::Result<()> {
+    if slot.replace(value).is_some() {
+        return Err(syn::Error::new(key.span(), format!("`{key}` informado mais de uma vez")));
+    }
+    Ok(())
+}
 #[derive(Debug)]
 struct Subscription {
     handler: Ident,
@@ -174,7 +179,7 @@ fn build_downcast_arms(subs: &[Subscription]) -> Vec<proc_macro2::TokenStream> {
         .collect()
 }
 
-#[proc_macro_derive(GameObject, attributes(base, component, object, connect, subscribe))]
+#[proc_macro_derive(GameObject, attributes(base, component, object, init, connect, subscribe))]
 pub fn scene_tree(input: TokenStream) -> TokenStream {
     let crate_name = get_crate_name();
     let p = quote!(::#crate_name::prelude);
@@ -229,13 +234,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                             #(#connect_arms)*
                         }
                         #p::GlobalEvent::Broadcast(_) => {}
-                        #p::GlobalEvent::Send(_id, any_event) =>{
-                            if let Some(message) = any_event.downcast_ref::<<Self as #p::GameObject>::Message>() {
-                                self.on_message(ctx, message);
-                            }else{
-                                println!("Evento incompativel recebido. Esperado: {}", std::any::type_name::<<Self as #p::GameObject>::Message>());
-                            }
-                        }
                     }
                 }
             }
@@ -269,6 +267,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let mut seen_interfaces = std::collections::HashSet::new();
     let mut seen_component_bounds = std::collections::HashSet::new();
     let mut seen_object_bounds = std::collections::HashSet::new();
+
     for field in fields.fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
@@ -370,6 +369,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
         };
     };
+    
     quote! {
         #assert_base_type
         #(#injected_methods)*

@@ -41,7 +41,7 @@ pub struct Tilemap {
     pub visible: bool,
     pub previous_position: Vector2,
     pub position: Vector2,
-    pub z_index: u8,
+    pub z_index: i32,
     pub colliders: Vec<(Id, TileCollision, AABB)>,
     pub collision_rules: FxHashMap<i32, TileCollision>,
     pub collision_layer: Layer,

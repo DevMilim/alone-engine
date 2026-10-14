@@ -140,6 +140,4 @@ impl NetworkServer {
     }
 }
 
-impl GameObject for NetworkServer {
-    type Message = ();
-}
+impl GameObject for NetworkServer {}

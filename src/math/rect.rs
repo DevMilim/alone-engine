@@ -1,4 +1,4 @@
-use crate::math::Vector2;
+use crate::{math::Vector2, render::Anchor};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Rect {
@@ -45,6 +45,106 @@ impl Rect {
         let y = round_to_i32(center.y - size.y / 2.0);
 
         Self::new(x, y, round_to_i32(size.x), round_to_i32(size.y))
+    }
+    pub fn new_from_vecs(position: Vector2, size: Vector2) -> Self {
+        Self {
+            x: position.x.round() as i32,
+            y: position.y.round() as i32,
+            width: size.x.round() as i32,
+            height: size.y.round() as i32,
+        }
+    }
+    pub fn anchored(mut position: Vector2, size: Vector2, anchor: Anchor) -> Self {
+        match anchor {
+            Anchor::Center => Self::from_center(position, size),
+
+            Anchor::TopLeft => Self::new_from_vecs(position, size),
+
+            Anchor::TopCenter => {
+                position.x -= size.x / 2.0;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::TopRight => {
+                position.x -= size.x;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::CenterLeft => {
+                position.y -= size.y / 2.0;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::CenterRight => {
+                position.x -= size.x;
+                position.y -= size.y / 2.0;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::BottomLeft => {
+                position.y -= size.y;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::BottomCenter => {
+                position.x -= size.x / 2.0;
+                position.y -= size.y;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::BottomRight => {
+                position.x -= size.x;
+                position.y -= size.y;
+                Self::new_from_vecs(position, size)
+            }
+        }
+    }
+    pub fn get_anchor(self, anchor: Anchor) -> Self {
+        let mut position = Vector2::new(self.x as f32, self.y as f32);
+        let size = Vector2::new(self.width as f32, self.height as f32);
+        match anchor {
+            Anchor::Center => Self::from_center(position, size),
+
+            Anchor::TopLeft => Self::new_from_vecs(position, size),
+
+            Anchor::TopCenter => {
+                position.x -= size.x / 2.0;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::TopRight => {
+                position.x -= size.x;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::CenterLeft => {
+                position.y -= size.y / 2.0;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::CenterRight => {
+                position.x -= size.x;
+                position.y -= size.y / 2.0;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::BottomLeft => {
+                position.y -= size.y;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::BottomCenter => {
+                position.x -= size.x / 2.0;
+                position.y -= size.y;
+                Self::new_from_vecs(position, size)
+            }
+
+            Anchor::BottomRight => {
+                position.x -= size.x;
+                position.y -= size.y;
+                Self::new_from_vecs(position, size)
+            }
+        }
     }
 }
 const fn round_to_i32(value: f32) -> i32 {

@@ -44,7 +44,6 @@ impl Platform {
 }
 
 impl GameObject for Platform {
-    type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
         let mut sprite = SpriteSrc::new(
             ctx.load_texture(self.base.id, "assets/sprites/platforms.png"),

@@ -54,8 +54,6 @@ impl Player {
 }
 
 impl GameObject for Player {
-    type Message = ();
-
     fn fixed_update(&mut self, ctx: &mut impl EngineApi, delta: f32) {
         match self.state {
             PlayerState::Move => {
@@ -140,7 +138,6 @@ impl Enemy {
 }
 
 impl GameObject for Enemy {
-    type Message = ();
     fn start(&mut self, ctx: &mut impl EngineApi) {
         if let Some(home_pos) = ctx.get_state::<HomePosition>() {
             self.home_pos = Some(home_pos.position);
@@ -190,8 +187,6 @@ impl Pilar {
 }
 
 impl GameObject for Pilar {
-    type Message = ();
-
     fn draw(&mut self, renderer: &mut impl RenderApi, _blending: f32) {
         renderer.draw_rect(
             Rect::new(
@@ -207,7 +202,7 @@ impl GameObject for Pilar {
 }
 
 #[derive(GameObject)]
-#[subscribe(spawn_pilar => SpawnEvent<Pilar>)]
+#[subscribe(main_event => MainEvent, spawn_pilar => SpawnEvent<Pilar>)]
 pub struct MainScene {
     #[base]
     base: Base,
@@ -252,37 +247,8 @@ impl MainScene {
     pub fn spawn_pilar(&mut self, _ctx: &mut impl EngineApi, spawn: &SpawnEvent<Pilar>) {
         self.pilars.spawn(spawn.take().unwrap());
     }
-}
-
-pub struct HomePosition {
-    pub position: Vector2,
-}
-
-#[derive(Clone)]
-pub enum MainEvent {
-    SpawnEnemy,
-    EnemyHit,
-}
-
-impl GameObject for MainScene {
-    type Message = MainEvent;
-
-    fn start(&mut self, ctx: &mut impl EngineApi) {
-        self.pilars
-            .spawn(Pilar::new(Vector2::new(480.0 / 2.0, 270.0 / 2.0).into()));
-
-        self.timer.start_timer(Duration::from_secs_f32(2.0), true);
-        ctx.set_state(HomePosition {
-            position: Vector2::new((480.0 / 2.0) - 32.0, (270.0 / 2.0) - 64.0),
-        });
-        self.timer.set_event(MainEvent::SpawnEnemy);
-        self.collision.set_on_enter(MainEvent::EnemyHit);
-        let font = ctx.load_font(self.base.id, "assets/fonts/PixelOperator8.ttf");
-        self.text.set_font(font);
-        self.text.offset = Vector2::new(10.0, 50.0)
-    }
-    fn on_message(&mut self, ctx: &mut impl EngineApi, msg: &Self::Message) {
-        match msg {
+    pub fn main_event(&mut self, ctx: &mut impl EngineApi, event: &MainEvent) {
+        match event {
             MainEvent::SpawnEnemy => {
                 if !self.game_over {
                     let bottom_y = 260.0;
@@ -301,6 +267,33 @@ impl GameObject for MainScene {
                 self.game_over = true;
             }
         }
+    }
+}
+
+pub struct HomePosition {
+    pub position: Vector2,
+}
+
+#[derive(Clone)]
+pub enum MainEvent {
+    SpawnEnemy,
+    EnemyHit,
+}
+
+impl GameObject for MainScene {
+    fn start(&mut self, ctx: &mut impl EngineApi) {
+        self.pilars
+            .spawn(Pilar::new(Vector2::new(480.0 / 2.0, 270.0 / 2.0).into()));
+
+        self.timer.start_timer(Duration::from_secs_f32(2.0), true);
+        ctx.set_state(HomePosition {
+            position: Vector2::new((480.0 / 2.0) - 32.0, (270.0 / 2.0) - 64.0),
+        });
+        self.timer.set_event(MainEvent::SpawnEnemy);
+        self.collision.set_on_enter(MainEvent::EnemyHit);
+        let font = ctx.load_font(self.base.id, "assets/fonts/PixelOperator8.ttf");
+        self.text.set_font(font);
+        self.text.offset = Vector2::new(10.0, 50.0)
     }
 
     fn draw(&mut self, renderer: &mut impl RenderApi, _blending: f32) {
@@ -328,5 +321,7 @@ pub enum GameScenes {
 }
 
 fn main() {
-    App::<GameScenes>::new(MainScene::new().into()).run();
+    App::<GameScenes>::new(MainScene::new().into())
+        .with_resolution(320, 240)
+        .run();
 }
