@@ -4,6 +4,7 @@ use crate::{
     collision::{AABB, ColliderData, ColliderKey, Layer},
     core::{Base, Component, EngineApi, Id, RenderApi},
     math::{Color, Rect, Vector2i},
+    render::Anchor,
 };
 
 pub enum ColliderType {
@@ -139,6 +140,7 @@ impl Component for Collider {
             ctx.draw_rect(
                 Rect::new(draw_pos.x, draw_pos.y, self.width, self.height),
                 color,
+                Anchor::TopLeft,
                 1,
             );
         }

@@ -81,7 +81,8 @@ impl<'a> Render<'a> {
         resources: &Resources,
     ) -> Option<(isize, isize)> {
         match cmd {
-            DrawCommand::Rect { rect, .. } => {
+            DrawCommand::Rect { rect, anchor, .. } => {
+                let rect = rect.get_anchor(*anchor);
                 let top = rect.y as f32 - cam_y;
                 let bottom = top + rect.height as f32;
                 Some((top.floor() as isize, bottom.ceil() as isize))
@@ -95,38 +96,41 @@ impl<'a> Render<'a> {
                 ..
             } => {
                 let texture = resources.textures.get(*image)?;
-
                 let (sprite_w, sprite_h) = match source {
                     Some(rect) => (rect.width as f32, rect.height as f32),
                     None => (texture.width as f32, texture.height as f32),
                 };
-
                 let hw = sprite_w / 2.0;
                 let hh = sprite_h / 2.0;
 
-                let cy = match anchor {
-                    Anchor::Center => position.y - cam_y,
-                    Anchor::TopLeft => position.y - cam_y + hh,
-                    Anchor::TopCenter => todo!(),
-                    Anchor::TopRight => todo!(),
-                    Anchor::CenterLeft => todo!(),
-                    Anchor::CenterRight => todo!(),
-                    Anchor::BottomLeft => todo!(),
-                    Anchor::BottomCenter => todo!(),
-                    Anchor::BottomRight => todo!(),
-                };
+                let (_, cy) = anchor.rotated_center(
+                    position.x,
+                    position.y - cam_y,
+                    sprite_w,
+                    sprite_h,
+                    *rotation,
+                );
 
-                let bbox_hh = if rotation.abs() < 0.001 {
-                    hh
-                } else {
-                    let (_, cos) = rotation.sin_cos();
-                    hw * rotation.sin().abs() + hh * cos.abs()
-                };
+                let (sin, cos) = rotation.sin_cos();
+                let bbox_hh = hw * sin.abs() + hh * cos.abs();
 
                 Some((
                     (cy - bbox_hh).floor() as isize,
                     (cy + bbox_hh).ceil() as isize,
                 ))
+            }
+            DrawCommand::Text {
+                position,
+                size_px,
+                anchor,
+                ..
+            } => {
+                let (_, fy) = anchor.factors();
+                let size = *size_px as f32;
+                let baseline = position.y - cam_y + (1.0 - fy) * size;
+                let top = baseline - size;
+                let bottom = baseline + size * 0.25;
+                Some((top.floor() as isize, bottom.ceil() as isize))
             }
             DrawCommand::Line {
                 start,
@@ -139,26 +143,6 @@ impl<'a> Render<'a> {
                 let (top, bottom) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
                 let pad = (thickness / 2.0).max(1.0);
                 Some(((top - pad).floor() as isize, (bottom + pad).ceil() as isize))
-            }
-            DrawCommand::Text {
-                text,
-                font,
-                position,
-                size_px,
-                ..
-            } => {
-                let font_obj = resources.fonts.get(*font)?;
-
-                let width: f32 = text
-                    .chars()
-                    .map(|ch| font_obj.font.metrics(ch, *size_px as f32).advance_width)
-                    .sum();
-
-                let top = position.y - cam_y - *size_px as f32;
-                let bottom = position.y - cam_y;
-
-                let _ = width;
-                Some((top.floor() as isize, bottom.ceil() as isize))
             }
         }
     }
@@ -274,6 +258,7 @@ impl<'a> Render<'a> {
                         position,
                         color,
                         size_px,
+                        anchor,
                     } => {
                         Rasterizer::blit_text(
                             frame_pixels,
@@ -287,6 +272,7 @@ impl<'a> Render<'a> {
                             *position,
                             *color,
                             *size_px,
+                            anchor,
                             cam_x,
                             cam_y,
                         );
@@ -311,7 +297,12 @@ impl<'a> Render<'a> {
                             cam_y,
                         );
                     }
-                    DrawCommand::Rect { color, rect } => {
+                    DrawCommand::Rect {
+                        color,
+                        rect,
+                        anchor,
+                    } => {
+                        let r = rect.get_anchor(*anchor);
                         Rasterizer::blit_rect(
                             frame_pixels,
                             frame_width,
@@ -319,8 +310,8 @@ impl<'a> Render<'a> {
                             0,
                             frame_height,
                             color.bytes(),
-                            rect.x as f32,
-                            rect.y as f32,
+                            r.x as f32,
+                            r.y as f32,
                             rect.width as f32,
                             rect.height as f32,
                             cam_x,
@@ -479,6 +470,7 @@ impl<'a> Render<'a> {
                                 position,
                                 color,
                                 size_px,
+                                anchor,
                             } => {
                                 Rasterizer::blit_text(
                                     band_pixels,
@@ -492,6 +484,7 @@ impl<'a> Render<'a> {
                                     *position,
                                     *color,
                                     *size_px,
+                                    anchor,
                                     cam_x,
                                     cam_y,
                                 );
@@ -516,7 +509,12 @@ impl<'a> Render<'a> {
                                     cam_y,
                                 );
                             }
-                            DrawCommand::Rect { color, rect } => {
+                            DrawCommand::Rect {
+                                color,
+                                rect,
+                                anchor,
+                            } => {
+                                let r = rect.get_anchor(*anchor);
                                 Rasterizer::blit_rect(
                                     band_pixels,
                                     frame_width,
@@ -524,8 +522,8 @@ impl<'a> Render<'a> {
                                     y0,
                                     y1,
                                     color.bytes(),
-                                    rect.x as f32,
-                                    rect.y as f32,
+                                    r.x as f32,
+                                    r.y as f32,
                                     rect.width as f32,
                                     rect.height as f32,
                                     cam_x,

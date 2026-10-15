@@ -19,6 +19,37 @@ pub enum Anchor {
     BottomRight,
 }
 
+impl Anchor {
+    #[inline]
+    pub const fn factors(&self) -> (f32, f32) {
+        match self {
+            Anchor::TopLeft => (0.0, 0.0),
+            Anchor::TopCenter => (0.5, 0.0),
+            Anchor::TopRight => (1.0, 0.0),
+            Anchor::CenterLeft => (0.0, 0.5),
+            Anchor::Center => (0.5, 0.5),
+            Anchor::CenterRight => (1.0, 0.5),
+            Anchor::BottomLeft => (0.0, 1.0),
+            Anchor::BottomCenter => (0.5, 1.0),
+            Anchor::BottomRight => (1.0, 1.0),
+        }
+    }
+
+    #[inline]
+    pub fn top_left(&self, x: f32, y: f32, w: f32, h: f32) -> (f32, f32) {
+        let (fx, fy) = self.factors();
+        (x - fx * w, y - fy * h)
+    }
+    #[inline]
+    pub fn rotated_center(&self, x: f32, y: f32, w: f32, h: f32, rotation: f32) -> (f32, f32) {
+        let (fx, fy) = self.factors();
+        let ox = (0.5 - fx) * w;
+        let oy = (0.5 - fy) * h;
+        let (sin, cos) = rotation.sin_cos();
+        (x + ox * cos - oy * sin, y + ox * sin + oy * cos)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum DrawCommand {
     Sprite {
@@ -33,6 +64,7 @@ pub enum DrawCommand {
     Rect {
         color: Color,
         rect: Rect,
+        anchor: Anchor,
     },
     Line {
         start: Vector2,
@@ -46,6 +78,7 @@ pub enum DrawCommand {
         position: Vector2,
         color: Color,
         size_px: u32,
+        anchor: Anchor,
     },
 }
 
@@ -60,9 +93,13 @@ impl<'a> RenderApi for RenderQueue<'a> {
         self.queue[z_index as usize].push(command);
     }
 
-    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: i32) {
+    fn draw_rect(&mut self, rect: Rect, color: Color, anchor: Anchor, z_index: i32) {
         let z_index = z_index.clamp(0, 5);
-        self.queue[z_index as usize].push(DrawCommand::Rect { color, rect });
+        self.queue[z_index as usize].push(DrawCommand::Rect {
+            color,
+            rect,
+            anchor,
+        });
     }
 
     fn draw_sprite(
@@ -112,6 +149,7 @@ impl<'a> RenderApi for RenderQueue<'a> {
         font: Handler<FontAsset>,
         position: Vector2,
         color: Color,
+        anchor: Anchor,
         size_px: u32,
         z_index: i32,
     ) {
@@ -121,6 +159,7 @@ impl<'a> RenderApi for RenderQueue<'a> {
             font,
             position,
             color,
+            anchor,
             size_px,
         });
     }

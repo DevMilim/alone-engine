@@ -83,6 +83,6 @@ impl Component for RectRenderer {
             self.height,
         );
 
-        renderer.draw_rect(rect, self.color, self.z_index);
+        renderer.draw_rect(rect, self.color, Anchor::TopLeft, self.z_index);
     }
 }

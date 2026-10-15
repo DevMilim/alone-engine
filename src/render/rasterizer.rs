@@ -8,6 +8,29 @@ use crate::{
 pub struct Rasterizer;
 
 impl Rasterizer {
+    pub fn measure_text(
+        resources: &Resources,
+        font: Handler<FontAsset>,
+        text: &str,
+        size_px: u32,
+    ) -> f32 {
+        let Some(font_obj) = resources.fonts.get(font) else {
+            return 0.0;
+        };
+        text.chars()
+            .map(|ch| {
+                let key = GlyphKey {
+                    font_id: font.id,
+                    character: ch,
+                    size_px,
+                };
+                match resources.glyph_cache.get(&key) {
+                    Some(info) if info.width > 0 && info.height > 0 => info.advance,
+                    _ => font_obj.font.metrics(ch, size_px as f32).advance_width,
+                }
+            })
+            .sum()
+    }
     pub fn blit_text(
         pixels: &mut [[u8; 4]],
         pixels_width: usize,
@@ -20,6 +43,7 @@ impl Rasterizer {
         position: Vector2,
         color: Color,
         size_px: u32,
+        anchor: &Anchor,
         cam_x: f32,
         cam_y: f32,
     ) {
@@ -32,9 +56,15 @@ impl Rasterizer {
         if base_alpha == 0 {
             return;
         }
+        let (fx, fy) = anchor.factors();
+        let width = if fx == 0.0 {
+            0.0
+        } else {
+            Self::measure_text(resources, font, text, size_px)
+        };
 
-        let mut cursor_x = position.x - cam_x;
-        let baseline_y = position.y - cam_y;
+        let mut cursor_x = position.x - cam_x - fx * width;
+        let baseline_y = position.y - cam_y + (1.0 - fy) * size_px as f32;
 
         let atlas = &resources.glyph_cache.atlas;
         let atlas_width = resources.glyph_cache.atlas_width as usize;
@@ -110,27 +140,34 @@ impl Rasterizer {
         flip_h: bool,
         flip_v: bool,
     ) {
-        let (start_x, start_y) = match anchor {
-            Anchor::Center => {
-                let center_x = position.x - (sprite_w as f32 / 2.0);
-                let center_y = position.y - (sprite_h as f32 / 2.0);
-                (
-                    (center_x - cam_x).round() as isize,
-                    (center_y - cam_y).round() as isize,
-                )
-            }
-            Anchor::TopLeft => (
-                (position.x - cam_x).round() as isize,
-                (position.y - cam_y).round() as isize,
-            ),
-            Anchor::TopCenter => todo!(),
-            Anchor::TopRight => todo!(),
-            Anchor::CenterLeft => todo!(),
-            Anchor::CenterRight => todo!(),
-            Anchor::BottomLeft => todo!(),
-            Anchor::BottomCenter => todo!(),
-            Anchor::BottomRight => todo!(),
-        };
+        if rotation.abs() >= 0.001 {
+            Self::blit_rotated(
+                pixels,
+                pixels_width,
+                row_offset,
+                clip_y0,
+                clip_y1,
+                tex_pixels,
+                tex_width,
+                src_x,
+                src_y,
+                sprite_w,
+                sprite_h,
+                anchor,
+                position,
+                cam_x,
+                cam_y,
+                rotation,
+                flip_h,
+                flip_v,
+            );
+            return;
+        }
+
+        let (tl_x, tl_y) =
+            anchor.top_left(position.x, position.y, sprite_w as f32, sprite_h as f32);
+        let start_x = (tl_x - cam_x).round() as isize;
+        let start_y = (tl_y - cam_y).round() as isize;
 
         let screen_min_x = start_x.max(0) as usize;
         let screen_min_y = start_y.max(clip_y0 as isize) as usize;
@@ -303,20 +340,13 @@ impl Rasterizer {
         flip_h: bool,
         flip_v: bool,
     ) {
-        let (cx, cy): (f32, f32) = match anchor {
-            Anchor::Center => (position.x - cam_x, position.y - cam_y),
-            Anchor::TopLeft => (
-                position.x - cam_x + sprite_w as f32 / 2.0,
-                position.y - cam_y + sprite_h as f32 / 2.0,
-            ),
-            Anchor::TopCenter => todo!(),
-            Anchor::TopRight => todo!(),
-            Anchor::CenterLeft => todo!(),
-            Anchor::CenterRight => todo!(),
-            Anchor::BottomLeft => todo!(),
-            Anchor::BottomCenter => todo!(),
-            Anchor::BottomRight => todo!(),
-        };
+        let (cx, cy) = anchor.rotated_center(
+            position.x - cam_x,
+            position.y - cam_y,
+            sprite_w as f32,
+            sprite_h as f32,
+            rotation,
+        );
 
         let hw = sprite_w as f32 / 2.0;
         let hh = sprite_h as f32 / 2.0;

@@ -170,7 +170,7 @@ pub trait CollisionApi {
 
 pub trait RenderApi {
     fn draw(&mut self, z_index: u8, command: DrawCommand);
-    fn draw_rect(&mut self, rect: Rect, color: Color, z_index: i32);
+    fn draw_rect(&mut self, rect: Rect, color: Color, anchor: Anchor, z_index: i32);
     fn draw_sprite(
         &mut self,
         position: Vector2,
@@ -196,6 +196,7 @@ pub trait RenderApi {
         font: Handler<FontAsset>,
         position: Vector2,
         color: Color,
+        anchor: Anchor,
         size_px: u32,
         z_index: i32,
     );

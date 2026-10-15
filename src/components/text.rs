@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     core::{Component, GameObjectBase, Handler},
     math::{Color, Vector2},
-    render::FontAsset,
+    render::{Anchor, FontAsset},
 };
 
 pub struct Text {
@@ -68,6 +68,7 @@ impl Component for Text {
                 font,
                 self.offset + base.position(),
                 self.color,
+                Anchor::Center,
                 self.size_px,
                 self.z_index,
             );

@@ -84,6 +84,7 @@ impl GameObject for Player {
                 PLAYER_SIZE,
             ),
             Color::BLACK,
+            Anchor::TopLeft,
             2,
         );
     }
@@ -167,6 +168,7 @@ impl GameObject for Enemy {
                 16,
             ),
             Color::rgb(255, 50, 50),
+            Anchor::TopLeft,
             0,
         );
     }
@@ -196,6 +198,7 @@ impl GameObject for Pilar {
                 16,
             ),
             Color::BLUE,
+            Anchor::TopLeft,
             1,
         );
     }
@@ -300,6 +303,7 @@ impl GameObject for MainScene {
         renderer.draw_rect(
             Rect::new((480.0 / 2.0) as i32 - 32, (270.0 / 2.0) as i32 - 64, 64, 48),
             Color::rgb(124, 124, 124),
+            Anchor::TopLeft,
             0,
         );
 
