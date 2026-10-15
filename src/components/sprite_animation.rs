@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::{
     core::{Base, Component, EngineApi, GameObjectBase, RenderApi},
@@ -62,7 +62,7 @@ impl AnimationData {
 }
 
 pub struct SpriteAnimation {
-    animations: HashMap<String, AnimationData>,
+    animations: FxHashMap<String, AnimationData>,
     current_animation: Option<String>,
 
     visible: bool,
@@ -86,7 +86,7 @@ impl Default for SpriteAnimation {
 impl SpriteAnimation {
     pub fn new() -> Self {
         Self {
-            animations: HashMap::new(),
+            animations: FxHashMap::default(),
             current_animation: None,
             visible: true,
             anchor: Anchor::Center,
