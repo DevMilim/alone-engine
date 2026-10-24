@@ -474,7 +474,8 @@ impl<'a> WorldApi for EngineContext<'a> {
         self.systems.live_ids.remove(&id);
     }
     fn destroy(&mut self, id: Id) {
-        self.systems.live_ids.remove(&id);
+        self.abort_tasks_of(id);
+        self.unregister_alive(id);
 
         self.systems.resources.textures.remove_game_object(id);
         self.systems.resources.sounds.remove_game_object(id);

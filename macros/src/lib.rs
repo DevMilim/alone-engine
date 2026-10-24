@@ -442,8 +442,6 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 #(self.#object_fields.dispatch_destroy(ctx);)*
                 
-                ctx.abort_tasks_of(self.base().id);
-                ctx.unregister_alive(self.base().id);
                 ctx.destroy(self.base().id);
             }
         }
