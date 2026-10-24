@@ -6,58 +6,36 @@ use syn::{Ident, Path, Token, Type, parse::{Parse, ParseStream}, punctuated::Pun
 fn get_crate_name() -> proc_macro2::TokenStream {
     quote!(alone_engine)
 }
+#[derive(Debug)]
+enum Role { Base, Component(Option<Path>), Object }
 
 #[derive(Debug)]
-struct GameField {
-    ident: Option<syn::Ident>,
-    ty: syn::Type,
-    base: bool,
-    component: bool,
-    interface: Option<syn::Path>,
-    object: bool,
-}
+struct GameField { ident: Option<Ident>, ty: Type, role: Option<Role> }
 
 impl FromField for GameField {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
-        let mut base = false;
-        let mut component = false;
-        let mut component_trait = None;
-        let mut object = false;
-        let mut markers = 0u8;
-
+        let mut role = None;
         for attr in &field.attrs {
-            if attr.path().is_ident("base") {
-                base = true;
-                markers += 1;
+            let new = if attr.path().is_ident("base") {
+                Role::Base
             } else if attr.path().is_ident("component") {
-                component = true;
-                markers += 1;
-
-                if let syn::Meta::List(meta_list) = &attr.meta {
-                    let args = meta_list
-                        .parse_args::<ComponentArgs>()
-                        .map_err(darling::Error::from)?;
-                    component_trait = args.interface;
-                }
+                let interface = match &attr.meta {
+                    syn::Meta::List(l) => l.parse_args::<ComponentArgs>()
+                        .map_err(darling::Error::from)?.interface,
+                    _ => None,
+                };
+                Role::Component(interface)
             } else if attr.path().is_ident("object") {
-                object = true;
-                markers += 1;
+                Role::Object
+            } else { continue };
+
+            if role.replace(new).is_some() {
+                return Err(darling::Error::custom(
+                    "um campo so pode ter um dos atributos: #[base], #[component] ou #[object]",
+                ).with_span(field));
             }
         }
-        if markers > 1 {
-            return Err(darling::Error::custom(
-                "um campo so pode ter um dos atributos: #[base], #[component] ou #[object]",
-            )
-            .with_span(field));
-        }
-        Ok(GameField {
-            ident: field.ident.clone(),
-            ty: field.ty.clone(),
-            base,
-            component,
-            object,
-            interface: component_trait,
-        })
+        Ok(GameField { ident: field.ident.clone(), ty: field.ty.clone(), role })
     }
 }
 
@@ -86,7 +64,7 @@ impl Parse for ComponentArgs {
                 _ => {
                     return Err(syn::Error::new(
                         key.span(),
-                        format!("chave desconhecida `{key}` em #[component(...)]; use `interface` ou `init`"),
+                        format!("chave desconhecida `{key}` em #[component(...)]; use `interface`"),
                     ));
                 }
             }
@@ -196,7 +174,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     };
 
     let subscribe_arms = build_downcast_arms(&subscribe);
-    let connect_arms = build_downcast_arms(&connect);
+    
 
     let mut seen_subscribe_types = std::collections::HashSet::new();
     let subscribe_type_ids: Vec<_> = subscribe
@@ -224,7 +202,12 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
         })
         .unwrap_or_default();
 
-    let event_dispatch_block = {
+    let has_connect = !connect.is_empty();
+
+
+
+    let event_dispatch_block = has_connect.then(||{
+        let connect_arms = build_downcast_arms(&connect);
         quote! {
             if let Some(events) = ctx.take_mailbox(self.base().id){
                 for event in events{
@@ -238,7 +221,7 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
                 }
             }
         }
-    };
+    });
 
     let register_subscriptions = (!subscribe_type_ids.is_empty())
         .then(|| {
@@ -265,54 +248,51 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let mut bounds = Vec::new();
     let mut pending_component_impls = Vec::new();
     let mut seen_interfaces = std::collections::HashSet::new();
-    let mut seen_component_bounds = std::collections::HashSet::new();
-    let mut seen_object_bounds = std::collections::HashSet::new();
 
     for field in fields.fields {
         let ident = field.ident.as_ref().unwrap();
         let ty = &field.ty;
-
-        if field.base {
-            if base_field.is_some() {
-                return syn::Error::new_spanned(
-                    ident,
-                    "Apenas um campo pode ser marcado como base",
-                )
-                .into_compile_error()
-                .into();
-            }
-            if type_is_base(ty) {
-                base_field = Some(ident.clone());
-            } else {
-                return syn::Error::new_spanned(ty, "O campo base precisa ser do tipo Base")
-                    .into_compile_error()
-                    .into();
-            }
-        } else if field.component {
-            component_fields.push(ident.clone());
-            if seen_component_bounds.insert(quote!(#ty).to_string()) {
-                bounds.push(quote! { #ty: #p::Component });
-            }
-
-            if let Some(trait_path) = &field.interface {
-                let trait_name = quote! {#trait_path}.to_string();
-
-                if !seen_interfaces.insert(trait_name) {
+        match &field.role {
+            Some(Role::Base) => {
+                if base_field.is_some() {
                     return syn::Error::new_spanned(
                         ident,
-                        "A mesma interface de componente só pode ser utilizada uma vez",
+                        "Apenas um campo pode ser marcado como base",
                     )
                     .into_compile_error()
                     .into();
                 }
-
-                pending_component_impls.push((ident.clone(), ty.clone(), trait_path.clone()));
+                if !type_is_base(ty) {
+                    return syn::Error::new_spanned(ty, "O campo base precisa ser do tipo Base")
+                        .into_compile_error()
+                        .into();
+                }
+                base_field = Some(ident.clone());
             }
-        } else if field.object {
-            object_fields.push(ident.clone());
-            if seen_object_bounds.insert(quote!(#ty).to_string()) {
+
+            Some(Role::Component(interface)) => {
+                component_fields.push(ident.clone());
+                bounds.push(quote! { #ty: #p::Component });
+
+                if let Some(trait_path) = interface {
+                    if !seen_interfaces.insert(quote!(#trait_path).to_string()) {
+                        return syn::Error::new_spanned(
+                            ident,
+                            "A mesma interface de componente só pode ser utilizada uma vez",
+                        )
+                        .into_compile_error()
+                        .into();
+                    }
+                    pending_component_impls.push((ident.clone(), ty.clone(), trait_path.clone()));
+                }
+            }
+
+            Some(Role::Object) => {
+                object_fields.push(ident.clone());
                 bounds.push(quote! { #ty: #p::GameObject + #p::GameObjectDispatch });
             }
+
+            None => {}
         }
     }
 
@@ -332,8 +312,9 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
     let ensure_started = quote! {
         if !self.is_started() {
             self.dispatch_start(ctx, parent_base);
+        } else {
+            #apply_transform
         }
-        #apply_transform
     };
 
     let (impl_generics, ty_generics, where_clause) = receiver.generics.split_for_impl();
@@ -409,22 +390,22 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
 
             fn dispatch_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
                 #ensure_started
-                self.update(ctx, delta);
                 #(self.#component_fields.update(ctx, &mut self.#base_field, delta);)*
+                self.update(ctx, delta);
                 #(self.#object_fields.dispatch_update(ctx, &self.#base_field, delta);)*
             }
 
             fn dispatch_late_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
                 #ensure_started
-                self.late_update(ctx, delta);
                 #(self.#component_fields.late_update(ctx, &mut self.#base_field, delta);)*
+                self.late_update(ctx, delta);
                 #(self.#object_fields.dispatch_late_update(ctx, &self.#base_field, delta);)*
             }
 
             fn dispatch_fixed_update(&mut self, ctx: &mut impl #p::EngineApi, parent_base: &#p::Base, delta: f32) {
                 #ensure_started
-                self.fixed_update(ctx, delta);
                 #(self.#component_fields.fixed_update(ctx, &mut self.#base_field, delta);)*
+                self.fixed_update(ctx, delta);
                 #(self.#object_fields.dispatch_fixed_update(ctx, &self.#base_field, delta);)*
             }
 
@@ -436,11 +417,10 @@ pub fn scene_tree(input: TokenStream) -> TokenStream {
             }
 
             fn dispatch_destroy(&mut self, ctx: &mut impl #p::EngineApi) {
-                self.destroy(ctx);
-
-                #unregister_subscriptions
-                #(self.#component_fields.destroy(ctx, &self.#base_field);)*
                 #(self.#object_fields.dispatch_destroy(ctx);)*
+                self.destroy(ctx);
+                #(self.#component_fields.destroy(ctx, &self.#base_field);)*
+                #unregister_subscriptions
                 
                 ctx.destroy(self.base().id);
             }
