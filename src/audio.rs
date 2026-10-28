@@ -5,7 +5,7 @@ use rodio::{
     mixer::{self, Mixer},
 };
 
-use crate::{core::Handler, resources::Resources};
+use crate::{handler::Handler, resources::Resources};
 
 #[derive(Debug)]
 pub struct AudioAsset {

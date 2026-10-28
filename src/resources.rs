@@ -4,7 +4,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     audio::AudioAsset,
-    core::{Handler, Id},
+    core::Id,
+    handler::Handler,
     render::{FontAsset, GlyphCache, ImageAsset},
 };
 

@@ -18,8 +18,7 @@ use winit::{
 };
 
 use crate::{
-    core::{Base, CoreSystems},
-    event::{EventManager, GlobalEvent},
+    core::{Base, CoreSystems, EventManager, GlobalEvent},
     input::InputType,
     math::Vector2,
     render::Render,

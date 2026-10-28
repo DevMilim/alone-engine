@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    core::{Component, GameObjectBase, Handler},
+    core::{Component, GameObjectBase},
+    handler::Handler,
     math::{Color, Vector2},
     render::{Anchor, FontAsset},
 };

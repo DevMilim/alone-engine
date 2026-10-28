@@ -1,7 +1,11 @@
 use crate::{
     audio::AudioAsset,
     collision::{Layer, RaycastHit},
-    core::{AssetApi, AudioApi, CoreApi, Handler, InputApi, SceneApi, TriggerCallbacks, WorldApi},
+    core::{
+        AssetApi, AudioApi, CoreApi, EventManager, GlobalEvent, InputApi, SceneApi, SpawnEvent,
+        TriggerCallbacks, WorldApi,
+    },
+    handler::Handler,
     math::Vector2i,
     render::FontAsset,
     resources::Resources,
@@ -19,7 +23,6 @@ use winit::keyboard::KeyCode;
 use crate::{
     collision::{ColliderData, ColliderKey, CollisionFlag},
     core::{CollisionApi, CoreSystems, EngineApi, EventApi, GameObject, Id},
-    event::{EventManager, GlobalEvent, SpawnEvent},
     math::Vector2,
     render::ImageAsset,
 };

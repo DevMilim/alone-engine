@@ -13,8 +13,8 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 use crate::{
     audio::AudioAsset,
     collision::{ColliderData, ColliderKey, CollisionFlag, Layer, RaycastHit},
-    core::{GameObject, Handler, Id},
-    event::{CallbackEvent, GlobalEvent},
+    core::{CallbackEvent, GameObject, GlobalEvent, Id},
+    handler::Handler,
     input::InputType,
     math::{Color, Rect, Vector2, Vector2i},
     objects::network::NetworkError,

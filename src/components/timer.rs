@@ -1,9 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::{
-    core::{Base, Component, EngineApi},
-    event::CallbackEvent,
-};
+use crate::core::{Base, CallbackEvent, Component, EngineApi};
 
 pub enum TimerEvent {
     Timeout,

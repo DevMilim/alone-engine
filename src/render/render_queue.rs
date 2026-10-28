@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    core::{Handler, RenderApi},
+    core::RenderApi,
+    handler::Handler,
     math::{Color, Rect, Vector2},
     render::{FontAsset, ImageAsset},
 };

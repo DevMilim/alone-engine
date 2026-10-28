@@ -4,10 +4,9 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     collision::{AABB, ColliderData, ColliderKey, Layer},
-    core::{
-        AssetApi, Base, Component, EngineApi, GameObjectBase, Handler, Id, LdtkError, LdtkProject,
-        LdtkTile, RenderApi, TilesetDef,
-    },
+    core::{AssetApi, Base, Component, EngineApi, GameObjectBase, Id, RenderApi},
+    handler::Handler,
+    ldtk_api::{LdtkError, LdtkProject, LdtkTile, TilesetDef},
     math::{Rect, Vector2, Vector2i},
     render::{Anchor, ImageAsset},
 };

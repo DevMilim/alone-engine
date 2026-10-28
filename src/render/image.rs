@@ -3,7 +3,7 @@ use std::path::Path;
 use image::imageops::FilterType;
 
 use crate::{
-    core::Handler,
+    handler::Handler,
     math::{Rect, Vector2i},
 };
 

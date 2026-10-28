@@ -1,5 +1,5 @@
 use crate::{
-    core::Handler,
+    handler::Handler,
     math::{Color, Vector2},
     render::{Anchor, FontAsset, GlyphKey},
     resources::Resources,

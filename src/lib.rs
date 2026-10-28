@@ -4,8 +4,9 @@ pub mod audio;
 pub mod collision;
 pub mod components;
 pub mod core;
-pub mod event;
+pub mod handler;
 pub mod input;
+pub mod ldtk_api;
 pub mod math;
 pub mod objects;
 pub mod render;
@@ -21,7 +22,6 @@ pub mod prelude {
     pub use crate::collision::*;
     pub use crate::components::*;
     pub use crate::core::*;
-    pub use crate::event::*;
     pub use crate::input::*;
     pub use crate::math::*;
     pub use crate::render::*;

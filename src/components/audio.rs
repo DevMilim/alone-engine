@@ -2,7 +2,8 @@ use rodio::Player;
 
 use crate::{
     audio::AudioAsset,
-    core::{Base, Component, EngineApi, Handler},
+    core::{Base, Component, EngineApi},
+    handler::Handler,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
